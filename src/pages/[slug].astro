@@ -1,0 +1,30 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PageRenderer from "@/components/PageRenderer.astro";
+import { getPageStaticPaths, getPublishedPageBySlug } from "@/lib/database/index.js";
+import { getSiteIdentity } from "@/lib/site-config";
+import type { Page } from "@/lib/types/index.js";
+
+export async function getStaticPaths() {
+  return await getPageStaticPaths();
+}
+
+const { slug } = Astro.params;
+if (slug?.includes('.')) {
+  return Astro.redirect('/404');
+}
+
+const page = await getPublishedPageBySlug(slug!);
+
+if (!page) {
+  return Astro.redirect('/404');
+}
+
+const siteIdentity = await getSiteIdentity();
+const pageTitle = page.seoMetadata?.metaTitle || page.title;
+const pageDescription = page.seoMetadata?.metaDescription || page.excerpt || siteIdentity.description;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <PageRenderer page={page as Page} />
+</BaseLayout>

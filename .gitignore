@@ -1,0 +1,71 @@
+# build output
+dist/
+output/
+.vercel/
+.netlify/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# test and coverage outputs
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# caches and build metadata
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# temporary/editor swap files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# environment variables
+.env
+.env.local
+.env.production
+infra/.env
+
+# macOS-specific files
+.DS_Store
+
+# jetbrains setting folder
+.idea/
+.vscode/
+.kiro/
+
+# local scratch files
+geminitest.js
+
+# external docs and drafts
+external_docs/
+
+# Supabase CLI local config
+infra/supabase/config.toml
+infra/supabase/.vscode/
+infra/supabase/.temp/
+
+# Theme installer temp
+infra/themes/.tmp-*
+infra/features/.tmp-*
+
+# local release scratch artifacts
+release/
+
+# Supabase CLI metadata (generated in older/newer CLI combinations)
+infra/supabase/supabase/

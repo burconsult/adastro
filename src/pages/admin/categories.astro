@@ -1,0 +1,17 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import CategoryManager from "@/lib/components/CategoryManager";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+---
+
+<AdminLayout title="Categories" description="Manage your blog categories">
+  <div class="space-y-6">
+    <AdminPageHeader title="Categories" description="Organize posts by topic and hierarchy." />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Category management requires JavaScript. Please enable it to manage categories.
+      </div>
+    </noscript>
+    <CategoryManager client:load />
+  </div>
+</AdminLayout>

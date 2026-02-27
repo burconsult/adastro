@@ -1,0 +1,22 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { ProfileManager } from "@/lib/components/ProfileManager";
+import { loadFeatureModules } from "@/lib/features/loader";
+import { isFeatureActive } from "@/lib/features/state";
+
+let activeFeatureIds: string[] = [];
+
+try {
+  const featureIds = loadFeatureModules().map((module) => module.id);
+  const featureStates = await Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) })));
+  activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
+} catch (error) {
+  console.error('Error resolving active features for profile page:', error);
+}
+---
+
+<BaseLayout title="Your Profile" description="Update your profile details">
+  <div class="py-10 px-4">
+    <ProfileManager client:load activeFeatureIds={activeFeatureIds} />
+  </div>
+</BaseLayout>

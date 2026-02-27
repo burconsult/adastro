@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">AdAstro logo</title>
+  <desc id="desc">A stylized planet with a lightspeed orbit and star trail.</desc>
+  <defs>
+    <radialGradient id="planetGrad" cx="36%" cy="34%" r="72%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="48%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="12" y1="64" x2="116" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.22"/>
+      <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.58"/>
+    </linearGradient>
+    <linearGradient id="trailGrad" x1="92" y1="31" x2="124" y2="31" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FDE68A"/>
+    </linearGradient>
+    <filter id="softGlow" x="0" y="0" width="128" height="128" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+
+  <circle cx="64" cy="64" r="28" fill="url(#planetGrad)"/>
+  <ellipse cx="64" cy="64" rx="45" ry="20" stroke="url(#ringGrad)" stroke-width="4"/>
+
+  <g>
+    <circle cx="104" cy="34" r="5" fill="#FDE68A"/>
+    <path d="M92 34h32" stroke="url(#trailGrad)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M89 34h15" stroke="#FDE68A" stroke-opacity="0.62" stroke-width="2" stroke-linecap="round"/>
+    <animateTransform attributeName="transform" type="rotate" from="0 64 64" to="360 64 64" dur="8s" repeatCount="indefinite"/>
+  </g>
+
+  <g filter="url(#softGlow)" opacity="0.58">
+    <circle cx="64" cy="64" r="30" stroke="#67E8F9" stroke-width="2"/>
+  </g>
+</svg>

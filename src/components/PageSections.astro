@@ -1,0 +1,27 @@
+---
+import type { PageSection } from "@/lib/types";
+import HeroSection from "@/components/sections/HeroSection.astro";
+import InfoBlocksSection from "@/components/sections/InfoBlocksSection.astro";
+import FeatureGridSection from "@/components/sections/FeatureGridSection.astro";
+import CtaSection from "@/components/sections/CtaSection.astro";
+
+const { sections = [], articleBasePath } = Astro.props as {
+  sections?: PageSection[];
+  articleBasePath?: string;
+};
+---
+
+{sections.map((section) => {
+  switch (section.type) {
+    case 'hero':
+      return <HeroSection content={section.content} articleBasePath={articleBasePath} />;
+    case 'info_blocks':
+      return <InfoBlocksSection content={section.content} />;
+    case 'feature_grid':
+      return <FeatureGridSection content={section.content} />;
+    case 'cta':
+      return <CtaSection content={section.content} articleBasePath={articleBasePath} />;
+    default:
+      return null;
+  }
+})}

@@ -1,0 +1,74 @@
+---
+import BlogPostCard from './BlogPostCard.astro';
+import type { BlogPost } from '@/lib/types/index.js';
+
+export interface Props {
+  posts: BlogPost[];
+  variant?: 'default' | 'masonry' | 'featured-first';
+  showExcerpts?: boolean;
+  showTags?: boolean;
+  showCategories?: boolean;
+}
+
+const {
+  posts,
+  variant = 'default',
+  showExcerpts = true,
+  showTags = true,
+  showCategories = false
+} = Astro.props;
+
+const postCount = posts.length;
+const effectiveVariant = variant === 'featured-first' && postCount < 3 ? 'default' : variant;
+
+const gridColumns = (() => {
+  if (effectiveVariant === 'featured-first') {
+    if (postCount <= 1) return 'grid-cols-1';
+    if (postCount === 2) return 'grid-cols-1 md:grid-cols-2';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+  }
+
+  if (postCount <= 1) return 'grid-cols-1';
+  if (postCount === 2) return 'grid-cols-1 md:grid-cols-2';
+  if (postCount <= 6) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+})();
+
+const gridWidth = (() => {
+  if (postCount <= 1) return 'mx-auto max-w-3xl';
+  if (postCount === 2) return 'mx-auto max-w-5xl';
+  if (postCount <= 4) return 'mx-auto max-w-6xl';
+  return '';
+})();
+---
+
+<div class={`grid w-full items-stretch gap-5 sm:gap-6 lg:gap-7 ${gridColumns} ${gridWidth}`}>
+  {posts.map((post, index) => {
+    // For featured-first variant, make the first post featured
+    const cardVariant = effectiveVariant === 'featured-first' && index === 0 ? 'featured' : 'default';
+    
+    return (
+      <BlogPostCard
+        post={post}
+        variant={cardVariant}
+        showExcerpt={showExcerpts}
+        showTags={showTags}
+        showCategories={showCategories}
+      />
+    );
+  })}
+</div>
+
+{posts.length === 0 && (
+  <div class="flex items-center justify-center min-h-[400px] rounded-xl border-2 border-dashed border-border">
+    <div class="text-center max-w-md px-6">
+      <h3 class="text-2xl font-semibold mb-2">No posts found</h3>
+      <p class="text-muted-foreground mb-4">
+        There are no posts to display at the moment.
+      </p>
+      <a href="/" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90">
+        ← Back to home
+      </a>
+    </div>
+  </div>
+)}

@@ -1,0 +1,21 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import AnalyticsDashboard from "@/lib/components/AnalyticsDashboard";
+---
+
+<AdminLayout title="Analytics" description="Basic pageview analytics for your site">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Analytics"
+      description="Built-in first-party pageview analytics for public pages."
+    />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Analytics dashboard requires JavaScript. Please enable it to view metrics.
+      </div>
+    </noscript>
+    <AnalyticsDashboard client:load />
+  </div>
+</AdminLayout>
+

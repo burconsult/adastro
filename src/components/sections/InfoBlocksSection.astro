@@ -1,0 +1,29 @@
+---
+import SectionHeader from "@/components/marketing/SectionHeader.astro";
+
+const { content = {} } = Astro.props as { content?: Record<string, any> };
+const heading = typeof content.heading === 'string' ? content.heading : '';
+const subtitle = typeof content.subtitle === 'string' ? content.subtitle : '';
+const items = Array.isArray(content.items) ? content.items : [];
+---
+
+<section class="mx-auto max-w-6xl px-6 py-16 sm:px-8">
+  <div class="space-y-8">
+    {heading && (
+      <SectionHeader title={heading} subtitle={subtitle} />
+    )}
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {items.map((item, index) => (
+        <div class="surface-card surface-reveal" style={`animation-delay: ${index * 70}ms;`}>
+          {item?.badge && (
+            <span class="inline-flex rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
+              {item.badge}
+            </span>
+          )}
+          <h3 class="mt-3 text-lg font-semibold text-foreground">{item?.title}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{item?.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

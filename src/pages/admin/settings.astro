@@ -1,0 +1,17 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { SettingsManager } from "@/lib/components/SettingsManager";
+---
+
+<AdminLayout title="Settings" description="Configure your blog settings">
+  <div class="space-y-6">
+    <AdminPageHeader title="Settings" description="Configure core site settings, including header and footer menus." />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Settings require JavaScript. Please enable it to manage configuration.
+      </div>
+    </noscript>
+    <SettingsManager client:load excludeCategories={['extras', 'appearance']} hideThemeCustomizer />
+  </div>
+</AdminLayout>

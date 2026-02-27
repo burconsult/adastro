@@ -1,0 +1,15 @@
+{
+  "id": "nordic-modern",
+  "label": "Nordic Modern",
+  "description": "Minimal Nordic neutrals with crisp blue accents.",
+  "version": "1.0.0",
+  "author": "Kilpbase",
+  "entry": "index.ts",
+  "fontImports": [
+    "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Inter+Tight:wght@400;500;600;700&display=swap"
+  ],
+  "fonts": {
+    "body": "'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "heading": "'Instrument Serif', Georgia, 'Times New Roman', serif"
+  }
+}

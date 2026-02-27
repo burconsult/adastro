@@ -1,0 +1,84 @@
+---
+import { assetFromUrl, buildFallbackSrc, buildSourceSets, approximateSizes } from '@/lib/media/image-helpers';
+
+export interface Props {
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  sizes?: string;
+  loading?: "lazy" | "eager";
+  class?: string;
+  priority?: boolean;
+}
+
+const {
+  src,
+  alt,
+  width,
+  height,
+  sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw",
+  loading = "lazy",
+  class: className = "",
+  priority = false,
+} = Astro.props;
+
+const asset = assetFromUrl(src, alt);
+const sources = buildSourceSets(asset);
+const fallbackSrc = buildFallbackSrc(asset);
+const finalLoading = priority ? "eager" : loading;
+const resolvedSizes = sizes || approximateSizes();
+---
+
+<picture class={`responsive-picture ${className}`.trim()}>
+  {sources.map((source) => (
+    <source type={`image/${source.format}`} srcset={source.srcset} sizes={resolvedSizes} />
+  ))}
+  <img
+    src={fallbackSrc}
+    alt={alt}
+    width={width}
+    height={height}
+    loading={finalLoading}
+    sizes={resolvedSizes}
+    class={`responsive-image ${className}`}
+    decoding="async"
+  />
+</picture>
+
+<style>
+  .responsive-image {
+    display: block;
+    max-width: 100%;
+    transition: opacity 0.3s ease;
+  }
+
+  .responsive-picture {
+    display: block;
+    line-height: 0;
+  }
+
+  .responsive-image[loading="lazy"] {
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Aspect ratio containers for consistent layouts */
+  .aspect-video {
+    aspect-ratio: 16 / 9;
+  }
+
+  .aspect-square {
+    aspect-ratio: 1 / 1;
+  }
+
+  .aspect-portrait {
+    aspect-ratio: 3 / 4;
+  }
+</style>

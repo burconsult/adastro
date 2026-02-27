@@ -1,0 +1,21 @@
+---
+type Props = {
+  title: string;
+  description?: string;
+};
+
+const { title, description } = Astro.props as Props;
+const hasActions = Astro.slots.has('actions');
+---
+
+<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{title}</h1>
+    {description && <p class="mt-2 text-sm text-muted-foreground sm:text-base">{description}</p>}
+  </div>
+  {hasActions && (
+    <div class="flex flex-wrap items-center gap-2">
+      <slot name="actions" />
+    </div>
+  )}
+</div>

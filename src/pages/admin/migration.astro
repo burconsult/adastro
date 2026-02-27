@@ -1,0 +1,208 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
+---
+
+<AdminLayout title="Migration" description="Import your WordPress WXR export">
+  <div class="space-y-8">
+    <AdminPageHeader
+      title="Migration"
+      description="Import your WordPress WXR export."
+    />
+    <section class="card p-6 space-y-4">
+      <h2 class="text-2xl font-semibold tracking-tight">WordPress Migration</h2>
+      <p class="text-muted-foreground text-sm leading-relaxed">
+        Upload a WordPress WXR export to migrate posts, authors, categories, tags, and media into the platform.
+        The importer optimizes media assets, preserves SEO metadata, and generates redirect mappings to help you
+        retain search traffic.
+      </p>
+      <ul class="list-disc list-inside text-sm text-muted-foreground space-y-1">
+        <li>Export your site from WordPress using the <strong>Tools → Export</strong> menu.</li>
+        <li>Choose the <strong>All content</strong> option so posts, authors, taxonomies, and media are included in the export.</li>
+        <li>WordPress pages are currently not imported by this tool and should be recreated in the Pages editor.</li>
+        <li>Upload the generated <code>.xml</code> file below and select the import options that apply to your site.</li>
+      </ul>
+    </section>
+
+    <form id="migration-form" class="card p-6 space-y-6" enctype="multipart/form-data">
+      <div class="space-y-2">
+        <label for="wxr-file" class="text-sm font-medium">WXR File</label>
+        <input
+          id="wxr-file"
+          name="file"
+          type="file"
+          accept=".xml,.wxr"
+          required
+          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <p class="text-xs text-muted-foreground">
+          Maximum recommended size: 50 MB. For larger exports, consider splitting content into multiple files.
+        </p>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="includeDrafts" value="true" class="mt-1" />
+          <span>
+            <span class="block font-medium">Include drafts</span>
+            <span class="text-sm text-muted-foreground">Import unpublished drafts alongside published posts.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="overwriteExisting" value="true" class="mt-1" />
+          <span>
+            <span class="block font-medium">Overwrite existing slugs</span>
+            <span class="text-sm text-muted-foreground">Replace posts that share the same slug instead of skipping them.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="generateAltText" value="true" class="mt-1" checked />
+          <span>
+            <span class="block font-medium">Generate missing alt text</span>
+            <span class="text-sm text-muted-foreground">Create descriptive alt text for images without accessibility metadata.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="optimizeImages" value="true" class="mt-1" checked />
+          <span>
+            <span class="block font-medium">Optimize media</span>
+            <span class="text-sm text-muted-foreground">Resize oversized images and generate modern formats (WebP/AVIF).</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="postMigrationCleanup" value="true" class="mt-1" checked />
+          <span>
+            <span class="block font-medium">Run post-migration cleanup</span>
+            <span class="text-sm text-muted-foreground">Update image URLs, fix internal links, and fill missing SEO metadata.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="trialImport" value="true" class="mt-1" />
+          <span>
+            <span class="block font-medium">Trial import (10 posts)</span>
+            <span class="text-sm text-muted-foreground">Import categories, tags, and only the first 10 published posts with their media.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-2">
+          <label for="new-base-url" class="text-sm font-medium">New base URL (optional)</label>
+          <input
+            id="new-base-url"
+            name="newBaseUrl"
+            type="url"
+            placeholder="https://yournewsroom.com"
+            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <p class="text-xs text-muted-foreground">Used to generate redirect mappings for posts, categories, and tags.</p>
+        </div>
+        <label class="flex items-start gap-3 rounded-lg border border-input bg-muted/30 p-4">
+          <input type="checkbox" name="preserveURLStructure" value="true" class="mt-1" />
+          <span>
+            <span class="block font-medium">Preserve URL structure</span>
+            <span class="text-sm text-muted-foreground">Keep original slug paths when generating redirect mappings.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="submit" class="btn btn-primary" id="migration-submit">
+          Start Import
+        </button>
+        <span id="migration-status" class="text-sm text-muted-foreground"></span>
+      </div>
+
+      <div id="migration-progress" class="space-y-2 hidden" data-progress>
+        <div class="flex items-center justify-between text-xs text-muted-foreground">
+          <span data-progress-status>Preparing migration…</span>
+          <span data-progress-percent>0%</span>
+        </div>
+        <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div data-progress-bar class="h-full bg-primary transition-all duration-200" style="width: 0%"></div>
+        </div>
+        <ul data-progress-log class="space-y-1 text-xs text-muted-foreground"></ul>
+      </div>
+    </form>
+
+    <section class="card p-6 space-y-4" id="migration-steps">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-semibold">Migration Progress</h2>
+          <p class="text-sm text-muted-foreground">Track each step of the import in real time.</p>
+        </div>
+      </div>
+      <ol class="space-y-3 text-sm" data-step-list>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="parse">
+          <span>1. Parse WXR file</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="authors">
+          <span>2. Import authors</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="categories">
+          <span>3. Import categories</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="tags">
+          <span>4. Import tags</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="media">
+          <span>5. Import media</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="posts">
+          <span>6. Import posts</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+        <li class="flex items-center justify-between rounded-md border border-input bg-muted/30 px-4 py-3" data-step="cleanup">
+          <span>7. Post-migration cleanup</span>
+          <span class="text-xs text-muted-foreground" data-step-meta>Waiting…</span>
+        </li>
+      </ol>
+    </section>
+
+    <section id="migration-results" class="card p-6 space-y-6 hidden">
+      <div>
+        <h2 class="text-xl font-semibold">Import Summary</h2>
+        <p class="text-sm text-muted-foreground">Review the results of the most recent migration.</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3" data-undo-block>
+        <button class="btn btn-outline text-sm" id="migration-undo" type="button" disabled>
+          Undo last migration
+        </button>
+        <span class="text-xs text-muted-foreground" id="migration-undo-note">
+          Undo is available for trial imports without overwrite.
+        </span>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2" data-summary></div>
+
+      <div class="space-y-3" data-optimization></div>
+      <div class="space-y-3" data-post-optimization></div>
+
+      <div class="space-y-2 hidden" data-warnings></div>
+      <div class="space-y-2 hidden" data-errors></div>
+
+      <div class="space-y-3" data-redirects>
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Redirect mappings</h3>
+          <a
+            data-redirect-download
+            class="btn btn-outline text-sm hidden"
+            download="redirect-mappings.json"
+            href="#"
+          >
+            Download JSON
+          </a>
+        </div>
+        <div class="rounded-md border border-dashed border-border bg-muted/40 p-4 text-xs text-muted-foreground" data-redirect-preview>
+          Upload a file to generate redirect mappings.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/scripts/admin-migration.js" defer is:inline></script>
+</AdminLayout>

@@ -1,0 +1,15 @@
+{
+  "id": "monochrome-calm",
+  "label": "Monochrome Calm",
+  "description": "High-contrast grayscale with soft muted tones.",
+  "version": "1.0.0",
+  "author": "Kilpbase",
+  "entry": "index.ts",
+  "fontImports": [
+    "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Libre+Baskerville:wght@400;700&display=swap"
+  ],
+  "fonts": {
+    "body": "'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "heading": "'Libre Baskerville', 'Georgia', 'Times New Roman', serif"
+  }
+}

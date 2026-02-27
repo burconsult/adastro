@@ -1,0 +1,310 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { authService } from "@/lib/auth/auth-helpers";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { Plus, Trash2, UserCog, Users, X } from "lucide-react";
+
+let users = [];
+let error = null;
+
+const roleBadgeClass = (role: string) =>
+  role === 'admin'
+    ? 'bg-destructive/10 text-destructive'
+    : role === 'author'
+      ? 'bg-info/10 text-info'
+      : 'bg-muted text-muted-foreground';
+
+const statusBadgeClass = (emailConfirmed: boolean) =>
+  emailConfirmed
+    ? 'bg-success/10 text-success'
+    : 'bg-warning/10 text-warning-foreground';
+
+try {
+  const result = await authService.listUsers();
+  users = result.users;
+} catch (err) {
+  console.error('Error loading users:', err);
+  error = err instanceof Error ? err.message : 'Failed to load users';
+}
+---
+
+<AdminLayout title="User Management" description="Manage users and their roles">
+  <div class="space-y-6">
+    <AdminPageHeader title="Users" description="Manage user accounts and permissions.">
+      <button id="invite-user-btn" class="btn btn-primary" slot="actions">
+        <Plus className="mr-2 h-4 w-4" />
+        Invite User
+      </button>
+    </AdminPageHeader>
+
+    {error && (
+      <div class="rounded-md border border-destructive/20 bg-destructive/10 p-4">
+        <p class="text-sm text-destructive">{error}</p>
+      </div>
+    )}
+
+    <div class="card p-4">
+      <div class="grid gap-4 md:grid-cols-[180px_1fr_180px_180px]">
+        <div>
+          <label for="user-search-field-filter" class="mb-1 block text-sm font-medium text-foreground">Search In</label>
+          <select id="user-search-field-filter" class="w-full rounded-md border border-input px-3 py-2 text-sm">
+            <option value="all">All columns</option>
+            <option value="email">Email</option>
+            <option value="role">Role</option>
+            <option value="status">Status</option>
+          </select>
+        </div>
+        <div>
+          <label for="user-search-filter" class="mb-1 block text-sm font-medium text-foreground">Search</label>
+          <input
+            id="user-search-filter"
+            type="search"
+            placeholder="Search users"
+            class="w-full rounded-md border border-input px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label for="user-role-filter" class="mb-1 block text-sm font-medium text-foreground">Role</label>
+          <select id="user-role-filter" class="w-full rounded-md border border-input px-3 py-2 text-sm">
+            <option value="">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="author">Author</option>
+            <option value="reader">Reader</option>
+          </select>
+        </div>
+        <div>
+          <label for="user-status-filter" class="mb-1 block text-sm font-medium text-foreground">Status</label>
+          <select id="user-status-filter" class="w-full rounded-md border border-input px-3 py-2 text-sm">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="flex items-center justify-between border-b px-4 py-3 sm:px-6">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">All Users</h2>
+        <p id="users-visible-count" class="text-sm text-muted-foreground">{users.length} users</p>
+      </div>
+
+      {users.length > 0 ? (
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-full text-sm" id="users-table">
+            <thead class="border-b border-border bg-muted/60 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr class="text-left">
+                <th class="px-4 py-3 sm:px-6">User</th>
+                <th class="hidden px-4 py-3 md:table-cell">Role</th>
+                <th class="hidden px-4 py-3 lg:table-cell">Status</th>
+                <th class="hidden px-4 py-3 xl:table-cell">Last Sign In</th>
+                <th class="px-4 py-3 text-right sm:px-6">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body" class="divide-y divide-border/60 bg-card">
+              {users.map((user) => {
+                const userEmail = typeof user.email === 'string' && user.email.trim().length > 0
+                  ? user.email
+                  : 'Unknown user';
+                const userRole = user.role || 'reader';
+                const userStatus = user.emailConfirmed ? 'active' : 'pending';
+                const joinedDate = user.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString()
+                  : 'Unknown';
+                const lastSeenDate = user.lastSignInAt
+                  ? new Date(user.lastSignInAt).toLocaleDateString()
+                  : 'Never';
+
+                return (
+                  <tr
+                    class="hover:bg-muted/50"
+                    data-user-row
+                    data-user-id={user.id}
+                    data-email={userEmail.toLowerCase()}
+                    data-role={userRole}
+                    data-status={userStatus}
+                  >
+                    <td class="px-4 py-3 sm:px-6">
+                      <div class="flex items-center gap-3">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                          <span class="text-sm font-medium">
+                            {userEmail.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div class="min-w-0">
+                          <p class="truncate font-medium text-foreground">{userEmail}</p>
+                          <p class="text-xs text-muted-foreground">
+                            Joined {joinedDate}
+                          </p>
+                          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:hidden">
+                            <span
+                              data-role-badge
+                              class={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeClass(userRole)}`}
+                            >
+                              {userRole}
+                            </span>
+                            <span class={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(user.emailConfirmed)}`}>
+                              {user.emailConfirmed ? 'Active' : 'Pending'}
+                            </span>
+                            <span>{lastSeenDate}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="hidden px-4 py-3 md:table-cell">
+                      <span
+                        data-role-badge
+                        class={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${roleBadgeClass(userRole)}`}
+                      >
+                        {userRole}
+                      </span>
+                    </td>
+                    <td class="hidden px-4 py-3 lg:table-cell">
+                      <span class={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusBadgeClass(user.emailConfirmed)}`}>
+                        {user.emailConfirmed ? 'Active' : 'Pending'}
+                      </span>
+                    </td>
+                    <td class="hidden px-4 py-3 text-muted-foreground xl:table-cell">
+                      {lastSeenDate}
+                    </td>
+                    <td class="px-4 py-3 text-right sm:px-6">
+                      <div class="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-outline btn-sm h-8 w-8 p-0 border-border bg-background text-foreground shadow-sm hover:bg-muted/70"
+                          data-action="edit-user"
+                          data-user-id={user.id}
+                          data-user-role={userRole}
+                          data-user-email={userEmail}
+                          title="Edit role"
+                          aria-label={`Edit role for ${userEmail}`}
+                        >
+                          <UserCog className="h-3.5 w-3.5" />
+                        </button>
+                        {userRole !== 'admin' && (
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm h-8 w-8 p-0 border-red-300 bg-red-50 text-red-700 shadow-sm hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/60"
+                            data-action="delete-user"
+                            data-user-id={user.id}
+                            data-user-email={userEmail}
+                            title="Delete user"
+                            aria-label={`Delete ${userEmail}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr id="users-no-results-row" class="hidden">
+                <td colSpan={5} class="px-6 py-8 text-center text-muted-foreground">
+                  <span id="users-no-results-text">No users match the current filters.</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div class="p-8 text-center text-muted-foreground">
+          <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
+          <p>No users found</p>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div id="invite-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="mx-4 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-xl">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Invite User</h3>
+        <button id="close-modal" type="button" aria-label="Close invite dialog" class="text-muted-foreground hover:text-foreground">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <form id="invite-form" class="space-y-4">
+        <div>
+          <label for="invite-email" class="mb-2 block text-sm font-medium">Email</label>
+          <input
+            type="email"
+            id="invite-email"
+            name="email"
+            required
+            class="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="user@example.com"
+          />
+        </div>
+
+        <div>
+          <label for="invite-role" class="mb-2 block text-sm font-medium">Role</label>
+          <select
+            id="invite-role"
+            name="role"
+            class="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="author">Author</option>
+            <option value="reader">Reader</option>
+            <option value="admin">Admin</option>
+          </select>
+          <p class="mt-2 text-xs text-muted-foreground">
+            Supabase invite flow: the user opens the invite email, sets a password, and is redirected to the correct AdAstro route automatically.
+          </p>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="submit" class="btn btn-primary flex-1">
+            Send Invitation
+          </button>
+          <button type="button" id="cancel-invite" class="btn btn-outline flex-1">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="edit-role-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="mx-4 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-xl">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Edit User Role</h3>
+        <button id="close-role-modal" type="button" aria-label="Close role dialog" class="text-muted-foreground hover:text-foreground">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <form id="edit-role-form" class="space-y-4">
+        <input type="hidden" id="edit-role-user-id" name="userId" />
+        <div>
+          <p class="text-sm text-muted-foreground">User</p>
+          <p id="edit-role-user-email" class="font-medium"></p>
+        </div>
+        <div>
+          <label for="edit-role-select" class="mb-2 block text-sm font-medium">Role</label>
+          <select
+            id="edit-role-select"
+            name="role"
+            class="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="reader">Reader</option>
+            <option value="author">Author</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="submit" id="save-role-btn" class="btn btn-primary flex-1">
+            Save Role
+          </button>
+          <button type="button" id="cancel-role" class="btn btn-outline flex-1">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/scripts/admin-users.js" defer is:inline></script>
+</AdminLayout>

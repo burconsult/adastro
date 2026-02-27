@@ -1,0 +1,8 @@
+{
+  "id": "newsletter",
+  "entry": "index.ts",
+  "migrationsDir": "migrations",
+  "uninstallSql": "uninstall.sql",
+  "dataTables": ["newsletter_subscribers", "newsletter_campaigns", "newsletter_deliveries"],
+  "profileDataKey": "newsletter"
+}

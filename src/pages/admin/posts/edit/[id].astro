@@ -1,0 +1,102 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { PostRepository } from "@/lib/database/repositories/post-repository";
+import { AuthorRepository } from "@/lib/database/repositories/author-repository";
+import { CategoryRepository } from "@/lib/database/repositories/category-repository";
+import { TagRepository } from "@/lib/database/repositories/tag-repository";
+import { SettingsService } from "@/lib/services/settings-service";
+import PostEditor from "@/lib/components/PostEditor.tsx";
+import { getSiteContentRouting } from "@/lib/site-config";
+import { buildArticlePostPath, buildArticlesIndexPath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles";
+import { loadFeatureModules } from "@/lib/features/loader";
+import { isFeatureActive } from "@/lib/features/state";
+
+const { id } = Astro.params;
+const user = Astro.locals.user;
+const isAdmin = user?.role === 'admin';
+const authorId = user?.authorId;
+const contentRouting = await getSiteContentRouting();
+
+if (!id) {
+  return Astro.redirect('/admin/posts');
+}
+
+// Get the post and related data
+let post: any = null;
+let authors: any[] = [];
+let categories: any[] = [];
+let tags: any[] = [];
+let blockEditorEnabled = false;
+let activeFeatureIds: string[] = [];
+let viewPostHref = buildArticlesIndexPath(DEFAULT_ARTICLE_ROUTING);
+
+try {
+  const postRepo = new PostRepository(true);
+  const authorRepo = new AuthorRepository(true);
+  const categoryRepo = new CategoryRepository(true);
+  const tagRepo = new TagRepository(true);
+  const settingsService = new SettingsService();
+
+  const featureIds = loadFeatureModules().map((featureModule) => featureModule.id);
+  const [postResult, authorResults, categoryResults, tagResults, editorSettings, featureStates] = await Promise.all([
+    postRepo.findByIdWithRelations(id),
+    authorRepo.findAll(),
+    categoryRepo.findAll(),
+    tagRepo.findAll(),
+    settingsService.getSettings([
+      'editor.blocks.enabled'
+    ]),
+    Promise.all(featureIds.map(async (featureId) => ({ id: featureId, active: await isFeatureActive(featureId) })))
+  ]);
+
+  post = postResult;
+  authors = authorResults;
+  categories = categoryResults;
+  tags = tagResults;
+  blockEditorEnabled = Boolean(editorSettings['editor.blocks.enabled']);
+  activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
+  if (!post || (!isAdmin && post.author.id !== authorId)) {
+    return Astro.redirect('/admin/posts');
+  }
+
+  if (!isAdmin && authorId) {
+    authors = authors.filter((author) => author.id === authorId);
+  }
+
+  viewPostHref = buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, {
+    basePath: contentRouting.articleBasePath,
+    permalinkStyle: contentRouting.articlePermalinkStyle
+  });
+} catch (error) {
+  console.error('Error loading post:', error);
+  return Astro.redirect('/admin/posts');
+}
+---
+
+<AdminLayout title={`Edit: ${post.title}`} description="Edit blog post">
+  <div class="space-y-6">
+    <AdminPageHeader title="Edit Post" description={post.title}>
+      <a href={viewPostHref} target="_blank" rel="noreferrer" class="btn btn-outline" slot="actions">
+        View Post
+      </a>
+      <a href="/admin/posts" class="btn btn-outline" slot="actions">
+        ← Back to Posts
+      </a>
+    </AdminPageHeader>
+
+    <!-- Post Editor -->
+    <PostEditor
+      client:load
+      mode="edit"
+      post={JSON.parse(JSON.stringify(post, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      categories={JSON.parse(JSON.stringify(categories, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      tags={JSON.parse(JSON.stringify(tags, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      blockEditorEnabled={blockEditorEnabled}
+      activeFeatureIds={activeFeatureIds}
+      articleBasePath={contentRouting.articleBasePath}
+      articlePermalinkStyle={contentRouting.articlePermalinkStyle}
+    />
+  </div>
+</AdminLayout>

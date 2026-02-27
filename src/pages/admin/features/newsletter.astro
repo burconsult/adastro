@@ -1,0 +1,27 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
+import NewsletterFeatureDashboard from '@/lib/components/admin/NewsletterFeatureDashboard';
+import { isFeatureActive } from '@/lib/features/state';
+
+const newsletterActive = await isFeatureActive('newsletter');
+if (!newsletterActive) {
+  return Astro.redirect('/admin/features');
+}
+---
+
+<AdminLayout title="Newsletter" description="Manage newsletter settings and custom campaigns">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Newsletter"
+      description="Configure delivery settings and create custom subscriber campaigns."
+    />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Newsletter management requires JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
+
+    <NewsletterFeatureDashboard client:load />
+  </div>
+</AdminLayout>

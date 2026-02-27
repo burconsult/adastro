@@ -1,0 +1,171 @@
+import React, { useMemo, useState } from 'react';
+import ModeToggle from '@/components/ModeToggle';
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/lib/components/ui/dialog';
+import { UserRound, X } from 'lucide-react';
+
+type NavLink = {
+  label: string;
+  href: string;
+};
+
+type Props = {
+  siteTitle?: string;
+  siteLogoUrl?: string;
+  navLinks?: NavLink[];
+  authLink?: NavLink;
+  authState?: 'authenticated' | 'guest';
+  primaryCta?: {
+    label: string;
+    href: string;
+  } | null;
+};
+
+export default function MobileNavigation({
+  siteTitle = 'AdAstro',
+  siteLogoUrl = '/logo.svg',
+  navLinks = [],
+  authLink,
+  authState = 'guest',
+  primaryCta = null
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const prefetchProps = (href: string): Record<string, string> =>
+    href.startsWith('/') ? { 'data-astro-prefetch': 'hover' } : {};
+  const secondaryLinks = useMemo(() => navLinks.filter((link) => Boolean(link)), [navLinks]);
+  const links = secondaryLinks.length > 0
+    ? secondaryLinks
+    : [{ label: 'Home', href: '/' }];
+  const menuLinks = authLink ? [...links, authLink] : links;
+  const isAuthenticated = authState === 'authenticated';
+
+  return (
+    <nav className="flex items-center gap-3">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden"
+            aria-label="Toggle mobile menu"
+            aria-expanded={open}
+          >
+            <span className="sr-only">Open menu</span>
+            <div className="flex flex-col gap-1">
+              <span className={`h-0.5 w-5 bg-current transition ${open ? 'translate-y-1.5 rotate-45' : ''}`}></span>
+              <span className={`h-0.5 w-5 bg-current transition ${open ? 'opacity-0' : ''}`}></span>
+              <span className={`h-0.5 w-5 bg-current transition ${open ? '-translate-y-1.5 -rotate-45' : ''}`}></span>
+            </div>
+          </button>
+        </DialogTrigger>
+        <DialogContent
+          containerClassName="items-stretch justify-start"
+          className="ml-0 mr-auto flex h-full w-[85vw] max-w-sm flex-col gap-6 rounded-none border-r border-border bg-background p-6 shadow-xl"
+        >
+          <div className="flex items-center justify-between">
+            <a href="/" {...prefetchProps('/')} className="flex items-center gap-2 text-lg font-semibold">
+              <img src={siteLogoUrl} alt={`${siteTitle} logo`} className="h-7 w-7" />
+              <span>{siteTitle}</span>
+            </a>
+            <DialogClose>
+              <button
+                type="button"
+                className="h-10 w-10 rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+                aria-label="Close mobile menu"
+              >
+                <X className="mx-auto h-5 w-5" aria-hidden="true" />
+              </button>
+            </DialogClose>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-2">
+            {menuLinks.map((link) => (
+              <DialogClose key={link.href}>
+                <a
+                  href={link.href}
+                  {...prefetchProps(link.href)}
+                  className="flex min-h-[48px] items-center rounded-lg px-3 text-base font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  {link.label}
+                </a>
+              </DialogClose>
+            ))}
+          </div>
+
+          <div className="space-y-4 border-t border-border pt-4">
+            {primaryCta && (
+              <DialogClose>
+                <a
+                  href={primaryCta.href}
+                  {...prefetchProps(primaryCta.href)}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-base font-semibold text-primary-foreground transition hover:bg-primary/90"
+                >
+                  {primaryCta.label}
+                </a>
+              </DialogClose>
+            )}
+            <ModeToggle variant="list" label="Toggle theme" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {authLink && (
+        <a
+          href={authLink.href}
+          {...prefetchProps(authLink.href)}
+          aria-label={authLink.label}
+          className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden ${
+            isAuthenticated ? 'w-10 rounded-full' : 'rounded-md px-3 text-xs font-semibold'
+          }`}
+        >
+          {isAuthenticated ? (
+            <UserRound className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <span>Sign in</span>
+          )}
+        </a>
+      )}
+
+      <div className="hidden items-center gap-4 text-base text-muted-foreground sm:flex">
+        {secondaryLinks.map((link) => (
+          <a
+            key={link.href}
+            href={link.href}
+            {...prefetchProps(link.href)}
+            className="rounded-md px-2 py-1.5 text-[0.97rem] font-medium hover:bg-accent hover:text-foreground transition-colors"
+          >
+            {link.label}
+          </a>
+        ))}
+        {primaryCta && (
+          <a
+            href={primaryCta.href}
+            {...prefetchProps(primaryCta.href)}
+            className="inline-flex items-center rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition hover:bg-foreground/90"
+          >
+            {primaryCta.label}
+          </a>
+        )}
+        <ModeToggle />
+        {authLink && (
+          isAuthenticated ? (
+            <a
+              href={authLink.href}
+              {...prefetchProps(authLink.href)}
+              aria-label={authLink.label}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+            >
+              <UserRound className="h-5 w-5" aria-hidden="true" />
+            </a>
+          ) : (
+            <a
+              href={authLink.href}
+              {...prefetchProps(authLink.href)}
+              className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Sign in
+            </a>
+          )
+        )}
+      </div>
+    </nav>
+  );
+}

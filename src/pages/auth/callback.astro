@@ -1,0 +1,18 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { sanitizeRedirectPath } from "@/lib/auth/redirects";
+
+const redirectTarget = sanitizeRedirectPath(Astro.url.searchParams.get('redirect'), '/profile');
+---
+
+<BaseLayout title="Signing you in" description="Completing authentication">
+  <div class="min-h-[calc(100vh-8rem)] flex items-center justify-center p-6" id="auth-callback-root" data-redirect-target={redirectTarget}>
+    <div class="card p-8 max-w-md text-center space-y-4">
+      <h1 class="text-2xl font-semibold">Finishing sign in</h1>
+      <p class="text-sm text-muted-foreground">We’re syncing your session. You’ll be redirected shortly.</p>
+      <p id="callback-message" class="text-sm text-muted-foreground"></p>
+    </div>
+  </div>
+
+  <script src="/scripts/auth-callback.js" is:inline></script>
+</BaseLayout>

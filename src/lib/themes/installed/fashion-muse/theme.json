@@ -1,0 +1,15 @@
+{
+  "id": "fashion-muse",
+  "label": "Fashion Muse",
+  "description": "Editorial contrast with blush accents and polished neutrals.",
+  "version": "1.0.0",
+  "author": "Kilpbase",
+  "entry": "index.ts",
+  "fontImports": [
+    "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+  ],
+  "fonts": {
+    "body": "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "heading": "'Playfair Display', 'Georgia', 'Times New Roman', serif"
+  }
+}

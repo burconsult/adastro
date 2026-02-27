@@ -1,0 +1,7 @@
+{
+  "id": "comments",
+  "entry": "index.ts",
+  "migrationsDir": "migrations",
+  "uninstallSql": "uninstall.sql",
+  "dataTables": ["comments"]
+}

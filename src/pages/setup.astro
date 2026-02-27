@@ -1,0 +1,14 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SetupWizard from "@/lib/components/SetupWizard";
+---
+
+<BaseLayout
+  title="Setup Wizard | AdAstro"
+  description="AdAstro - The Lightspeed CMS setup wizard for Supabase and Vercel/Netlify deployment."
+  hideFooterNewsletter={true}
+>
+  <section class="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8 sm:py-14">
+    <SetupWizard client:load />
+  </section>
+</BaseLayout>

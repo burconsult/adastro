@@ -1,0 +1,143 @@
+---
+import "@/styles/global.css";
+import "@/lib/themes/manifest";
+import AdminSidebar from "@/components/AdminSidebar.tsx";
+import AdminMobileNav from "@/components/AdminMobileNav.tsx";
+import ModeToggle from "@/components/ModeToggle.tsx";
+import ThemeInitScript from "@/components/ThemeInitScript.astro";
+import ToastHost from "@/lib/components/ui/ToastHost.tsx";
+import type { AuthUser } from '@/lib/auth/auth-helpers';
+import { getSiteIdentity, getSiteTheme } from "@/lib/site-config";
+import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
+import { isFeatureActive } from "@/lib/features/state";
+import { loadFeatureModules } from "@/lib/features/loader";
+
+type Props = { 
+  title?: string; 
+  description?: string; 
+  user?: AuthUser;
+}
+
+const { 
+  title = 'Admin Dashboard', 
+  description = 'Adastro Admin',
+  user = Astro.locals.user
+} = Astro.props as Props;
+
+const site = Astro.site?.toString() ?? '';
+const url = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.href;
+const siteIdentity = await getSiteIdentity();
+const siteTheme = await getSiteTheme();
+const activeTheme = getThemeModuleById(siteTheme.preset);
+const themeFontMap = Object.fromEntries(
+  getThemeModules().map((theme) => [theme.id, theme.fontImports ?? []])
+);
+const themeClass = siteTheme.mode === 'dark' ? 'min-h-full dark' : 'min-h-full';
+const fontImports = activeTheme?.fontImports ?? [];
+const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
+const installedFeatureIds = new Set(loadFeatureModules().map((module) => module.id));
+const [aiActive, commentsActive, newsletterActive] = await Promise.all([
+  installedFeatureIds.has('ai') ? isFeatureActive('ai') : false,
+  installedFeatureIds.has('comments') ? isFeatureActive('comments') : false,
+  installedFeatureIds.has('newsletter') ? isFeatureActive('newsletter') : false
+]);
+---
+
+<!doctype html>
+<html
+  lang="en"
+  class={themeClass}
+  data-theme={siteTheme.preset}
+  data-theme-mode={siteTheme.mode}
+  data-theme-local="false"
+  data-theme-mode-local="true"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    <meta name="robots" content="noindex, nofollow" />
+    {needsGoogleFonts && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      </>
+    )}
+    {fontImports.map((href) => (
+      <link rel="stylesheet" href={href} data-theme-font={href} />
+    ))}
+    <meta
+      id="theme-fonts"
+      name="theme-fonts"
+      content={encodeURIComponent(JSON.stringify(themeFontMap))}
+    />
+    <ThemeInitScript />
+  </head>
+  <body class="min-h-full bg-background text-foreground">
+    <div class="h-1 w-full brand-gradient"></div>
+    
+    <!-- Admin Header -->
+    <header class="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div class="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-3">
+          <a href="/admin" class="group flex items-center gap-2">
+            <img src={siteIdentity.logoUrl} alt="" class="h-7 w-7" />
+            <span class="text-lg font-semibold sm:text-xl">{siteIdentity.title} Admin</span>
+          </a>
+        </div>
+        
+        <div class="hidden items-center gap-4 lg:flex">
+          <a href="/" class="text-sm text-muted-foreground hover:text-foreground" target="_blank" rel="noreferrer">
+            View Site
+          </a>
+          <div class="flex max-w-[22rem] items-center gap-2 text-sm">
+            <span class="text-muted-foreground">Welcome,</span>
+            <span class="truncate font-medium">{user?.email}</span>
+          </div>
+          <ModeToggle client:load />
+          <button class="btn btn-outline text-sm logout-btn">
+            Logout
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 lg:hidden">
+          <ModeToggle client:load />
+          <button class="btn btn-outline text-xs logout-btn">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+    <AdminMobileNav
+      currentPath={Astro.url.pathname}
+      aiActive={aiActive}
+      commentsActive={commentsActive}
+      newsletterActive={newsletterActive}
+    />
+
+    <div class="flex min-h-[calc(100vh-4rem)]">
+      <div class="hidden lg:block lg:shrink-0">
+        <AdminSidebar
+          currentPath={Astro.url.pathname}
+          aiActive={aiActive}
+          commentsActive={commentsActive}
+          newsletterActive={newsletterActive}
+        />
+      </div>
+
+      <!-- Main Content -->
+      <main class="w-full flex-1 min-w-0 px-4 py-6 sm:px-6 lg:px-8">
+        <div class="mx-auto w-full max-w-6xl space-y-6">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script src="/scripts/admin-logout.js" defer is:inline></script>
+    <ToastHost client:load />
+  </body>
+</html>

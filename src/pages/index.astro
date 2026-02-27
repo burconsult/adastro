@@ -1,0 +1,36 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PageRenderer from "@/components/PageRenderer.astro";
+import { getPublishedPageBySlug } from "@/lib/astro-helpers";
+import { getSiteContentRouting, getSiteIdentity } from "@/lib/site-config";
+import { buildArticlesIndexPath } from "@/lib/routing/articles";
+const siteIdentity = await getSiteIdentity();
+const contentRouting = await getSiteContentRouting();
+const articlesIndexPath = buildArticlesIndexPath({
+  basePath: contentRouting.articleBasePath,
+  permalinkStyle: contentRouting.articlePermalinkStyle
+});
+
+const homePage = await getPublishedPageBySlug('home');
+const pageTitle = homePage?.seoMetadata?.metaTitle ?? `${siteIdentity.title} - The Lightspeed CMS`;
+const pageDescription = homePage?.seoMetadata?.metaDescription ?? homePage?.excerpt ?? siteIdentity.description;
+---
+<BaseLayout title={pageTitle} description={pageDescription}>
+  {homePage ? (
+    <PageRenderer page={homePage} showTitle={false} />
+  ) : (
+    <section class="mx-auto max-w-5xl px-6 py-20">
+      <div class="card space-y-4 p-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-primary">AdAstro</p>
+        <h1 class="text-4xl font-semibold tracking-tight">Fast publishing with practical defaults</h1>
+        <p class="text-base text-muted-foreground">
+          The homepage system page is missing right now. Create or restore it from the page editor.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a class="btn btn-primary" href="/admin/pages">Open page editor</a>
+          <a class="btn btn-outline" href={articlesIndexPath}>View articles</a>
+        </div>
+      </div>
+    </section>
+  )}
+</BaseLayout>

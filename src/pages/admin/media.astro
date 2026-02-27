@@ -1,0 +1,33 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import MediaLibrary from "@/lib/components/MediaLibrary";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { loadFeatureModules } from "@/lib/features/loader";
+import { isFeatureActive } from "@/lib/features/state";
+
+let activeFeatureIds: string[] = [];
+
+try {
+  const featureIds = loadFeatureModules().map((module) => module.id);
+  const featureStates = await Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) })));
+  activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
+} catch (error) {
+  console.error('Error resolving active features for media page:', error);
+}
+---
+
+<AdminLayout title="Media Library" description="Manage your media files">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Media Library"
+      description="Upload, organize, and optimize your media assets."
+    />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Media management requires JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
+
+    <MediaLibrary client:load activeFeatureIds={activeFeatureIds} />
+  </div>
+</AdminLayout>

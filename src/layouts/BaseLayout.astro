@@ -1,0 +1,314 @@
+---
+import "@/styles/global.css";
+import "@/lib/themes/manifest";
+import MobileNavigation from "@/components/MobileNavigation.tsx";
+import PageViewTracker from "@/components/PageViewTracker.tsx";
+import ThemeInitScript from "@/components/ThemeInitScript.astro";
+import ToastHost from "@/lib/components/ui/ToastHost.tsx";
+import FooterNewsletterSlot from "@/lib/components/FooterNewsletterSlot";
+import { Facebook, Github, Link2, Linkedin } from "lucide-react";
+import { isFeatureActive } from "@/lib/features/state";
+import { getSiteCustomScripts, getSiteIdentity, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
+import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
+
+type Props = {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  ogType?: string;
+  canonicalUrl?: string;
+  hideFooterNewsletter?: boolean;
+}
+
+const siteIdentity = await getSiteIdentity();
+const siteNavigation = await getSiteNavigation();
+const siteTheme = await getSiteTheme();
+const siteSeoDefaults = await getSiteSeoDefaults();
+const siteSocialProfiles = await getSiteSocialProfiles();
+const siteCustomScripts = await getSiteCustomScripts();
+const activeTheme = getThemeModuleById(siteTheme.preset);
+const themeFontMap = Object.fromEntries(
+  getThemeModules().map((theme) => [theme.id, theme.fontImports ?? []])
+);
+const {
+  title = siteIdentity.title,
+  description = siteSeoDefaults.defaultDescription || siteIdentity.description,
+  ogImage,
+  ogType = 'website',
+  canonicalUrl,
+  hideFooterNewsletter = false
+} = Astro.props as Props;
+const showFooterNewsletter = !hideFooterNewsletter && await isFeatureActive('newsletter');
+
+const site = Astro.site?.toString() ?? '';
+const computedUrl = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.href;
+const siteBaseUrl = site ? new URL('/', site).toString() : `${Astro.url.origin}/`;
+const normalizedCanonicalUrl = typeof canonicalUrl === 'string' && canonicalUrl.trim().length > 0
+  ? canonicalUrl.trim()
+  : computedUrl;
+const normalizedTitle = typeof title === 'string' && title.trim().length > 0
+  ? title.trim()
+  : siteIdentity.title;
+
+const rawTitleTemplate = typeof siteSeoDefaults.defaultTitle === 'string'
+  ? siteSeoDefaults.defaultTitle
+  : '%s | {{siteTitle}}';
+const resolvedTitleTemplate = rawTitleTemplate
+  .replace(/\{\{\s*siteTitle\s*\}\}/gi, siteIdentity.title)
+  .trim();
+const titleTemplate = resolvedTitleTemplate === '%s | AdAstro'
+  ? `%s | ${siteIdentity.title}`
+  : resolvedTitleTemplate;
+const shouldApplyTitleTemplate = titleTemplate.includes('%s')
+  && !normalizedTitle.toLowerCase().includes(siteIdentity.title.toLowerCase());
+const finalTitle = shouldApplyTitleTemplate
+  ? titleTemplate.replace('%s', normalizedTitle)
+  : normalizedTitle;
+const image = ogImage ?? siteSeoDefaults.ogImage;
+const keywords = siteSeoDefaults.keywords;
+const twitterSite = siteSocialProfiles.twitterHandle ? `@${siteSocialProfiles.twitterHandle}` : undefined;
+
+type FooterSocialLink = {
+  label: string;
+  href: string;
+  icon: 'x' | 'facebook' | 'linkedin' | 'github' | 'link';
+};
+
+const resolveSocialIcon = (label: string): FooterSocialLink['icon'] => {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === 'x' || normalized.includes('twitter')) return 'x';
+  if (normalized.includes('facebook')) return 'facebook';
+  if (normalized.includes('linkedin')) return 'linkedin';
+  if (normalized.includes('github')) return 'github';
+  return 'link';
+};
+
+const rawSocialLinks = [
+  siteSocialProfiles.twitterUrl ? { label: 'X', href: siteSocialProfiles.twitterUrl, icon: 'x' as const } : null,
+  siteSocialProfiles.facebookUrl ? { label: 'Facebook', href: siteSocialProfiles.facebookUrl, icon: 'facebook' as const } : null,
+  siteSocialProfiles.linkedinUrl ? { label: 'LinkedIn', href: siteSocialProfiles.linkedinUrl, icon: 'linkedin' as const } : null,
+  siteSocialProfiles.githubUrl ? { label: 'GitHub', href: siteSocialProfiles.githubUrl, icon: 'github' as const } : null,
+  ...(siteSocialProfiles.customLinks ?? []).map((link) => ({
+    label: link.label,
+    href: link.href,
+    icon: resolveSocialIcon(link.label)
+  }))
+].filter((link): link is FooterSocialLink => Boolean(link));
+
+const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
+  links.findIndex((candidate) => candidate.href.toLowerCase() === link.href.toLowerCase()) === index
+));
+const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
+const websiteStructuredData = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteIdentity.title,
+  url: siteBaseUrl,
+  description: siteIdentity.description
+});
+const organizationStructuredData = sameAsProfiles.length > 0
+  ? JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: siteIdentity.title,
+      url: siteBaseUrl,
+      sameAs: sameAsProfiles
+    })
+  : null;
+
+const navLinks = siteNavigation.topLinks;
+const footerLinks = siteNavigation.bottomLinks;
+const footerItems = siteNavigation.footerLinks;
+const usedFooterHrefs = new Set(
+  [...footerLinks, ...footerItems]
+    .map((item) => item?.href)
+    .filter((href): href is string => typeof href === 'string' && href.trim().length > 0)
+);
+const socialLinks = dedupedSocialLinks.filter((link) => !usedFooterHrefs.has(link.href));
+const prefetchStrategy = (href?: string) =>
+  typeof href === 'string' && href.startsWith('/') ? 'hover' : undefined;
+const themeClass = siteTheme.mode === 'dark' ? 'min-h-full dark' : 'min-h-full';
+const hasAuthTokenCookie = (Astro.request.headers.get('cookie') || '').includes('sb-access-token=');
+const authRedirectPath = Astro.url.pathname.startsWith('/auth')
+  ? '/'
+  : `${Astro.url.pathname}${Astro.url.search || ''}`;
+const authLink = hasAuthTokenCookie
+  ? { label: 'Profile', href: '/profile' }
+  : { label: 'Sign in', href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
+const authState = hasAuthTokenCookie ? 'authenticated' : 'guest';
+const fontImports = activeTheme?.fontImports ?? [];
+const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
+---
+<!doctype html>
+<html
+  lang="en"
+  class={themeClass}
+  data-theme={siteTheme.preset}
+  data-theme-mode={siteTheme.mode}
+  data-theme-local="false"
+  data-theme-mode-local="true"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{finalTitle}</title>
+    <meta name="description" content={description} />
+    {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+    <link rel="canonical" href={normalizedCanonicalUrl} />
+    <meta property="og:title" content={finalTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={normalizedCanonicalUrl} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    {twitterSite && <meta name="twitter:site" content={twitterSite} />}
+    <meta name="twitter:title" content={finalTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    {dedupedSocialLinks.map((link) => (
+      <link rel="me" href={link.href} />
+    ))}
+    <link rel="alternate" type="application/rss+xml" title={`${siteIdentity.title} RSS`} href="/rss.xml" />
+    {needsGoogleFonts && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      </>
+    )}
+    {fontImports.map((href) => (
+      <link rel="stylesheet" href={href} data-theme-font={href} />
+    ))}
+    <meta
+      id="theme-fonts"
+      name="theme-fonts"
+      content={encodeURIComponent(JSON.stringify(themeFontMap))}
+    />
+    <script type="application/ld+json" set:html={websiteStructuredData}></script>
+    {organizationStructuredData && (
+      <script type="application/ld+json" set:html={organizationStructuredData}></script>
+    )}
+    <ThemeInitScript />
+    {siteCustomScripts.headHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.headHtml} />}
+  </head>
+  <body class="min-h-full bg-background text-foreground">
+    <div class="h-1 w-full brand-gradient"></div>
+    <header class="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 p-4">
+        <a href="/" data-astro-prefetch="hover" class="group flex items-center gap-2">
+          <img src={siteIdentity.logoUrl} alt={`${siteIdentity.title} logo`} class="h-8 w-8" />
+          <span class="text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition">
+            {siteIdentity.title}
+          </span>
+        </a>
+        <MobileNavigation
+          client:load
+          siteTitle={siteIdentity.title}
+          siteLogoUrl={siteIdentity.logoUrl}
+          navLinks={navLinks}
+          authLink={authLink}
+          authState={authState}
+        />
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="border-t border-border/20 bg-foreground text-background">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:px-8 sm:py-12">
+        {showFooterNewsletter && (
+          <div class="mx-auto w-full max-w-2xl">
+            <FooterNewsletterSlot client:load tone="inverse" />
+          </div>
+        )}
+        <div class="grid gap-8 text-center md:grid-cols-[1.2fr_1fr_1fr] md:text-left">
+          <div class="space-y-3">
+            <div class="inline-flex items-center gap-2 md:justify-start">
+              <img src={siteIdentity.logoUrl} alt="" class="h-6 w-6" />
+              <span class="font-semibold text-background">{siteIdentity.title}</span>
+            </div>
+            {siteIdentity.tagline && (
+              <p class="text-sm text-background/70">
+                {siteIdentity.tagline}
+              </p>
+            )}
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">Navigate</p>
+            <nav class="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              {footerLinks.map((link) => (
+                <a
+                  href={link.href}
+                  data-astro-prefetch={prefetchStrategy(link.href)}
+                  class="rounded-md border border-background/20 px-3 py-1.5 text-sm text-background/80 transition-colors hover:border-background/40 hover:text-background"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">Connect</p>
+            {socialLinks.length > 0 && (
+              <div class="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                {socialLinks.map((link) => (
+                  <a
+                    href={link.href}
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-background/20 text-background/80 transition-colors hover:border-background/40 hover:text-background"
+                    aria-label={link.label}
+                    title={link.label}
+                  >
+                    {link.icon === 'x' && (
+                      <span class="inline-flex h-4 w-4 items-center justify-center text-[0.85rem] leading-none" aria-hidden="true">𝕏</span>
+                    )}
+                    {link.icon === 'facebook' && (
+                      <Facebook className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {link.icon === 'linkedin' && (
+                      <Linkedin className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {link.icon === 'github' && (
+                      <Github className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {link.icon === 'link' && (
+                      <Link2 className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span class="sr-only">{link.label}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {footerItems.length > 0 && (
+          <div class="pt-2">
+            <div class="mb-4 flex items-center justify-center gap-2 text-xs tracking-[0.25em] text-background/40" aria-hidden="true">
+              <span>✦</span>
+              <span>✦</span>
+              <span>✦</span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              {footerItems.map((item) => (
+                item?.href ? (
+                  <a href={item.href} data-astro-prefetch={prefetchStrategy(item.href)} class="text-sm text-background/70 transition-colors hover:text-background">
+                    {item.label}
+                  </a>
+                ) : (
+                  <span class="text-sm text-background/70">{item?.label}</span>
+                )
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </footer>
+    <ToastHost client:load />
+    <PageViewTracker client:load />
+    {siteCustomScripts.footerHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.footerHtml} />}
+  </body>
+</html>

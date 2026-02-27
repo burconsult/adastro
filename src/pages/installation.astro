@@ -1,0 +1,21 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import installationGuide from '../../INSTALLATION.md?raw';
+---
+
+<BaseLayout
+  title="Installation Guide | AdAstro"
+  description="Canonical AdAstro installation guide for Supabase + Vercel/Netlify deployments."
+  hideFooterNewsletter={true}
+>
+  <section class="mx-auto w-full max-w-5xl px-6 py-10 sm:px-8 sm:py-14">
+    <div class="card space-y-4 p-6 sm:p-8">
+      <p class="text-xs font-semibold uppercase tracking-[0.24em] text-primary/80">Documentation</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">INSTALLATION.md</h1>
+      <p class="text-sm text-muted-foreground">
+        This page mirrors the root installation document used by the setup wizard.
+      </p>
+      <pre class="overflow-x-auto rounded-lg border border-border/70 bg-background/80 p-4 text-xs leading-relaxed text-foreground/90"><code>{installationGuide}</code></pre>
+    </div>
+  </section>
+</BaseLayout>

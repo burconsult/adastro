@@ -1,0 +1,28 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import ErrorMascot from "@/components/motion/ErrorMascot";
+import { getSiteIdentity } from "@/lib/site-config";
+
+const siteIdentity = await getSiteIdentity();
+---
+<BaseLayout
+  title={`Unauthorized — ${siteIdentity.title}`}
+  description="You do not have access to this area of Adastro."
+>
+  <section class="mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center sm:px-8 sm:py-24">
+    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Access denied</span>
+    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+      This hatch is sealed
+    </h1>
+    <p class="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+      Looks like your account does not have clearance for this route. Log in or head back to the public decks.
+    </p>
+
+    <ErrorMascot client:load accentClass="text-primary" forceMotion={true} />
+
+    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+      <a href="/auth/login" class="btn">Sign in</a>
+      <a href="/" class="btn btn-outline">Return home</a>
+    </div>
+  </section>
+</BaseLayout>

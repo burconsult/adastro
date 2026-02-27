@@ -1,0 +1,158 @@
+{
+  "project": "adastro",
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-19",
+  "surfaces": {
+    "public": {
+      "entryRoots": [
+        "src/pages/index.astro",
+        "src/pages/[slug].astro",
+        "src/pages/blog"
+      ]
+    },
+    "admin": {
+      "entryRoots": [
+        "src/pages/admin.astro",
+        "src/pages/admin"
+      ],
+      "reactIslandsRoot": "src/lib/components"
+    },
+    "api": {
+      "roots": [
+        "src/pages/api/admin",
+        "src/pages/api/auth",
+        "src/pages/api/features",
+        "src/pages/api/setup"
+      ]
+    },
+    "setup": {
+      "page": "src/pages/setup.astro",
+      "wizard": "src/lib/components/SetupWizard.tsx",
+      "wizardModules": [
+        "src/lib/components/setup-wizard/types.ts",
+        "src/lib/components/setup-wizard/steps.tsx"
+      ],
+      "endpoints": [
+        "src/pages/api/setup/status.ts",
+        "src/pages/api/setup/sql.ts",
+        "src/pages/api/setup/automate.ts",
+        "src/pages/api/setup/routing.ts",
+        "src/pages/api/setup/complete.ts"
+      ]
+    }
+  },
+  "coreModules": {
+    "middleware": "src/middleware.ts",
+    "settings": [
+      "src/lib/settings/core-definitions.ts",
+      "src/lib/settings/registry.ts",
+      "src/lib/services/settings-service.ts"
+    ],
+    "siteConfig": "src/lib/site-config.ts",
+    "setupRuntime": "src/lib/setup/runtime.ts",
+    "dataAccess": "src/lib/database/repositories",
+    "services": "src/lib/services",
+    "migrationPipeline": [
+      "src/lib/services/wordpress-migration.ts",
+      "src/lib/services/wordpress-migration/types.ts",
+      "src/lib/services/wordpress-migration/parser.ts",
+      "src/lib/services/wordpress-migration/media-optimizer.ts"
+    ],
+    "security": [
+      "src/lib/security/request-guards.ts",
+      "src/lib/security/rate-limit.ts",
+      "src/lib/security/recaptcha.ts"
+    ],
+    "themes": "src/lib/themes",
+    "routing": "src/lib/routing/articles.ts",
+    "config": [
+      "src/lib/config/media.ts"
+    ]
+  },
+  "features": {
+    "manifest": "src/lib/features/manifest.ts",
+    "serverManifest": "src/lib/features/server-manifest.ts",
+    "contracts": "src/lib/features/types.ts",
+    "runtime": [
+      "src/lib/features/loader.ts",
+      "src/lib/features/server-loader.ts",
+      "src/lib/features/state.ts",
+      "src/lib/features/runtime.ts",
+      "src/lib/features/ui.ts",
+      "src/lib/features/admin.ts"
+    ],
+    "bundled": [
+      "ai",
+      "comments",
+      "newsletter"
+    ]
+  },
+  "tableOwnership": {
+    "core": [
+      "site_settings",
+      "authors",
+      "posts",
+      "pages",
+      "page_sections",
+      "categories",
+      "tags",
+      "post_categories",
+      "post_tags",
+      "media_assets"
+    ],
+    "features": {
+      "comments": [
+        "comments"
+      ],
+      "newsletter": [
+        "newsletter_subscribers",
+        "newsletter_campaigns",
+        "newsletter_deliveries"
+      ],
+      "ai": [
+        "ai_usage_events"
+      ]
+    }
+  },
+  "env": {
+    "requiredCore": [
+      "SUPABASE_URL",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_SECRET_KEY"
+    ],
+    "recommended": [
+      "SITE_URL"
+    ],
+    "optionalCore": [
+      "ASTRO_ADAPTER",
+      "MEDIA_STORAGE_BUCKET",
+      "MIGRATION_UPLOADS_BUCKET"
+    ],
+    "optionalFeature": [
+      "RESEND_API_KEY",
+      "AWS_SES_REGION",
+      "AWS_SES_SMTP_USER",
+      "AWS_SES_SMTP_PASS",
+      "AWS_SES_SMTP_HOST",
+      "AWS_SES_SMTP_PORT",
+      "OPENAI_API_KEY",
+      "GOOGLE_GENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "ELEVENLABS_API_KEY"
+    ]
+  },
+  "gates": {
+    "setupGateKey": "setup.completed",
+    "setupReentryKey": "setup.allowReentry",
+    "setupMiddleware": "src/middleware.ts",
+    "releaseGatesDoc": "docs/release-gates.md",
+    "releaseExecutionBoardDoc": "docs/release-execution-board.md",
+    "localVerificationDoc": "docs/engineering/local-testing.md",
+    "adminConsistencyVerifierScript": "scripts/ci/check-admin-consistency.mjs",
+    "themeTokenVerifierScript": "scripts/ci/check-theme-tokens.mjs",
+    "releaseHygieneVerifierScript": "scripts/ci/check-release-hygiene.mjs",
+    "defaultContentVerifierScript": "scripts/local/verify-default-content.mjs",
+    "featureLifecycleVerifierScript": "scripts/local/verify-feature-lifecycle.mjs",
+    "stabilityVerifierScript": "scripts/local/verify-stability.mjs"
+  }
+}

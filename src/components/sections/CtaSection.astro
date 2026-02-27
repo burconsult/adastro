@@ -1,0 +1,50 @@
+---
+import { applyArticleBasePathToHref } from "@/lib/routing/articles";
+
+const { content = {} } = Astro.props as { content?: Record<string, any> };
+const articleBasePath = typeof Astro.props.articleBasePath === 'string' ? Astro.props.articleBasePath : undefined;
+const embedded = Astro.props.embedded === true;
+const heading = typeof content.heading === 'string' ? content.heading : '';
+const body = typeof content.body === 'string' ? content.body : '';
+const ctaLabel = typeof content.ctaLabel === 'string' ? content.ctaLabel : '';
+const rawCtaHref = typeof content.ctaHref === 'string' ? content.ctaHref : '';
+const ctaHref = rawCtaHref
+  ? applyArticleBasePathToHref(rawCtaHref, { basePath: articleBasePath })
+  : '';
+---
+
+{embedded ? (
+  <div class="mt-12">
+    <div class="surface-cta surface-reveal">
+      <div class="space-y-4 text-center">
+        {heading && <h2 class="surface-cta-heading">{heading}</h2>}
+        {body && <p class="surface-cta-body">{body}</p>}
+        {ctaLabel && ctaHref && (
+          <a
+            href={ctaHref}
+            class="btn btn-primary mt-2"
+          >
+            {ctaLabel}
+          </a>
+        )}
+      </div>
+    </div>
+  </div>
+) : (
+  <section class="mx-auto max-w-6xl px-6 py-16 sm:px-8">
+    <div class="surface-cta surface-reveal">
+      <div class="space-y-4 text-center">
+        {heading && <h2 class="surface-cta-heading">{heading}</h2>}
+        {body && <p class="surface-cta-body">{body}</p>}
+        {ctaLabel && ctaHref && (
+          <a
+            href={ctaHref}
+            class="btn btn-primary mt-2"
+          >
+            {ctaLabel}
+          </a>
+        )}
+      </div>
+    </div>
+  </section>
+)}

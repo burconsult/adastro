@@ -1,0 +1,23 @@
+---
+interface Props {
+  title: string;
+  subtitle?: string;
+  center?: boolean;
+  class?: string;
+}
+
+const { title, subtitle, center = true, class: className } = Astro.props;
+const alignClass = center ? 'text-center' : 'text-left';
+const classes = [alignClass, 'space-y-3', className].filter(Boolean).join(' ');
+---
+
+<div class={classes}>
+  <h2 class="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+    {title}
+  </h2>
+  {subtitle && (
+    <p class={`font-body text-base text-muted-foreground sm:text-lg ${center ? 'mx-auto max-w-2xl' : ''}`}>
+      {subtitle}
+    </p>
+  )}
+</div>

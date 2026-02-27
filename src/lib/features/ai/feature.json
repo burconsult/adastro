@@ -1,0 +1,7 @@
+{
+  "id": "ai",
+  "entry": "index.ts",
+  "migrationsDir": "migrations",
+  "uninstallSql": "uninstall.sql",
+  "dataTables": ["ai_usage_events"]
+}

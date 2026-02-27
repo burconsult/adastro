@@ -1,0 +1,94 @@
+:root[data-theme="brutalist-grid"] {
+  --background: 66 45% 96%;
+  --foreground: 153 90% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 153 90% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 153 90% 12%;
+  --primary: 28 96% 51%;
+  --primary-foreground: 20 22% 10%;
+  --secondary: 150 47% 88%;
+  --secondary-foreground: 153 90% 12%;
+  --muted: 66 32% 90%;
+  --muted-foreground: 153 32% 28%;
+  --accent: 151 86% 31%;
+  --accent-foreground: 63 72% 95%;
+  --destructive: 0 82% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 145 70% 32%;
+  --success-foreground: 0 0% 100%;
+  --warning: 36 100% 54%;
+  --warning-foreground: 20 22% 10%;
+  --info: 152 84% 28%;
+  --info-foreground: 63 72% 95%;
+  --border: 151 86% 26%;
+  --input: 151 86% 26%;
+  --ring: 28 96% 51%;
+  --radius: 0rem;
+  --surface-border-width: 2px;
+  --elevation-sm: 4px 4px 0 hsl(var(--foreground) / 0.22);
+  --elevation-md: 6px 6px 0 hsl(var(--foreground) / 0.24);
+  --elevation-lg: 8px 8px 0 hsl(var(--foreground) / 0.28);
+  --elevation-xl: 10px 10px 0 hsl(var(--foreground) / 0.3);
+  --elevation-2xl: 14px 14px 0 hsl(var(--foreground) / 0.32);
+  --font-body: "IBM Plex Sans", "Avenir Next", "Segoe UI", Arial, sans-serif;
+  --font-heading: "Archivo Black", "Arial Black", "Impact", sans-serif;
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-heading);
+}
+
+:root[data-theme="brutalist-grid"] .card,
+:root[data-theme="brutalist-grid"] .btn,
+:root[data-theme="brutalist-grid"] .btn-outline,
+:root[data-theme="brutalist-grid"] .btn-ghost {
+  border-width: 2px;
+}
+
+:root[data-theme="brutalist-grid"] .rounded-full,
+:root[data-theme="brutalist-grid"] .badge {
+  border-radius: 0 !important;
+}
+
+:root[data-theme="brutalist-grid"] .prose :is(pre, kbd, img, video, figure, blockquote, table, th, td),
+:root[data-theme="brutalist-grid"] :is(.codex-editor .cdx-quote, .codex-editor .ce-code__textarea) {
+  border-radius: 0 !important;
+}
+
+.dark[data-theme="brutalist-grid"] {
+  --background: 148 64% 7%;
+  --foreground: 48 100% 91%;
+  --card: 151 63% 10%;
+  --card-foreground: 48 100% 91%;
+  --popover: 151 63% 10%;
+  --popover-foreground: 48 100% 91%;
+  --primary: 29 100% 56%;
+  --primary-foreground: 153 90% 12%;
+  --secondary: 152 54% 16%;
+  --secondary-foreground: 48 100% 91%;
+  --muted: 153 44% 14%;
+  --muted-foreground: 72 52% 72%;
+  --accent: 152 84% 42%;
+  --accent-foreground: 152 74% 8%;
+  --destructive: 0 82% 63%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 78% 44%;
+  --success-foreground: 152 74% 8%;
+  --warning: 36 100% 58%;
+  --warning-foreground: 152 74% 8%;
+  --info: 150 86% 46%;
+  --info-foreground: 152 74% 8%;
+  --border: 152 72% 36%;
+  --input: 152 72% 36%;
+  --ring: 29 100% 56%;
+  --radius: 0rem;
+  --surface-border-width: 2px;
+  --elevation-sm: 4px 4px 0 hsl(var(--primary) / 0.28);
+  --elevation-md: 6px 6px 0 hsl(var(--primary) / 0.3);
+  --elevation-lg: 8px 8px 0 hsl(var(--primary) / 0.34);
+  --elevation-xl: 10px 10px 0 hsl(var(--primary) / 0.36);
+  --elevation-2xl: 14px 14px 0 hsl(var(--primary) / 0.4);
+  --font-body: "IBM Plex Sans", "Avenir Next", "Segoe UI", Arial, sans-serif;
+  --font-heading: "Archivo Black", "Arial Black", "Impact", sans-serif;
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-heading);
+}

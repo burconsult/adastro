@@ -1,0 +1,99 @@
+<script is:inline>
+  // Initialize theme as early as possible to avoid flash on first paint.
+  (() => {
+    try {
+      const MODE_KEY = 'theme-mode';
+      const LEGACY_MODE_KEY = 'theme';
+      const PRESET_KEY = 'theme-preset';
+      const PREVIEW_PRESET_KEY = 'theme-preview';
+      const PREVIEW_MODE_KEY = 'theme-preview-mode';
+      const root = document.documentElement;
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      const allowPresetLocal = root.dataset.themeLocal === 'true';
+      const allowModeLocal = root.dataset.themeModeLocal === 'true';
+
+      const normalizePreset = (value) => {
+        if (!value) return null;
+        if (value === 'violet' || value === 'emerald' || value === 'rose') return 'ocean';
+        return value;
+      };
+      const normalizeMode = (value) => {
+        if (value === 'light' || value === 'dark' || value === 'system') return value;
+        return null;
+      };
+
+      const serverPreset = normalizePreset(root.dataset.theme) || 'ocean';
+      const serverMode = normalizeMode(root.dataset.themeMode) || 'system';
+      const previewPreset = normalizePreset(localStorage.getItem(PREVIEW_PRESET_KEY));
+      const previewMode = normalizeMode(localStorage.getItem(PREVIEW_MODE_KEY));
+
+      let preset = serverPreset;
+      let modeSetting = serverMode;
+
+      if (previewPreset || previewMode) {
+        if (previewPreset) preset = previewPreset;
+        if (previewMode) modeSetting = previewMode;
+        root.dataset.themePreview = 'true';
+      } else {
+        delete root.dataset.themePreview;
+        const storedPreset = allowPresetLocal ? normalizePreset(localStorage.getItem(PRESET_KEY)) : null;
+        if (storedPreset) preset = storedPreset;
+        const storedMode = allowModeLocal ? (localStorage.getItem(MODE_KEY) || localStorage.getItem(LEGACY_MODE_KEY)) : null;
+        const normalizedStoredMode = normalizeMode(storedMode);
+        if (normalizedStoredMode) modeSetting = normalizedStoredMode;
+      }
+
+      root.dataset.theme = preset;
+      root.dataset.themeMode = modeSetting;
+
+      let mode = modeSetting;
+      if (mode !== 'dark' && mode !== 'light') {
+        mode = prefersDark ? 'dark' : 'light';
+      }
+      root.classList.toggle('dark', mode === 'dark');
+      root.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+
+      const fontMapEl = document.getElementById('theme-fonts');
+      let rawFontMap = '';
+      if (fontMapEl?.textContent) {
+        rawFontMap = fontMapEl.textContent;
+      } else if (fontMapEl instanceof HTMLMetaElement) {
+        const encoded = fontMapEl.getAttribute('content') || '';
+        if (encoded) {
+          try {
+            rawFontMap = decodeURIComponent(encoded);
+          } catch {
+            rawFontMap = encoded;
+          }
+        }
+      }
+
+      if (rawFontMap) {
+        try {
+          const map = JSON.parse(rawFontMap);
+          const imports = Array.isArray(map?.[preset]) ? map[preset] : [];
+          imports.forEach((href) => {
+            if (document.querySelector(`link[data-theme-font="${href}"]`)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.dataset.themeFont = href;
+            document.head.appendChild(link);
+          });
+        } catch {
+          // Ignore font map parsing errors.
+        }
+      }
+
+      if (allowPresetLocal && !previewPreset) {
+        localStorage.setItem(PRESET_KEY, preset);
+      }
+      if (allowModeLocal && !previewMode && (mode === 'dark' || mode === 'light')) {
+        localStorage.setItem(MODE_KEY, mode);
+      }
+    } catch {
+      // Avoid blocking render on theme init failures.
+    }
+  })();
+</script>

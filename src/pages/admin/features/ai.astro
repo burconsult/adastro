@@ -1,0 +1,27 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
+import FeatureSettingsPanelHost from '@/lib/components/admin/FeatureSettingsPanelHost';
+import { isFeatureActive } from '@/lib/features/state';
+
+const aiActive = await isFeatureActive('ai');
+if (!aiActive) {
+  return Astro.redirect('/admin/features');
+}
+---
+
+<AdminLayout title="AI Suite" description="Configure AI providers, models, and usage caps">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="AI Suite"
+      description="Manage AI providers, capabilities, models, and usage caps for editor and media tools."
+    />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        AI feature settings require JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
+
+    <FeatureSettingsPanelHost featureId="ai" client:load />
+  </div>
+</AdminLayout>

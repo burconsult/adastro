@@ -1,0 +1,40 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import PageListing from "@/lib/components/PageListing";
+import { PageRepository } from "@/lib/database/repositories/page-repository";
+import { Plus } from "lucide-react";
+
+const user = Astro.locals.user;
+const isAdmin = user?.role === 'admin';
+const authorId = user?.authorId;
+
+let initialPages: any[] = [];
+
+try {
+  const pageRepo = new PageRepository(true);
+  const result = await pageRepo.findWithFilters({
+    limit: 20,
+    authorId: !isAdmin ? authorId : undefined
+  });
+  initialPages = Array.isArray(result) ? result : result.pages || [];
+} catch (error) {
+  console.error('Error loading pages:', error);
+}
+---
+
+<AdminLayout title="Pages" description="Manage site pages">
+  <div class="space-y-6">
+    <AdminPageHeader title="Pages" description="Create and edit site pages">
+      <a href="/admin/pages/new" class="btn btn-primary" slot="actions">
+        <Plus className="mr-2 h-4 w-4" />
+        New Page
+      </a>
+    </AdminPageHeader>
+
+    <PageListing
+      client:load
+      initialPages={JSON.parse(JSON.stringify(initialPages, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+    />
+  </div>
+</AdminLayout>

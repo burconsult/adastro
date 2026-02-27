@@ -1,0 +1,17 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { FeatureManager } from "@/lib/components/FeatureManager";
+---
+
+<AdminLayout title="Features" description="Install and manage extra features">
+  <div class="space-y-6">
+    <AdminPageHeader title="Features" description="Install, uninstall, and configure extra modules." />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Feature management requires JavaScript. Please enable it to manage modules.
+      </div>
+    </noscript>
+    <FeatureManager client:load />
+  </div>
+</AdminLayout>

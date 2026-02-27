@@ -1,0 +1,19 @@
+---
+import { getSiteContentRouting } from '@/lib/site-config';
+import { resolveLegacyBlogPath } from '@/lib/routing/articles';
+
+const rawSegments = Astro.params.segments ?? '';
+const normalizedPathname = `/${rawSegments.replace(/^\/+|\/+$/g, '')}${Astro.url.pathname.endsWith('/') ? '/' : ''}`;
+
+const contentRouting = await getSiteContentRouting();
+const legacyPath = resolveLegacyBlogPath(normalizedPathname, {
+  basePath: contentRouting.articleBasePath,
+  permalinkStyle: contentRouting.articlePermalinkStyle
+});
+
+if (legacyPath && legacyPath !== normalizedPathname) {
+  return Astro.redirect(legacyPath, 307);
+}
+
+return Astro.redirect('/404');
+---

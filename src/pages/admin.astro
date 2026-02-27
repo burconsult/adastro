@@ -1,0 +1,278 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { isFeatureActive } from "@/lib/features/state";
+import { supabaseAdmin } from "@/lib/supabase";
+import {
+  FileText,
+  FolderTree,
+  MessageSquare,
+  Plus,
+  Settings,
+  Tags,
+  Upload,
+  Users
+} from "lucide-react";
+
+const commentsActive = await isFeatureActive('comments');
+
+// Get dashboard statistics
+let stats = {
+  totalPosts: 0,
+  publishedPosts: 0,
+  draftPosts: 0,
+  totalAuthors: 0,
+  totalCategories: 0,
+  totalTags: 0,
+  totalMedia: 0,
+  recentPosts: [] as Array<{
+    id: string;
+    title: string;
+    status: 'draft' | 'published' | 'scheduled';
+    updatedAt: string;
+  }>
+};
+
+try {
+  const [
+    totalPostsResult,
+    publishedPostsResult,
+    draftPostsResult,
+    authorsResult,
+    categoriesResult,
+    tagsResult,
+    mediaResult,
+    recentPostsResult,
+  ] = await Promise.all([
+    supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'published'),
+    supabaseAdmin.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
+    supabaseAdmin.from('authors').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('categories').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('tags').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('media_assets').select('id', { count: 'exact', head: true }),
+    supabaseAdmin
+      .from('posts')
+      .select('id,title,status,updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(5)
+  ]);
+
+  const countOrZero = (value: number | null) => (typeof value === 'number' ? value : 0);
+
+  stats.totalPosts = countOrZero(totalPostsResult.count);
+  stats.publishedPosts = countOrZero(publishedPostsResult.count);
+  stats.draftPosts = countOrZero(draftPostsResult.count);
+  stats.totalAuthors = countOrZero(authorsResult.count);
+  stats.totalCategories = countOrZero(categoriesResult.count);
+  stats.totalTags = countOrZero(tagsResult.count);
+  stats.totalMedia = countOrZero(mediaResult.count);
+  stats.recentPosts = (recentPostsResult.data ?? []).map((post) => ({
+    id: post.id,
+    title: post.title,
+    status: post.status,
+    updatedAt: post.updated_at,
+  }));
+} catch (error) {
+  console.error('Error loading dashboard stats:', error);
+}
+---
+
+<AdminLayout title="Dashboard" description="Adastro Admin Dashboard">
+  <div class="space-y-8">
+    <AdminPageHeader
+      title="Dashboard"
+      description="Welcome to your Adastro admin."
+    />
+
+    <!-- Statistics Cards -->
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div class="card p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Total Posts</p>
+            <p class="text-3xl font-bold">{stats.totalPosts}</p>
+          </div>
+          <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <FileText className="h-6 w-6 text-primary" aria-hidden="true" />
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-sm text-muted-foreground">
+          <span class="text-primary">{stats.publishedPosts} published</span>
+          <span class="mx-2">•</span>
+          <span class="text-secondary-foreground">{stats.draftPosts} drafts</span>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Authors</p>
+            <p class="text-3xl font-bold">{stats.totalAuthors}</p>
+          </div>
+          <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Users className="h-6 w-6 text-primary" aria-hidden="true" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Categories</p>
+            <p class="text-3xl font-bold">{stats.totalCategories}</p>
+          </div>
+          <div class="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
+            <FolderTree className="h-6 w-6 text-secondary-foreground" aria-hidden="true" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-muted-foreground">Tags</p>
+            <p class="text-3xl font-bold">{stats.totalTags}</p>
+          </div>
+          <div class="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
+            <Tags className="h-6 w-6 text-accent-foreground" aria-hidden="true" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity and Quick Actions -->
+    <div class="grid gap-6 lg:grid-cols-2">
+      <!-- Recent Posts -->
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold">Recent Posts</h2>
+          <a href="/admin/posts" class="text-sm text-primary hover:underline">View all</a>
+        </div>
+        
+        {stats.recentPosts.length > 0 ? (
+          <div class="space-y-4">
+            {stats.recentPosts.map((post) => (
+              <div class="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate">{post.title}</p>
+                  <div class="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                    <span class={`badge px-2 py-1 text-xs ${
+                      post.status === 'published'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-secondary text-secondary-foreground'
+                    }`}>
+                      {post.status}
+                    </span>
+                    <span>•</span>
+                    <span>{new Date(post.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <a 
+                  href={`/admin/posts/edit/${post.id}`} 
+                  class="text-sm text-primary hover:underline ml-4"
+                >
+                  Edit
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-8 text-muted-foreground">
+            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" aria-hidden="true" />
+            <p>No posts yet</p>
+            <a href="/admin/posts/new" class="text-primary hover:underline">Create your first post</a>
+          </div>
+        )}
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-6">Quick Actions</h2>
+        <div class="grid gap-4">
+          <a href="/admin/posts/new" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+            <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Plus className="h-5 w-5 text-primary" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="font-medium">New Post</p>
+              <p class="text-sm text-muted-foreground">Create a new blog post</p>
+            </div>
+          </a>
+
+          <a href="/admin/media" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+            <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Upload className="h-5 w-5 text-primary" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="font-medium">Upload Media</p>
+              <p class="text-sm text-muted-foreground">Add images and files</p>
+            </div>
+          </a>
+
+          <a href="/admin/categories" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+            <div class="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
+              <FolderTree className="h-5 w-5 text-secondary-foreground" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="font-medium">Manage Categories</p>
+              <p class="text-sm text-muted-foreground">Organize your content</p>
+            </div>
+          </a>
+
+          <a href="/admin/tags" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+            <div class="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
+              <Tags className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="font-medium">Manage Tags</p>
+              <p class="text-sm text-muted-foreground">Label and organize content</p>
+            </div>
+          </a>
+
+          {commentsActive && (
+            <a href="/admin/features/comments" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+              <div class="h-10 w-10 rounded-full bg-warning/20 flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-warning" aria-hidden="true" />
+              </div>
+              <div>
+                <p class="font-medium">Moderate Comments</p>
+                <p class="text-sm text-muted-foreground">Approve or reject reader replies</p>
+              </div>
+            </a>
+          )}
+
+          <a href="/admin/settings" class="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/50">
+            <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Settings className="h-5 w-5 text-primary" aria-hidden="true" />
+            </div>
+            <div>
+              <p class="font-medium">Site Settings</p>
+              <p class="text-sm text-muted-foreground">Configure your site</p>
+            </div>
+          </a>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="card p-6">
+      <h2 class="text-xl font-semibold mb-6">System Status</h2>
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <div class="h-3 w-3 rounded-full bg-success"></div>
+          <span class="text-sm">Database Connected</span>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <div class="h-3 w-3 rounded-full bg-success"></div>
+          <span class="text-sm">Storage Available</span>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <div class="h-3 w-3 rounded-full bg-success"></div>
+          <span class="text-sm">Authentication Active</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</AdminLayout>

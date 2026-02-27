@@ -1,0 +1,57 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import PostListing from "@/lib/components/PostListing";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { PostRepository } from "@/lib/database/repositories/post-repository";
+import { getSiteContentRouting } from "@/lib/site-config";
+import { FolderTree, Plus, Tags } from "lucide-react";
+
+const user = Astro.locals.user;
+const isAdmin = user?.role === 'admin';
+const authorId = user?.authorId;
+
+// Get initial posts for the listing
+let initialPosts: any[] = [];
+const contentRouting = await getSiteContentRouting();
+
+try {
+  const postRepo = new PostRepository(true);
+  const result = await postRepo.findWithFilters({
+    limit: 20,
+    authorId: !isAdmin ? authorId : undefined
+  });
+  initialPosts = Array.isArray(result) ? result : result.posts || [];
+} catch (error) {
+  console.error('Error loading posts:', error);
+}
+---
+
+<AdminLayout title="Posts" description="Manage your blog posts">
+  <div class="space-y-6">
+    <AdminPageHeader title="Posts" description="Manage your blog posts and content">
+      {isAdmin && (
+        <a href="/admin/categories" class="btn btn-outline" slot="actions">
+          <FolderTree className="mr-2 h-4 w-4" />
+          Categories
+        </a>
+      )}
+      {isAdmin && (
+        <a href="/admin/tags" class="btn btn-outline" slot="actions">
+          <Tags className="mr-2 h-4 w-4" />
+          Tags
+        </a>
+      )}
+      <a href="/admin/posts/new" class="btn btn-primary" slot="actions">
+        <Plus className="mr-2 h-4 w-4" />
+        New Post
+      </a>
+    </AdminPageHeader>
+
+    <PostListing
+      client:load
+      initialPosts={JSON.parse(JSON.stringify(initialPosts, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      articleBasePath={contentRouting.articleBasePath}
+      articlePermalinkStyle={contentRouting.articlePermalinkStyle}
+    />
+  </div>
+</AdminLayout>

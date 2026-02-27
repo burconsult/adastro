@@ -1,0 +1,207 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import ResponsiveImage from "@/components/ResponsiveImage.astro"
+import AudioPlayer from "@/components/AudioPlayer"
+import BlogCommentsSlot from "@/lib/components/BlogCommentsSlot"
+import { getPostStaticPaths, getPublishedPostBySlug } from "@/lib/database/index.js"
+import { getSiteContentRouting, getSiteIdentity, getSiteSeoDefaults } from "@/lib/site-config"
+import { sanitizeHtml } from "@/lib/utils/data-transform"
+import { buildArticlePostPath, buildArticlesIndexPath } from "@/lib/routing/articles"
+import type { BlogPost } from "@/lib/types/index.js"
+
+export async function getStaticPaths() {
+  return await getPostStaticPaths()
+}
+
+const { slug } = Astro.params
+const post = await getPublishedPostBySlug(slug!)
+
+if (!post) {
+  return Astro.redirect('/404')
+}
+
+const siteIdentity = await getSiteIdentity()
+const siteSeoDefaults = await getSiteSeoDefaults()
+const contentRouting = await getSiteContentRouting()
+const articleRouting = {
+  basePath: contentRouting.articleBasePath,
+  permalinkStyle: contentRouting.articlePermalinkStyle
+}
+const origin = Astro.url.origin
+const pageTitle = post.seoMetadata?.metaTitle || post.title
+const pageDescription = post.seoMetadata?.metaDescription || post.excerpt || `Read ${post.title} by ${post.author.name}`
+const publishedAt = post.publishedAt || post.createdAt
+const updatedAt = post.updatedAt || publishedAt
+const pagePath = buildArticlePostPath(post.slug, publishedAt, articleRouting)
+const pageUrl = new URL(pagePath, origin).toString()
+const articlesIndexPath = buildArticlesIndexPath(articleRouting)
+const authorSlug = post.author.slug || post.author.id
+const authorHref = `/author/${authorSlug}/`
+const imageUrl = post.featuredImage?.url
+  ? (post.featuredImage.url.startsWith('http')
+      ? post.featuredImage.url
+      : new URL(post.featuredImage.url, origin).toString())
+  : new URL(siteSeoDefaults.ogImage, origin).toString()
+const heroDimensions = post.featuredImage?.dimensions || post.featuredImage?.originalDimensions || {
+  width: 1600,
+  height: 900
+}
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: pageTitle,
+  description: pageDescription,
+  image: [imageUrl],
+  datePublished: publishedAt.toISOString(),
+  dateModified: updatedAt.toISOString(),
+  author: {
+    '@type': 'Person',
+    name: post.author.name,
+    url: new URL(authorHref, origin).toString()
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: siteIdentity.title,
+    logo: {
+      '@type': 'ImageObject',
+      url: new URL('/favicon.svg', origin).toString()
+    }
+  },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': pageUrl
+  },
+  keywords: post.tags?.map((tag) => tag.name).join(', ')
+}
+
+const contentText = typeof post.content === 'string'
+  ? post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  : ''
+const safeContentHtml = sanitizeHtml(post.content)
+const wordCount = contentText ? contentText.split(' ').length : 0
+const readMinutes = Math.max(1, Math.ceil(wordCount / 200))
+const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedAt.getTime()
+---
+<BaseLayout 
+  title={pageTitle}
+  description={pageDescription}
+  ogType="article" 
+  ogImage={imageUrl}
+  canonicalUrl={pageUrl}
+>
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify(structuredData)}
+  ></script>
+  <article class="bg-background">
+    <div class="mx-auto max-w-6xl px-5 pb-16 pt-8 sm:px-7 sm:pb-20 sm:pt-10 lg:px-8">
+      <header class="mx-auto max-w-4xl space-y-4 sm:space-y-5">
+        <div class="flex flex-wrap items-center gap-2 gap-y-2.5">
+          {post.categories && post.categories.length > 0 ? (
+            post.categories.map((category) => (
+              <a href={`/category/${category.slug}/`} data-astro-prefetch="hover" class="badge badge-secondary hover:bg-secondary/80 transition-colors">
+                {category.name}
+              </a>
+            ))
+          ) : (
+            <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Article</span>
+          )}
+          {post.tags && post.tags.length > 0 && (
+            post.tags.map((tag) => (
+              <a href={`/tag/${tag.slug}/`} data-astro-prefetch="hover" class="badge hover:bg-accent hover:text-accent-foreground transition-colors">
+                #{tag.name}
+              </a>
+            ))
+          )}
+        </div>
+        <h1 class="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          {post.title}
+        </h1>
+        <div class="flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
+          <a href={authorHref} data-astro-prefetch="hover" class="font-medium text-foreground hover:text-foreground transition-colors">
+            By {post.author.name}
+          </a>
+          <span class="text-muted-foreground/40">•</span>
+          <time datetime={publishedAt.toISOString()}>
+            {publishedAt.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </time>
+          {showUpdated && (
+            <>
+              <span class="text-muted-foreground/40">•</span>
+              <span>
+                Updated {updatedAt.toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </span>
+            </>
+          )}
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span class="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1">
+            {wordCount.toLocaleString()} words
+          </span>
+          <span class="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1">
+            {readMinutes} min read
+          </span>
+          {post.audioAsset?.url && (
+            <span class="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-1 text-primary">
+              Audio available
+            </span>
+          )}
+        </div>
+
+        <div class="mt-8 overflow-hidden rounded-3xl border border-border/80 bg-muted/30 shadow-lg">
+          <ResponsiveImage
+            src={post.featuredImage?.url || '/images/article_image_01.webp'}
+            alt={post.featuredImage?.altText || `Featured image for ${post.title}`}
+            width={heroDimensions.width}
+            height={heroDimensions.height}
+            class="block w-full"
+            priority={true}
+            sizes="(max-width: 1024px) 100vw, 1024px"
+          />
+        </div>
+      </header>
+
+      <section class="mx-auto mt-8 max-w-4xl rounded-3xl border border-border/80 bg-card p-5 shadow-lg sm:mt-10 sm:p-8 lg:p-10">
+        {post.audioAsset?.url && (
+          <div class="mb-8">
+            <AudioPlayer
+              client:load
+              src={post.audioAsset.url}
+              type={post.audioAsset.mimeType}
+              label="Audio version"
+            />
+            <noscript>
+              <audio controls preload="none" class="mt-3 w-full">
+                <source src={post.audioAsset.url} type={post.audioAsset.mimeType} />
+              </audio>
+            </noscript>
+          </div>
+        )}
+
+        <div class="mb-12">
+          <div class="article-prose prose prose-lg max-w-none text-base leading-relaxed sm:text-lg prose-headings:scroll-mt-24 prose-a:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md prose-blockquote:border-primary/60 prose-blockquote:bg-muted/60 prose-blockquote:px-4 prose-blockquote:py-2" set:html={safeContentHtml}>
+          </div>
+        </div>
+
+        <nav class="border-t border-border pt-8" aria-label="Post navigation">
+          <a href={articlesIndexPath} data-astro-prefetch="hover" class="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
+            ← Back to all posts
+          </a>
+        </nav>
+
+        <div class="pt-8">
+          <BlogCommentsSlot client:load slug={post.slug} />
+        </div>
+      </section>
+    </div>
+  </article>
+</BaseLayout>

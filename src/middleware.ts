@@ -1,0 +1,244 @@
+import { defineMiddleware } from 'astro:middleware';
+import { canRoleAccessAdminPath } from './lib/auth/access-policy.js';
+import { authService } from './lib/auth/auth-helpers.js';
+import { isSameOriginRequest, isUnsafeMethod } from './lib/security/request-guards.js';
+import { getSiteContentRouting } from './lib/site-config.js';
+import { resolveLegacyBlogPath } from './lib/routing/articles.js';
+import { supabaseAdmin } from './lib/supabase.js';
+import {
+  hasRequiredSetupEnv,
+  isMissingRelationError,
+  normalizeBooleanSetting,
+  SETUP_ALLOW_REENTRY_KEY,
+  SETUP_COMPLETION_KEY
+} from './lib/setup/runtime.js';
+
+const SETUP_COMPLETION_CACHE_TTL_MS = 5000;
+let setupCompletionCache: { completed: boolean; allowReentry: boolean; checkedAt: number } | null = null;
+const CONTENT_ROUTING_CACHE_TTL_MS = 30000;
+let contentRoutingCache:
+  | { articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress'; checkedAt: number }
+  | null = null;
+
+const SETUP_ALLOWED_PREFIXES = [
+  '/setup',
+  '/installation',
+  '/api/setup',
+  '/_astro',
+  '/images',
+  '/scripts',
+  '/favicon'
+];
+const STATIC_ASSET_PATTERN = /\.[a-z0-9]+$/i;
+
+const shouldBypassSetupRedirect = (pathname: string) => {
+  if (STATIC_ASSET_PATTERN.test(pathname)) return true;
+  if (pathname === '/') return false;
+  return SETUP_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+};
+
+const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: boolean }> => {
+  if (!hasRequiredSetupEnv()) return { completed: false, allowReentry: false };
+
+  const now = Date.now();
+  if (setupCompletionCache && now - setupCompletionCache.checkedAt <= SETUP_COMPLETION_CACHE_TTL_MS) {
+    return {
+      completed: setupCompletionCache.completed,
+      allowReentry: setupCompletionCache.allowReentry
+    };
+  }
+
+  try {
+    const { data, error } = await (supabaseAdmin as any)
+      .from('site_settings')
+      .select('key,value')
+      .in('key', [SETUP_COMPLETION_KEY, SETUP_ALLOW_REENTRY_KEY]);
+
+    if (error) {
+      const message = String(error.message || '').toLowerCase();
+      if (isMissingRelationError(message)) {
+        setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+        return { completed: false, allowReentry: false };
+      }
+      console.warn('Setup completion check failed:', error.message);
+      setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+      return { completed: false, allowReentry: false };
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    const completionRow = rows.find((row: any) => row.key === SETUP_COMPLETION_KEY);
+    const allowReentryRow = rows.find((row: any) => row.key === SETUP_ALLOW_REENTRY_KEY);
+
+    const completed = normalizeBooleanSetting(completionRow?.value);
+    const allowReentry = normalizeBooleanSetting(allowReentryRow?.value);
+
+    setupCompletionCache = { completed, allowReentry, checkedAt: now };
+    return { completed, allowReentry };
+  } catch (error) {
+    console.warn('Setup completion check failed:', error);
+    setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+    return { completed: false, allowReentry: false };
+  }
+};
+
+const getContentRoutingForRewrite = async (): Promise<{ articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress' }> => {
+  const now = Date.now();
+  if (contentRoutingCache && now - contentRoutingCache.checkedAt <= CONTENT_ROUTING_CACHE_TTL_MS) {
+    return {
+      articleBasePath: contentRoutingCache.articleBasePath,
+      articlePermalinkStyle: contentRoutingCache.articlePermalinkStyle
+    };
+  }
+
+  const routing = await getSiteContentRouting({ refresh: true });
+  contentRoutingCache = {
+    articleBasePath: routing.articleBasePath,
+    articlePermalinkStyle: routing.articlePermalinkStyle,
+    checkedAt: now
+  };
+  return routing;
+};
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const { url, redirect } = context;
+  const isSetupRoute = url.pathname === '/setup' || url.pathname.startsWith('/setup/');
+  const isAdminRoute = url.pathname.startsWith('/admin');
+  const isProfileRoute = url.pathname === '/profile' || url.pathname.startsWith('/profile/');
+
+  if (!hasRequiredSetupEnv() && !shouldBypassSetupRedirect(url.pathname)) {
+    return redirect('/setup');
+  }
+
+  if (hasRequiredSetupEnv()) {
+    const setupGate = await getSetupGateState();
+
+    if (isSetupRoute && setupGate.completed && !setupGate.allowReentry) {
+      return redirect('/');
+    }
+
+    if (!shouldBypassSetupRedirect(url.pathname) && !setupGate.completed) {
+      return redirect('/setup');
+    }
+  }
+
+  if (url.pathname.startsWith('/api') && isUnsafeMethod(context.request.method)) {
+    if (!isSameOriginRequest(context.request, url.origin)) {
+      return new Response(JSON.stringify({ error: 'Cross-origin requests are not allowed.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+      });
+    }
+  }
+
+  if (
+    !url.pathname.startsWith('/api')
+    && !url.pathname.startsWith('/admin')
+    && !url.pathname.startsWith('/auth')
+  ) {
+    try {
+      const routing = await getContentRoutingForRewrite();
+      const rewritePath = resolveLegacyBlogPath(url.pathname, {
+        basePath: routing.articleBasePath,
+        permalinkStyle: routing.articlePermalinkStyle
+      });
+      if (rewritePath && rewritePath !== url.pathname) {
+        const rewriteUrl = new URL(url);
+        rewriteUrl.pathname = rewritePath;
+        return context.rewrite(rewriteUrl);
+      }
+    } catch (routingError) {
+      console.warn('Article routing rewrite skipped due to settings lookup error.', routingError);
+    }
+  }
+  
+  // Protect authenticated app routes
+  if (isAdminRoute || isProfileRoute) {
+    try {
+      const user = await authService.getUserFromRequest(context.request);
+      if (!user) {
+        const requestedPath = `${url.pathname}${url.search}`;
+        return redirect('/auth/login?redirect=' + encodeURIComponent(requestedPath));
+      }
+
+      if (isAdminRoute && !canRoleAccessAdminPath(user.role, url.pathname)) {
+        return redirect('/auth/unauthorized');
+      }
+      
+      context.locals.user = user;
+    } catch (error) {
+      console.error('Auth middleware error:', error);
+      return redirect('/auth/login?error=auth_error');
+    }
+  }
+  
+  const response = await next();
+  let mutableResponse = response;
+  let headers = mutableResponse.headers;
+
+  const ensureMutableHeaders = () => {
+    if (mutableResponse !== response) return;
+    mutableResponse = new Response(response.body, response);
+    headers = mutableResponse.headers;
+  };
+
+  const setHeader = (name: string, value: string) => {
+    try {
+      headers.set(name, value);
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('immutable')) {
+        ensureMutableHeaders();
+        headers.set(name, value);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const deleteHeader = (name: string) => {
+    try {
+      headers.delete(name);
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('immutable')) {
+        ensureMutableHeaders();
+        headers.delete(name);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  setHeader('X-Content-Type-Options', 'nosniff');
+  setHeader('X-Frame-Options', 'DENY');
+  setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+
+  if (url.protocol === 'https:') {
+    setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+
+  if (url.pathname.startsWith('/api')) {
+    setHeader('Cache-Control', 'no-store');
+  }
+
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https://*.supabase.co",
+    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "script-src 'self' 'unsafe-inline'",
+    "script-src-attr 'none'",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    "form-action 'self'",
+    'upgrade-insecure-requests'
+  ].join('; ');
+  setHeader('Content-Security-Policy', csp);
+
+  deleteHeader('x-supabase-api-version');
+
+  return mutableResponse;
+});
