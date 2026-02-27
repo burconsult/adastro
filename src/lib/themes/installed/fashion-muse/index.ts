@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Fashion Muse',
   description: 'Editorial contrast with blush accents and polished neutrals.',
   version: '1.0.0',
-  author: 'Kilpbase',
+  author: 'Burconsult',
   accent: 'hsl(330 65.9% 56.3%)',
   fonts: {
     body: "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

@@ -2,6 +2,8 @@
 
 If you believe you found a security issue in AdAstro, please do **not** open a public GitHub issue first.
 
+AdAstro is an open-source project maintained on a best-effort basis. Security for the initial release has been hardened and tested, but no absolute guarantee is provided.
+
 ## Report a Vulnerability
 
 Send a private report with reproduction details and impact to:
@@ -27,7 +29,16 @@ Please report issues related to:
 
 ## Supported Versions
 
-AdAstro is currently pre-1.x public release oriented. Security fixes are handled on a best-effort basis for the latest public release branch/version.
+Security fixes are handled on a best-effort basis for the latest public release.
+
+## Security Testing and Hardening (v1 baseline)
+
+Security posture for v1 includes:
+- Supabase RLS enabled across core and feature tables.
+- Column-level grant hardening for sensitive fields (for example `authors.email`, `comments.author_email`, and media original-path metadata).
+- Storage bucket policies scoped to expected roles and paths.
+- Setup and admin routes fail closed when auth/role checks fail.
+- Automated release checks (`npm run verify:full`) and targeted route/component tests in CI.
 
 ## Hardening Reference
 

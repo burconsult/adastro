@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Brutalist Grid',
   description: 'Hard edges, strong contrast, orange heat with royal green accents.',
   version: '1.0.0',
-  author: 'AdAstro',
+  author: 'Burconsult',
   accent: 'hsl(28 96% 51%)',
   fonts: {
     body: '"IBM Plex Sans", "Avenir Next", "Segoe UI", Arial, sans-serif',

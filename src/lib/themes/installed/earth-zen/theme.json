@@ -3,7 +3,7 @@
   "label": "Earth Zen",
   "description": "Earthy greens and warm neutrals with calm balance.",
   "version": "1.0.0",
-  "author": "Kilpbase",
+  "author": "Burconsult",
   "entry": "index.ts",
   "fontImports": [
     "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap"

@@ -3,7 +3,7 @@
   "label": "Pulse",
   "description": "Startup-grade blues with electric mint highlights.",
   "version": "1.0.0",
-  "author": "Adastro",
+  "author": "Burconsult",
   "entry": "index.ts",
   "fontImports": [
     "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700&display=swap"

@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Neural Nexus',
   description: 'Electric purples with neon teal accents.',
   version: '1.0.0',
-  author: 'Kilpbase',
+  author: 'Burconsult',
   accent: 'hsl(258 89.5% 66.3%)',
   fonts: {
     body: "'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

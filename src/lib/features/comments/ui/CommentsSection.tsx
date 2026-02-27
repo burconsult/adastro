@@ -143,7 +143,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
   useEffect(() => {
     const loadViewer = async () => {
       try {
-        const response = await fetch('/api/profile');
+        const response = await fetch('/api/profile?optional=1');
         if (response.status === 401) {
           setViewer(null);
           setViewerLoaded(true);

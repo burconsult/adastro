@@ -3,7 +3,7 @@
   "label": "Brutalist Grid",
   "description": "Hard edges, strong contrast, orange heat with royal green accents.",
   "version": "1.0.0",
-  "author": "AdAstro",
+  "author": "Burconsult",
   "entry": "index.ts",
   "fonts": {
     "body": "\"IBM Plex Sans\", \"Avenir Next\", \"Segoe UI\", Arial, sans-serif",

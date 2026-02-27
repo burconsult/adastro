@@ -21,6 +21,12 @@ const createContext = (params: Record<string, string | undefined>) => ({
   locals: { traceId: 'test' }
 });
 
+const createGetContext = (params: Record<string, string | undefined>) => ({
+  request: new Request('http://localhost/api/features/test/action', { method: 'GET' }),
+  params,
+  locals: { traceId: 'test' }
+});
+
 describe('feature api dispatcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,6 +60,20 @@ describe('feature api dispatcher', () => {
 
     expect(response.status).toBe(409);
     expect(payload.error).toMatch(/inactive/i);
+  });
+
+  it('returns a safe empty payload for inactive comments list reads', async () => {
+    mocks.getFeatureApiHandler.mockResolvedValue(vi.fn());
+    mocks.isFeatureActive.mockResolvedValue(false);
+
+    const response = await ALL(createGetContext({ feature: 'comments', action: 'list' }) as any);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      enabled: false,
+      comments: []
+    });
   });
 
   it('dispatches to handler when feature is active', async () => {

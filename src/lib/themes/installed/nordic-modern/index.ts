@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Nordic Modern',
   description: 'Minimal Nordic neutrals with crisp blue accents.',
   version: '1.0.0',
-  author: 'Kilpbase',
+  author: 'Burconsult',
   accent: 'hsl(221 83.2% 53.3%)',
   fonts: {
     body: "'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

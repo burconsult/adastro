@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Pulse',
   description: 'Startup-grade blues with electric mint highlights.',
   version: '1.0.0',
-  author: 'Adastro',
+  author: 'Burconsult',
   accent: 'hsl(221 83% 53%)',
   fonts: {
     body: '"Outfit", "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif',

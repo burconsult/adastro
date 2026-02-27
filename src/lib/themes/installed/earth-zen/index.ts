@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Earth Zen',
   description: 'Earthy greens and warm neutrals with calm balance.',
   version: '1.0.0',
-  author: 'Kilpbase',
+  author: 'Burconsult',
   accent: 'hsl(0 0% 100%)',
   fonts: {
     body: "'Quicksand', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

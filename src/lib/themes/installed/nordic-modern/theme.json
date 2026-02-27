@@ -3,7 +3,7 @@
   "label": "Nordic Modern",
   "description": "Minimal Nordic neutrals with crisp blue accents.",
   "version": "1.0.0",
-  "author": "Kilpbase",
+  "author": "Burconsult",
   "entry": "index.ts",
   "fontImports": [
     "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Inter+Tight:wght@400;500;600;700&display=swap"

@@ -33,6 +33,9 @@ const normalizeProfileData = (value: unknown): Record<string, any> => {
 };
 
 export const GET: APIRoute = async ({ request }) => {
+  const url = new URL(request.url);
+  const optionalAuth = url.searchParams.get('optional') === '1';
+
   try {
     const user = await requireAuth(request);
     let profile = await profileRepo.findByAuthUserId(user.id);
@@ -89,6 +92,9 @@ export const GET: APIRoute = async ({ request }) => {
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes('Authentication required')) {
+      if (optionalAuth) {
+        return json({ authenticated: false, user: null, profile: null, featureFlags: {} });
+      }
       return json({ error: 'Authentication required' }, 401);
     }
     console.error('Profile fetch failed:', error);

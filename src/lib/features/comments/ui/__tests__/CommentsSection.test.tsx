@@ -37,7 +37,7 @@ describe('CommentsSection', () => {
         );
       }
 
-      if (url === '/api/profile') {
+      if (url === '/api/profile?optional=1') {
         return Promise.resolve(jsonResponse({ error: 'Authentication required' }, 401));
       }
 
@@ -62,7 +62,7 @@ describe('CommentsSection', () => {
         return Promise.resolve(jsonResponse({ enabled: true, comments: [] }));
       }
 
-      if (url === '/api/profile') {
+      if (url === '/api/profile?optional=1') {
         return Promise.resolve(
           jsonResponse({
             user: {

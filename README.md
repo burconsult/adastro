@@ -117,6 +117,9 @@ Notes:
   - `npm run test:run`
   - `npm run build`
 
+## Maintenance Model
+AdAstro is currently maintained by a single developer. The codebase has automated checks and hardening, but it is not positioned as an enterprise-certified platform. Treat releases as best-effort open-source software and validate in staging before production rollouts.
+
 ## Remote MCP (Optional)
 AdAstro includes a built-in **remote MCP server** at `/mcp` for AI tools that support MCP over HTTP.
 

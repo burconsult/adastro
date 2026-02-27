@@ -2,7 +2,7 @@
 
 Theme packages are installable bundles that add new `data-theme` palettes without
 changing the core codebase. A theme package ships its own CSS variables and
-metadata so it can be previewed and activated from the admin dashboard.
+metadata so it can be activated from the admin dashboard.
 
 ## Package Structure
 
@@ -11,7 +11,6 @@ my-theme/
   theme.json
   index.ts
   theme.css
-  preview.png
 ```
 
 ## theme.json (required)
@@ -22,9 +21,8 @@ my-theme/
   "label": "Midnight Ocean",
   "description": "Inky blues with sea-glass accents.",
   "version": "1.0.0",
-  "author": "Adastro Studio",
+  "author": "Burconsult",
   "entry": "index.ts",
-  "previewImage": "preview.png",
   "fontImports": [
     "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sora:wght@400;600;700&display=swap"
   ],
@@ -46,8 +44,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Midnight Ocean',
   description: 'Inky blues with sea-glass accents.',
   version: '1.0.0',
-  author: 'Adastro Studio',
-  previewImage: '/themes/midnight-ocean/preview.png',
+  author: 'Burconsult',
   accent: 'hsl(198 78% 44%)',
   fonts: {
     body: '"Outfit", system-ui, sans-serif',

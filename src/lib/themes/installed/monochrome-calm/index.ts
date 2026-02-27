@@ -6,7 +6,7 @@ export const THEME_MODULE: ThemeModule = {
   label: 'Monochrome Calm',
   description: 'High-contrast grayscale with soft muted tones.',
   version: '1.0.0',
-  author: 'Kilpbase',
+  author: 'Burconsult',
   accent: 'hsl(60 2.7% 29%)',
   fonts: {
     body: "'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

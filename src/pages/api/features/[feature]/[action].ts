@@ -21,6 +21,22 @@ export const ALL: APIRoute = async (context) => {
 
   const featureIsActive = await isFeatureActive(feature);
   if (!featureIsActive) {
+    if (feature === 'comments' && action === 'list' && context.request.method === 'GET') {
+      return new Response(JSON.stringify({
+        enabled: false,
+        authenticatedOnly: false,
+        recaptcha: {
+          enabled: false,
+          required: false,
+          configured: false
+        },
+        comments: []
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     return new Response(JSON.stringify({
       error: `Feature "${feature}" is inactive. Enable it in Admin → Settings first.`
     }), {
