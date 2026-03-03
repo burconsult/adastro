@@ -10,6 +10,7 @@ This document is the fast orientation map for both humans and AI agents working 
 | Public site | `src/pages/index.astro`, `src/pages/[slug].astro`, `src/pages/blog/*` | Render pages/posts with theme + settings |
 | Admin UI | `src/pages/admin*.astro` + React islands in `src/lib/components/*` | Editorial workflow, settings, feature/theme management |
 | API | `src/pages/api/*` | Auth, CRUD, setup automation, feature dispatch |
+| MCP endpoint | `src/pages/mcp.ts` | Token-protected MCP over HTTP surface for remote tooling |
 | Setup | `src/pages/setup.astro`, `src/pages/api/setup/*` | Guided install + setup completion gate |
 
 ## 2. Core Layering
@@ -29,6 +30,9 @@ flowchart TD
 
   J[Middleware src/middleware.ts] --> A
   J --> C
+
+  K[MCP route src/pages/mcp.ts] --> L[MCP auth + server src/lib/mcp]
+  L --> C
 ```
 
 ## 3. Critical Runtime Controls
@@ -36,6 +40,7 @@ flowchart TD
 - Setup gate (global): `src/middleware.ts`
 - Auth + role gate (admin/author): `src/middleware.ts`, `src/lib/auth/*`
 - Feature state gate: `src/lib/features/state.ts`
+- MCP token gate: `src/lib/mcp/auth.ts`
 - Theme resolution: `src/lib/site-config.ts`, `src/lib/themes/*`
 - Content routing resolution: `src/lib/site-config.ts`, `src/lib/routing/articles.ts`
 
@@ -49,6 +54,7 @@ flowchart TD
 | Setup automation | `src/pages/api/setup/automate.ts` |
 | Setup wizard UI | `src/lib/components/SetupWizard.tsx`, `src/lib/components/setup-wizard/*` |
 | Setup runtime primitives | `src/lib/setup/runtime.ts` |
+| MCP endpoint + auth | `src/pages/mcp.ts`, `src/lib/mcp/server.ts`, `src/lib/mcp/auth.ts` |
 | Settings definitions | `src/lib/settings/core-definitions.ts`, `src/lib/features/*/settings.ts` |
 | Features manifest | `src/lib/features/manifest.ts` |
 | AI feature architecture | `docs/architecture/ai-feature.md`, `src/lib/features/ai/lib/provider-catalog.ts`, `src/lib/features/ai/lib/usage.ts` |
@@ -73,3 +79,4 @@ flowchart TD
 | Feature toggle behavior | `src/lib/features/state.ts`, feature `settings.ts`, Admin settings UI |
 | Public page composition | `src/pages/*.astro`, `src/lib/database/repositories/page-repository.ts`, page sections |
 | Theme behavior | `src/lib/themes/*`, `src/lib/site-config.ts`, `src/styles/*` |
+| MCP tooling surface | `src/pages/mcp.ts`, `src/lib/mcp/auth.ts`, `src/lib/mcp/server.ts` |

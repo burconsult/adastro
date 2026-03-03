@@ -65,6 +65,18 @@ Invariants:
 - Rate limit + usage-cap checks run before provider calls.
 - Errors fail closed with generic server messages.
 
+## 3.3 MCP Endpoint Contract
+
+- `ALL /mcp` is served by `src/pages/mcp.ts`.
+- Endpoint must fail closed when `MCP_SERVER_TOKEN` is missing (`503`).
+- Endpoint must reject unauthorized calls (`401`) unless the bearer token matches.
+- Transport is stateless request/response over MCP HTTP streamable transport.
+
+Invariants:
+- `MCP_SERVER_TOKEN` is server-only and must never be exposed in client bundles.
+- Error responses must stay sanitized and protocol-safe.
+- Tool registration is owned by `src/lib/mcp/server.ts`; route only handles auth + transport lifecycle.
+
 ## 4. Routing Contract
 
 Content routing settings:

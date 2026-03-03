@@ -1,7 +1,7 @@
 {
   "project": "adastro",
   "version": "1.0.0",
-  "lastUpdated": "2026-02-19",
+  "lastUpdated": "2026-03-03",
   "surfaces": {
     "public": {
       "entryRoots": [
@@ -24,6 +24,12 @@
         "src/pages/api/features",
         "src/pages/api/setup"
       ]
+    },
+    "mcp": {
+      "route": "src/pages/mcp.ts",
+      "server": "src/lib/mcp/server.ts",
+      "auth": "src/lib/mcp/auth.ts",
+      "envToken": "MCP_SERVER_TOKEN"
     },
     "setup": {
       "page": "src/pages/setup.astro",
@@ -64,6 +70,13 @@
       "src/lib/security/recaptcha.ts"
     ],
     "themes": "src/lib/themes",
+    "themeManifest": "src/lib/themes/manifest.ts",
+    "installedThemesRoot": "src/lib/themes/installed",
+    "mcp": [
+      "src/pages/mcp.ts",
+      "src/lib/mcp/server.ts",
+      "src/lib/mcp/auth.ts"
+    ],
     "routing": "src/lib/routing/articles.ts",
     "config": [
       "src/lib/config/media.ts"
@@ -73,6 +86,7 @@
     "manifest": "src/lib/features/manifest.ts",
     "serverManifest": "src/lib/features/server-manifest.ts",
     "contracts": "src/lib/features/types.ts",
+    "apiDispatcher": "src/pages/api/features/[feature]/[action].ts",
     "runtime": [
       "src/lib/features/loader.ts",
       "src/lib/features/server-loader.ts",
@@ -126,7 +140,8 @@
     "optionalCore": [
       "ASTRO_ADAPTER",
       "MEDIA_STORAGE_BUCKET",
-      "MIGRATION_UPLOADS_BUCKET"
+      "MIGRATION_UPLOADS_BUCKET",
+      "MCP_SERVER_TOKEN"
     ],
     "optionalFeature": [
       "RESEND_API_KEY",
@@ -145,6 +160,7 @@
     "setupGateKey": "setup.completed",
     "setupReentryKey": "setup.allowReentry",
     "setupMiddleware": "src/middleware.ts",
+    "architectureMapVerifierScript": "scripts/ci/check-architecture-map.mjs",
     "releaseGatesDoc": "docs/release-gates.md",
     "releaseExecutionBoardDoc": "docs/release-execution-board.md",
     "localVerificationDoc": "docs/engineering/local-testing.md",

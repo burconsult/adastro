@@ -30,7 +30,8 @@ Rules:
 1. Client uses `SUPABASE_PUBLISHABLE_KEY` only.
 2. Server-only operations require `SUPABASE_SECRET_KEY`.
 3. API routes enforce auth/role checks server-side; never trust client role claims.
-4. CSP, same-origin unsafe method checks, and setup gate are middleware responsibilities.
+4. `/mcp` is disabled unless `MCP_SERVER_TOKEN` is configured and bearer auth passes.
+5. CSP, same-origin unsafe method checks, and setup gate are middleware responsibilities.
 
 ## 5. Setup Boundary
 
