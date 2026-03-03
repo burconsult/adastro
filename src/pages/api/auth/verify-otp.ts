@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { buildAccessTokenCookie } from '../../../lib/auth/cookies.js';
-import { supabase } from '../../../lib/supabase.js';
+import { createSupabaseServerClient } from '../../../lib/supabase.js';
 
 const ALLOWED_OTP_TYPES = new Set([
   'signup',
@@ -19,6 +19,7 @@ const json = (payload: unknown, status = 200) =>
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const serverClient = createSupabaseServerClient();
     const payload = await request.json().catch(() => ({}));
     const tokenHash = typeof payload.token_hash === 'string' ? payload.token_hash.trim() : '';
     const otpType = typeof payload.type === 'string' ? payload.type.trim().toLowerCase() : '';
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ error: 'Unsupported OTP type.' }, 400);
     }
 
-    const { data, error } = await supabase.auth.verifyOtp({
+    const { data, error } = await serverClient.auth.verifyOtp({
       token_hash: tokenHash,
       type: otpType as any
     });

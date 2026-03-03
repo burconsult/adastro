@@ -30,6 +30,29 @@ export const supabaseAdmin = createClient(
 
 export const isSupabaseAdminConfigured = hasSecretKey
 
+export function createSupabaseServerClient(accessToken?: string) {
+  return createClient(
+    supabaseUrl,
+    supabasePublishableKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      },
+      ...(accessToken
+        ? {
+            global: {
+              headers: {
+                Authorization: `Bearer ${accessToken}`
+              }
+            }
+          }
+        : {})
+    }
+  )
+}
+
 export type Database = {
   public: {
     Tables: {

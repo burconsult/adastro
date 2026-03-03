@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { buildAccessTokenCookie } from '../../../lib/auth/cookies.js';
-import { supabase } from '../../../lib/supabase.js';
+import { createSupabaseServerClient } from '../../../lib/supabase.js';
 
 const json = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), {
@@ -10,6 +10,7 @@ const json = (payload: unknown, status = 200) =>
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const serverClient = createSupabaseServerClient();
     const payload = await request.json().catch(() => ({}));
     const code = typeof payload.code === 'string' ? payload.code.trim() : '';
 
@@ -17,7 +18,7 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ error: 'Authorization code is required.' }, 400);
     }
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await serverClient.auth.exchangeCodeForSession(code);
 
     if (error || !data.session?.access_token) {
       return json({ error: 'Invalid or expired authorization code.' }, 401);

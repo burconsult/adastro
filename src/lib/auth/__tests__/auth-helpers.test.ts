@@ -2,30 +2,55 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthService, authService } from '../auth-helpers.js';
 import { ValidationError, DatabaseError } from '../../database/connection.js';
 
+const mocks = vi.hoisted(() => ({
+  signUp: vi.fn(),
+  signInWithPassword: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
+  signOut: vi.fn(),
+  getUser: vi.fn(),
+  getSession: vi.fn(),
+  updateUser: vi.fn(),
+  refreshSession: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  adminGetUserById: vi.fn(),
+  adminListUsers: vi.fn(),
+  adminDeleteUser: vi.fn(),
+  adminSignOut: vi.fn()
+}));
+
 // Mock Supabase client
 vi.mock('../../supabase.js', () => ({
+  createSupabaseServerClient: vi.fn(() => ({
+    auth: {
+      signUp: mocks.signUp,
+      signInWithPassword: mocks.signInWithPassword,
+      resetPasswordForEmail: mocks.resetPasswordForEmail
+    }
+  })),
   supabase: {
     auth: {
-      signUp: vi.fn(),
-      signInWithPassword: vi.fn(),
-      signOut: vi.fn(),
-      getUser: vi.fn(),
-      getSession: vi.fn(),
-      resetPasswordForEmail: vi.fn(),
-      updateUser: vi.fn(),
-      refreshSession: vi.fn(),
-      onAuthStateChange: vi.fn(),
+      signUp: mocks.signUp,
+      signInWithPassword: mocks.signInWithPassword,
+      signOut: mocks.signOut,
+      getUser: mocks.getUser,
+      getSession: mocks.getSession,
+      resetPasswordForEmail: mocks.resetPasswordForEmail,
+      updateUser: mocks.updateUser,
+      refreshSession: mocks.refreshSession,
+      onAuthStateChange: mocks.onAuthStateChange,
     },
   },
   supabaseAdmin: {
     auth: {
       admin: {
-        getUserById: vi.fn(),
-        listUsers: vi.fn(),
-        deleteUser: vi.fn(),
+        getUserById: mocks.adminGetUserById,
+        listUsers: mocks.adminListUsers,
+        deleteUser: mocks.adminDeleteUser,
+        signOut: mocks.adminSignOut
       },
     },
   },
+  isSupabaseAdminConfigured: true
 }));
 
 describe('AuthService', () => {
@@ -151,22 +176,32 @@ describe('AuthService', () => {
 
   describe('signOut', () => {
     it('should sign out successfully', async () => {
-      const { supabase } = await import('../../supabase.js');
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
+      const { supabaseAdmin } = await import('../../supabase.js');
+      vi.mocked(supabaseAdmin.auth.admin.signOut).mockResolvedValue({
+        data: null,
         error: null,
       });
 
-      await expect(service.signOut()).resolves.not.toThrow();
-      expect(supabase.auth.signOut).toHaveBeenCalled();
+      await expect(
+        service.signOut(new Request('https://adastrocms.vercel.app/profile', {
+          headers: { cookie: 'sb-access-token=token-1' }
+        }))
+      ).resolves.not.toThrow();
+      expect(supabaseAdmin.auth.admin.signOut).toHaveBeenCalledWith('token-1');
     });
 
     it('should handle sign out errors', async () => {
-      const { supabase } = await import('../../supabase.js');
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
+      const { supabaseAdmin } = await import('../../supabase.js');
+      vi.mocked(supabaseAdmin.auth.admin.signOut).mockResolvedValue({
+        data: null,
         error: { message: 'Sign out failed' },
       });
 
-      await expect(service.signOut()).rejects.toThrow(DatabaseError);
+      await expect(
+        service.signOut(new Request('https://adastrocms.vercel.app/profile', {
+          headers: { cookie: 'sb-access-token=token-1' }
+        }))
+      ).rejects.toThrow(DatabaseError);
     });
   });
 

@@ -6,11 +6,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../lib/supabase.js', () => ({
-  supabase: {
+  createSupabaseServerClient: () => ({
     auth: {
       exchangeCodeForSession: mocks.exchangeCodeForSession
     }
-  }
+  })
 }));
 
 vi.mock('../../../../lib/auth/cookies.js', () => ({

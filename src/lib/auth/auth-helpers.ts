@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, isSupabaseAdminConfigured } from '../supabase.js';
+import { createSupabaseServerClient, supabase, supabaseAdmin, isSupabaseAdminConfigured } from '../supabase.js';
 import { DatabaseError, ValidationError } from '../database/connection.js';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
@@ -64,12 +64,13 @@ export class AuthService {
   // Sign up a new user
   async signUp(credentials: SignUpCredentials): Promise<{ user: AuthUser | null; needsConfirmation: boolean }> {
     try {
+      const serverClient = createSupabaseServerClient();
       const fallbackSiteUrl = typeof window !== 'undefined'
         ? window.location.origin
         : undefined;
       const siteUrl = import.meta.env.SITE_URL || fallbackSiteUrl;
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await serverClient.auth.signUp({
         email: credentials.email,
         password: credentials.password,
         options: {
@@ -107,7 +108,8 @@ export class AuthService {
   // Sign in an existing user
   async signIn(credentials: SignInCredentials): Promise<{ user: AuthUser; session: Session }> {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const serverClient = createSupabaseServerClient();
+      const { data, error } = await serverClient.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
       });
@@ -139,9 +141,14 @@ export class AuthService {
   }
 
   // Sign out the current user
-  async signOut(): Promise<void> {
+  async signOut(request?: Request): Promise<void> {
     try {
-      const { error } = await supabase.auth.signOut();
+      const token = request ? getAccessTokenFromRequest(request) : null;
+      if (!token) {
+        return;
+      }
+
+      const { error } = await supabaseAdmin.auth.admin.signOut(token);
       if (error) {
         throw this.handleAuthError(error);
       }
@@ -233,6 +240,7 @@ export class AuthService {
     options?: ResetPasswordOptions
   ): Promise<void> {
     try {
+      const serverClient = createSupabaseServerClient();
       const configuredSiteUrl = options?.siteUrl || (import.meta.env.SITE_URL as string | undefined);
       const fallbackSiteUrl = configuredSiteUrl && configuredSiteUrl.trim().length > 0
         ? configuredSiteUrl.trim()
@@ -243,7 +251,7 @@ export class AuthService {
           ? `${fallbackSiteUrl}/auth/reset-password`
           : undefined;
 
-      const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, {
+      const { error } = await serverClient.auth.resetPasswordForEmail(credentials.email, {
         ...(redirectTo ? { redirectTo } : {}),
       });
 
