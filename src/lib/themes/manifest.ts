@@ -7,6 +7,7 @@ import { THEME_MODULE as THEME_FASHION_MUSE_MODULE } from './installed/fashion-m
 import { THEME_MODULE as THEME_MONOCHROME_CALM_MODULE } from './installed/monochrome-calm/index.js';
 import { THEME_MODULE as THEME_NEURAL_NEXUS_MODULE } from './installed/neural-nexus/index.js';
 import { THEME_MODULE as THEME_BRUTALIST_GRID_MODULE } from './installed/brutalist-grid/index.js';
+import { THEME_MODULE as THEME_SIMPLE_LINES_MODULE } from './installed/simple-lines/index.js';
 // @theme-installer-imports
 
 export const THEME_MANIFEST: ThemeModule[] = [
@@ -18,5 +19,6 @@ export const THEME_MANIFEST: ThemeModule[] = [
   THEME_MONOCHROME_CALM_MODULE,
   THEME_NEURAL_NEXUS_MODULE,
   THEME_BRUTALIST_GRID_MODULE,
+  THEME_SIMPLE_LINES_MODULE,
   // @theme-installer-list
 ];
