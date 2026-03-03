@@ -3,6 +3,8 @@ import { Moon, Sun } from 'lucide-react';
 import {
   applyThemeMode,
   getStoredThemeMode,
+  resolveThemeMode,
+  THEME_MODE_EVENT,
   THEME_MODE_STORAGE_KEY,
   LEGACY_THEME_MODE_KEY
 } from '@/lib/themes/runtime.ts';
@@ -11,7 +13,7 @@ type ThemeMode = 'light' | 'dark';
 
 const resolveInitialMode = (): ThemeMode => {
   if (typeof window === 'undefined') return 'light';
-  return getStoredThemeMode();
+  return resolveThemeMode(getStoredThemeMode());
 };
 
 interface ModeToggleProps {
@@ -36,15 +38,32 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({ className = '', label = 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = (event: MediaQueryListEvent) => {
       const stored = localStorage.getItem(THEME_MODE_STORAGE_KEY) || localStorage.getItem(LEGACY_THEME_MODE_KEY);
-      if (stored !== 'light' && stored !== 'dark') {
+      if (stored !== 'light' && stored !== 'dark' && stored !== 'system') {
         const next = event.matches ? 'dark' : 'light';
         setMode(next);
         applyThemeMode(next);
       }
     };
+    const onThemeModeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolvedMode?: string }>;
+      const next = customEvent.detail?.resolvedMode;
+      if (next === 'light' || next === 'dark') {
+        setMode(next);
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== THEME_MODE_STORAGE_KEY && event.key !== LEGACY_THEME_MODE_KEY) return;
+      setMode(resolveThemeMode(getStoredThemeMode()));
+    };
 
     media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
+    window.addEventListener(THEME_MODE_EVENT, onThemeModeChange as EventListener);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      media.removeEventListener('change', onChange);
+      window.removeEventListener(THEME_MODE_EVENT, onThemeModeChange as EventListener);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const toggleTheme = () => {

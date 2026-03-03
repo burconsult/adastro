@@ -5,6 +5,7 @@ import AdminSidebar from "@/components/AdminSidebar.tsx";
 import AdminMobileNav from "@/components/AdminMobileNav.tsx";
 import ModeToggle from "@/components/ModeToggle.tsx";
 import ThemeInitScript from "@/components/ThemeInitScript.astro";
+import AuthHashRecoveryScript from "@/components/AuthHashRecoveryScript.astro";
 import ToastHost from "@/lib/components/ui/ToastHost.tsx";
 import type { AuthUser } from '@/lib/auth/auth-helpers';
 import { getSiteIdentity, getSiteTheme } from "@/lib/site-config";
@@ -76,6 +77,7 @@ const [aiActive, commentsActive, newsletterActive] = await Promise.all([
       content={encodeURIComponent(JSON.stringify(themeFontMap))}
     />
     <ThemeInitScript />
+    <AuthHashRecoveryScript />
   </head>
   <body class="min-h-full bg-background text-foreground">
     <div class="h-1 w-full brand-gradient"></div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ModeToggle } from '@/components/ModeToggle.tsx';
-import { applyThemeMode, getStoredThemeMode } from '@/lib/themes/runtime.ts';
+import { applyThemeMode, getStoredThemeMode, resolveThemeMode } from '@/lib/themes/runtime.ts';
 
 interface ThemeCustomizerProps {
   className?: string;
@@ -11,7 +11,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const currentMode = getStoredThemeMode();
+    const currentMode = resolveThemeMode(getStoredThemeMode());
     setMode(currentMode);
   }, []);
 

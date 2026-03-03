@@ -120,12 +120,15 @@ const DEFAULT_CUSTOM_SCRIPTS: SiteCustomScripts = {
   footerHtml: ''
 };
 
+const THEME_CACHE_TTL_MS = 2000;
+
 let cachedIdentity: SiteIdentity | null = null;
 let loadingPromise: Promise<SiteIdentity> | null = null;
 let cachedNavigation: SiteNavigation | null = null;
 let loadingNavigationPromise: Promise<SiteNavigation> | null = null;
 let cachedTheme: SiteTheme | null = null;
 let loadingThemePromise: Promise<SiteTheme> | null = null;
+let cachedThemeAt = 0;
 let cachedSeoDefaults: SiteSeoDefaults | null = null;
 let loadingSeoDefaultsPromise: Promise<SiteSeoDefaults> | null = null;
 let cachedSocialProfiles: SiteSocialProfiles | null = null;
@@ -458,10 +461,15 @@ export async function getSiteTheme(options?: { refresh?: boolean }): Promise<Sit
   if (options?.refresh) {
     cachedTheme = null;
     loadingThemePromise = null;
+    cachedThemeAt = 0;
   }
 
-  if (cachedTheme) {
+  if (cachedTheme && Date.now() - cachedThemeAt < THEME_CACHE_TTL_MS) {
     return cachedTheme;
+  }
+  if (cachedTheme && Date.now() - cachedThemeAt >= THEME_CACHE_TTL_MS) {
+    cachedTheme = null;
+    loadingThemePromise = null;
   }
 
   if (!loadingThemePromise) {
@@ -470,6 +478,7 @@ export async function getSiteTheme(options?: { refresh?: boolean }): Promise<Sit
       return DEFAULT_THEME;
     }).then((theme) => {
       cachedTheme = theme;
+      cachedThemeAt = Date.now();
       return theme;
     });
   }
@@ -595,6 +604,7 @@ export async function getSiteCustomScripts(options?: { refresh?: boolean }): Pro
 export function resetSiteThemeCache(): void {
   cachedTheme = null;
   loadingThemePromise = null;
+  cachedThemeAt = 0;
 }
 
 export function resetSiteIdentityCache(): void {

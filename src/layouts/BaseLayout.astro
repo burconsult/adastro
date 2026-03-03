@@ -4,6 +4,7 @@ import "@/lib/themes/manifest";
 import MobileNavigation from "@/components/MobileNavigation.tsx";
 import PageViewTracker from "@/components/PageViewTracker.tsx";
 import ThemeInitScript from "@/components/ThemeInitScript.astro";
+import AuthHashRecoveryScript from "@/components/AuthHashRecoveryScript.astro";
 import ToastHost from "@/lib/components/ui/ToastHost.tsx";
 import FooterNewsletterSlot from "@/lib/components/FooterNewsletterSlot";
 import { Facebook, Github, Link2, Linkedin } from "lucide-react";
@@ -192,6 +193,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
       <script type="application/ld+json" set:html={organizationStructuredData}></script>
     )}
     <ThemeInitScript />
+    <AuthHashRecoveryScript />
     {siteCustomScripts.headHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.headHtml} />}
   </head>
   <body class="min-h-full bg-background text-foreground">

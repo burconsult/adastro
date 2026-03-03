@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AdminLoadingState } from '@/lib/components/admin/ListingPrimitives';
+import { THEME_MODE_EVENT, THEME_MODE_STORAGE_KEY } from '@/lib/themes/runtime';
 import {
   Dialog,
   DialogContent,
@@ -45,13 +46,22 @@ const resolveMode = (mode: ThemeMode) => {
 const applyThemeToDocument = (themeId: string, mode: ThemeMode, preview = false) => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
+  const resolvedMode = resolveMode(mode);
   root.dataset.theme = themeId;
   root.dataset.themeMode = mode;
-  root.classList.toggle('dark', resolveMode(mode) === 'dark');
+  root.classList.toggle('dark', resolvedMode === 'dark');
+  root.style.colorScheme = resolvedMode;
   if (preview) {
     root.dataset.themePreview = 'true';
   } else {
     delete root.dataset.themePreview;
+    localStorage.setItem(THEME_MODE_STORAGE_KEY, mode);
+    window.dispatchEvent(new CustomEvent(THEME_MODE_EVENT, {
+      detail: {
+        mode,
+        resolvedMode
+      }
+    }));
   }
 };
 

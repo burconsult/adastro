@@ -591,7 +591,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
       const normalized = normalizeEditorJsData(nextBlocks);
       const nextContent = normalized.blocks.length > 0
         ? editorJsToHtml(normalized)
-        : prev.content;
+        : '';
       return {
         ...prev,
         blocks: normalized,
@@ -615,6 +615,37 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     }));
     setErrors((prevErrors) => (prevErrors.content ? { ...prevErrors, content: '' } : prevErrors));
   }, [formData.blocks?.blocks?.length, formData.content, isEditorJsActive]);
+
+  const switchToEditorMode = useCallback(() => {
+    setFormData((prev) => {
+      const sourceContent = (prev.content || '').trim();
+      const normalizedBlocks = normalizeEditorJsData(prev.blocks ?? {});
+
+      if (!sourceContent) {
+        if (normalizedBlocks.blocks.length === 0) {
+          return prev;
+        }
+        return {
+          ...prev,
+          blocks: { blocks: [] }
+        };
+      }
+
+      const blocksHtml = normalizedBlocks.blocks.length > 0
+        ? editorJsToHtml(normalizedBlocks).trim()
+        : '';
+      if (blocksHtml === sourceContent) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        blocks: htmlToEditorJs(sourceContent)
+      };
+    });
+    setErrors((prevErrors) => (prevErrors.content ? { ...prevErrors, content: '' } : prevErrors));
+    setEditorMode('editorjs');
+  }, []);
 
   const handleMediaSelect = useCallback((media: MediaAsset) => {
     setFeaturedImage(media);
@@ -704,7 +735,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
                   <div className="flex items-center gap-2 text-sm">
                     <button
                       type="button"
-                      onClick={() => setEditorMode('editorjs')}
+                      onClick={switchToEditorMode}
                       className={`px-3 py-1.5 border rounded-md transition-colors ${
                         isEditorJsActive ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted'
                       }`}

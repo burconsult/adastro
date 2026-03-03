@@ -1,0 +1,34 @@
+<script is:inline>
+  // Recover OAuth callbacks that land on arbitrary routes (for example "/#access_token=...")
+  // by forwarding them to /auth/callback where session finalization is centralized.
+  (() => {
+    try {
+      if (typeof window === 'undefined') return;
+      if (window.location.pathname === '/auth/callback') return;
+      if (!window.location.hash || window.location.hash.length < 2) return;
+
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const hasOAuthParams = [
+        'access_token',
+        'refresh_token',
+        'provider_token',
+        'expires_at',
+        'expires_in',
+        'token_type',
+        'error',
+        'error_description',
+        'code'
+      ].some((key) => hashParams.has(key));
+
+      if (!hasOAuthParams) return;
+
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      const redirectPath = `${window.location.pathname}${window.location.search || ''}` || '/';
+      callbackUrl.searchParams.set('redirect', redirectPath);
+      callbackUrl.hash = window.location.hash;
+      window.location.replace(callbackUrl.toString());
+    } catch {
+      // Keep page interactive even if auth hash recovery fails.
+    }
+  })();
+</script>
