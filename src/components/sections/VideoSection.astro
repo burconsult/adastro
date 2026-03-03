@@ -1,0 +1,100 @@
+---
+const { content = {} } = Astro.props as { content?: Record<string, any> };
+
+const heading = typeof content.heading === 'string' ? content.heading : '';
+const sourceType = content.sourceType === 'file' ? 'file' : 'embed';
+const sourceUrl = typeof content.sourceUrl === 'string' ? content.sourceUrl.trim() : '';
+const posterUrl = typeof content.posterUrl === 'string' ? content.posterUrl.trim() : '';
+const caption = typeof content.caption === 'string' ? content.caption : '';
+
+const toEmbedUrl = (value: string): string | null => {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+
+    if (host === 'youtu.be') {
+      const videoId = parsed.pathname.replace(/^\/+/, '').split('/')[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+
+    if (host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com') {
+      if (parsed.pathname.startsWith('/embed/')) return parsed.toString();
+      const videoId = parsed.searchParams.get('v');
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+
+    if (host === 'vimeo.com' || host === 'www.vimeo.com') {
+      const videoId = parsed.pathname.split('/').filter(Boolean)[0];
+      return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+    }
+
+    if (host === 'player.vimeo.com' && parsed.pathname.startsWith('/video/')) {
+      return parsed.toString();
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const embedUrl = sourceType === 'embed' ? toEmbedUrl(sourceUrl) : null;
+const fileUrl = sourceType === 'file' ? sourceUrl : '';
+---
+
+<section class="mx-auto max-w-5xl px-6 py-12 sm:px-8">
+  <div class="space-y-5">
+    {heading && (
+      <h2 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {heading}
+      </h2>
+    )}
+
+    {sourceType === 'embed' && embedUrl && (
+      <div class="overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-lg">
+        <div class="relative h-0 w-full pb-[56.25%]">
+          <iframe
+            src={embedUrl}
+            class="absolute inset-0 h-full w-full"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            title={heading || 'Embedded video'}
+          ></iframe>
+        </div>
+      </div>
+    )}
+
+    {sourceType === 'file' && fileUrl && (
+      <div class="overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-lg">
+        <video
+          class="h-auto w-full"
+          controls
+          preload="metadata"
+          poster={posterUrl || undefined}
+        >
+          <source src={fileUrl} />
+        </video>
+      </div>
+    )}
+
+    {!embedUrl && sourceType === 'embed' && (
+      <p class="text-sm text-muted-foreground">
+        Add a valid YouTube or Vimeo URL to display this embed.
+      </p>
+    )}
+
+    {!fileUrl && sourceType === 'file' && (
+      <p class="text-sm text-muted-foreground">
+        Add a direct video file URL (for example `.mp4`) to display this section.
+      </p>
+    )}
+
+    {caption && (
+      <p class="text-sm text-muted-foreground">
+        {caption}
+      </p>
+    )}
+  </div>
+</section>

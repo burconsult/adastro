@@ -3,6 +3,9 @@ import type { PageSection } from "@/lib/types";
 import HeroSection from "@/components/sections/HeroSection.astro";
 import InfoBlocksSection from "@/components/sections/InfoBlocksSection.astro";
 import FeatureGridSection from "@/components/sections/FeatureGridSection.astro";
+import RichTextSection from "@/components/sections/RichTextSection.astro";
+import ImageSection from "@/components/sections/ImageSection.astro";
+import VideoSection from "@/components/sections/VideoSection.astro";
 import CtaSection from "@/components/sections/CtaSection.astro";
 
 const { sections = [], articleBasePath } = Astro.props as {
@@ -19,6 +22,12 @@ const { sections = [], articleBasePath } = Astro.props as {
       return <InfoBlocksSection content={section.content} />;
     case 'feature_grid':
       return <FeatureGridSection content={section.content} />;
+    case 'rich_text':
+      return <RichTextSection content={section.content} />;
+    case 'image':
+      return <ImageSection content={section.content} articleBasePath={articleBasePath} />;
+    case 'video':
+      return <VideoSection content={section.content} />;
     case 'cta':
       return <CtaSection content={section.content} articleBasePath={articleBasePath} />;
     default:

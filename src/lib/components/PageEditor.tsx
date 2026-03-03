@@ -9,7 +9,7 @@ import type { EditorJSData } from '@/lib/editorjs/types';
 
 type PageStatus = 'draft' | 'published' | 'archived';
 type PageTemplate = 'default' | 'home' | 'landing' | 'blog';
-type SectionType = 'hero' | 'info_blocks' | 'feature_grid' | 'cta';
+type SectionType = 'hero' | 'info_blocks' | 'feature_grid' | 'rich_text' | 'image' | 'video' | 'cta';
 
 type SectionDefinition = {
   id?: string;
@@ -47,6 +47,9 @@ const SECTION_OPTIONS: { value: SectionType; label: string; description: string 
   { value: 'hero', label: 'Hero + CTA', description: 'Headline, subheading, and primary CTA.' },
   { value: 'info_blocks', label: 'Info blocks', description: 'Short highlights in a grid.' },
   { value: 'feature_grid', label: 'Feature grid', description: 'Detailed features with badges.' },
+  { value: 'rich_text', label: 'Rich text', description: 'Long-form text block with sanitized HTML.' },
+  { value: 'image', label: 'Image', description: 'Single media image with optional caption and link.' },
+  { value: 'video', label: 'Video', description: 'Video embed (YouTube/Vimeo) or direct file URL.' },
   { value: 'cta', label: 'CTA banner', description: 'Final call to action.' }
 ];
 
@@ -91,6 +94,39 @@ const createDefaultSection = (type: SectionType, orderIndex: number): SectionDef
             { title: 'Feature one', description: 'Explain the benefit.', badge: 'New' },
             { title: 'Feature two', description: 'Explain the benefit.', badge: 'Core' }
           ]
+        }
+      };
+    case 'rich_text':
+      return {
+        type,
+        orderIndex,
+        content: {
+          heading: 'Rich text section',
+          bodyHtml: '<p>Add long-form content here.</p>'
+        }
+      };
+    case 'image':
+      return {
+        type,
+        orderIndex,
+        content: {
+          heading: 'Image section',
+          imageUrl: '',
+          imageAlt: '',
+          caption: '',
+          linkHref: ''
+        }
+      };
+    case 'video':
+      return {
+        type,
+        orderIndex,
+        content: {
+          heading: 'Video section',
+          sourceType: 'embed',
+          sourceUrl: '',
+          posterUrl: '',
+          caption: ''
         }
       };
     case 'cta':
@@ -647,6 +683,141 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
                           placeholder="CTA URL"
                           value={section.content.ctaHref || ''}
                           onChange={(e) => updateSection(index, { ...section.content, ctaHref: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {section.type === 'rich_text' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Heading</label>
+                        <input
+                          type="text"
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                          value={section.content.heading || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, heading: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Body (HTML)</label>
+                        <textarea
+                          rows={8}
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm font-mono"
+                          placeholder="<p>Add text content</p>"
+                          value={section.content.bodyHtml || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, bodyHtml: e.target.value })}
+                        />
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Safe HTML only. Scripts and unsafe embeds are stripped at render time.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {section.type === 'image' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Heading</label>
+                        <input
+                          type="text"
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                          value={section.content.heading || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, heading: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Image URL</label>
+                          <input
+                            type="text"
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            placeholder="/images/example.jpg"
+                            value={section.content.imageUrl || ''}
+                            onChange={(e) => updateSection(index, { ...section.content, imageUrl: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Alt text</label>
+                          <input
+                            type="text"
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            value={section.content.imageAlt || ''}
+                            onChange={(e) => updateSection(index, { ...section.content, imageAlt: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Link URL (optional)</label>
+                          <input
+                            type="text"
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            value={section.content.linkHref || ''}
+                            onChange={(e) => updateSection(index, { ...section.content, linkHref: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Caption</label>
+                        <textarea
+                          rows={2}
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                          value={section.content.caption || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, caption: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {section.type === 'video' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Heading</label>
+                        <input
+                          type="text"
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                          value={section.content.heading || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, heading: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Source type</label>
+                          <select
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            value={section.content.sourceType || 'embed'}
+                            onChange={(e) => updateSection(index, { ...section.content, sourceType: e.target.value })}
+                          >
+                            <option value="embed">Embed (YouTube/Vimeo)</option>
+                            <option value="file">Video file URL</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Poster URL (optional)</label>
+                          <input
+                            type="text"
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            value={section.content.posterUrl || ''}
+                            onChange={(e) => updateSection(index, { ...section.content, posterUrl: e.target.value })}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold uppercase text-muted-foreground">Source URL</label>
+                          <input
+                            type="text"
+                            className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={section.content.sourceUrl || ''}
+                            onChange={(e) => updateSection(index, { ...section.content, sourceUrl: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-muted-foreground">Caption</label>
+                        <textarea
+                          rows={2}
+                          className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                          value={section.content.caption || ''}
+                          onChange={(e) => updateSection(index, { ...section.content, caption: e.target.value })}
                         />
                       </div>
                     </div>

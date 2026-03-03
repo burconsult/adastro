@@ -1,0 +1,57 @@
+---
+import { applyArticleBasePathToHref } from "@/lib/routing/articles";
+
+const { content = {} } = Astro.props as { content?: Record<string, any> };
+const articleBasePath = typeof Astro.props.articleBasePath === 'string' ? Astro.props.articleBasePath : undefined;
+
+const heading = typeof content.heading === 'string' ? content.heading : '';
+const imageUrl = typeof content.imageUrl === 'string' ? content.imageUrl : '';
+const imageAlt = typeof content.imageAlt === 'string' && content.imageAlt.trim()
+  ? content.imageAlt
+  : 'Section image';
+const caption = typeof content.caption === 'string' ? content.caption : '';
+const rawLinkHref = typeof content.linkHref === 'string' ? content.linkHref : '';
+const linkHref = rawLinkHref
+  ? applyArticleBasePathToHref(rawLinkHref, { basePath: articleBasePath })
+  : '';
+---
+
+<section class="mx-auto max-w-5xl px-6 py-12 sm:px-8">
+  <div class="space-y-5">
+    {heading && (
+      <h2 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {heading}
+      </h2>
+    )}
+    {imageUrl ? (
+      <figure class="overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-lg">
+        {linkHref ? (
+          <a href={linkHref}>
+            <img
+              src={imageUrl}
+              alt={imageAlt}
+              class="h-auto w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={imageAlt}
+            class="h-auto w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+        {caption && (
+          <figcaption class="px-4 py-3 text-sm text-muted-foreground">
+            {caption}
+          </figcaption>
+        )}
+      </figure>
+    ) : (
+      <p class="text-sm text-muted-foreground">Add an image URL to display this section.</p>
+    )}
+  </div>
+</section>

@@ -1,0 +1,23 @@
+---
+import { sanitizeHtml } from "@/lib/utils/data-transform";
+
+const { content = {} } = Astro.props as { content?: Record<string, any> };
+const heading = typeof content.heading === 'string' ? content.heading : '';
+const bodyHtml = typeof content.bodyHtml === 'string' ? content.bodyHtml : '';
+const safeHtml = sanitizeHtml(bodyHtml);
+---
+
+<section class="mx-auto max-w-4xl px-6 py-12 sm:px-8">
+  <div class="card p-6 sm:p-8">
+    {heading && (
+      <h2 class="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {heading}
+      </h2>
+    )}
+    {safeHtml ? (
+      <div class="article-prose prose max-w-none prose-headings:font-semibold prose-a:text-primary" set:html={safeHtml} />
+    ) : (
+      <p class="text-sm text-muted-foreground">No content yet.</p>
+    )}
+  </div>
+</section>
