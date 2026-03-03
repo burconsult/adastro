@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ModeToggle from '@/components/ModeToggle';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/lib/components/ui/dialog';
-import { UserRound, X } from 'lucide-react';
+import { Settings, UserRound, X } from 'lucide-react';
 
 type NavLink = {
   label: string;
@@ -13,6 +13,7 @@ type Props = {
   siteLogoUrl?: string;
   navLinks?: NavLink[];
   authLink?: NavLink;
+  adminLink?: NavLink | null;
   authState?: 'authenticated' | 'guest';
   primaryCta?: {
     label: string;
@@ -25,6 +26,7 @@ export default function MobileNavigation({
   siteLogoUrl = '/logo.svg',
   navLinks = [],
   authLink,
+  adminLink = null,
   authState = 'guest',
   primaryCta = null
 }: Props) {
@@ -35,8 +37,9 @@ export default function MobileNavigation({
   const links = secondaryLinks.length > 0
     ? secondaryLinks
     : [{ label: 'Home', href: '/' }];
-  const menuLinks = authLink ? [...links, authLink] : links;
+  const menuLinks = [...links, ...(adminLink ? [adminLink] : []), ...(authLink ? [authLink] : [])];
   const isAuthenticated = authState === 'authenticated';
+  const isAdmin = Boolean(adminLink);
 
   return (
     <nav className="flex items-center gap-3">
@@ -108,20 +111,32 @@ export default function MobileNavigation({
       </Dialog>
 
       {authLink && (
-        <a
-          href={authLink.href}
-          {...prefetchProps(authLink.href)}
-          aria-label={authLink.label}
-          className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden ${
-            isAuthenticated ? 'w-10 rounded-full' : 'rounded-md px-3 text-xs font-semibold'
-          }`}
-        >
-          {isAuthenticated ? (
-            <UserRound className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <span>Sign in</span>
+        <div className="flex items-center gap-2 sm:hidden">
+          {isAdmin && adminLink && (
+            <a
+              href={adminLink.href}
+              {...prefetchProps(adminLink.href)}
+              aria-label={adminLink.label}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+            >
+              <Settings className="h-5 w-5" aria-hidden="true" />
+            </a>
           )}
-        </a>
+          <a
+            href={authLink.href}
+            {...prefetchProps(authLink.href)}
+            aria-label={authLink.label}
+            className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent ${
+              isAuthenticated ? 'w-10 rounded-full' : 'rounded-md px-3 text-xs font-semibold'
+            }`}
+          >
+            {isAuthenticated ? (
+              <UserRound className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <span>Sign in</span>
+            )}
+          </a>
+        </div>
       )}
 
       <div className="hidden items-center gap-4 text-base text-muted-foreground sm:flex">
@@ -145,6 +160,16 @@ export default function MobileNavigation({
           </a>
         )}
         <ModeToggle />
+        {isAdmin && adminLink && (
+          <a
+            href={adminLink.href}
+            {...prefetchProps(adminLink.href)}
+            aria-label={adminLink.label}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+          >
+            <Settings className="h-5 w-5" aria-hidden="true" />
+          </a>
+        )}
         {authLink && (
           isAuthenticated ? (
             <a

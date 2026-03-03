@@ -1,9 +1,26 @@
 import type { APIRoute } from 'astro';
+import { randomBytes } from 'node:crypto';
 import { sanitizeRedirectPath } from '@/lib/auth/redirects';
 import { isOAuthProviderAvailable } from '@/lib/auth/oauth-providers';
 import { resolveSiteUrl } from '@/lib/url/site-url';
 
 const allowedProviders = new Set(['github', 'google']);
+const OAUTH_STATE_COOKIE = 'adastro-oauth-state';
+
+const buildOAuthStateCookie = (value: string, requestUrl: string): string => {
+  const isSecure = requestUrl.startsWith('https://');
+  const parts = [
+    `${OAUTH_STATE_COOKIE}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'SameSite=Lax',
+    'Max-Age=600',
+    'Priority=High'
+  ];
+  if (isSecure) {
+    parts.push('Secure');
+  }
+  return parts.join('; ');
+};
 
 export const GET: APIRoute = async ({ params, url, request }) => {
   const provider = params.provider?.toLowerCase() || '';
@@ -19,6 +36,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
   }
 
   const redirectTarget = sanitizeRedirectPath(url.searchParams.get('redirect'), '/profile');
+  const state = randomBytes(24).toString('hex');
   const siteUrl = resolveSiteUrl(request, import.meta.env.SITE);
   const supabaseUrl = import.meta.env.SUPABASE_URL;
 
@@ -27,7 +45,13 @@ export const GET: APIRoute = async ({ params, url, request }) => {
   }
 
   const redirectTo = `${siteUrl}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`;
-  const authUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+  const authUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}&state=${encodeURIComponent(state)}`;
 
-  return Response.redirect(authUrl, 302);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: authUrl,
+      'Set-Cookie': buildOAuthStateCookie(state, request.url)
+    }
+  });
 };

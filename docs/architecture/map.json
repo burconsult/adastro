@@ -70,6 +70,7 @@
       "src/lib/security/recaptcha.ts"
     ],
     "themes": "src/lib/themes",
+    "themeRuntime": "src/lib/themes/runtime.ts",
     "themeManifest": "src/lib/themes/manifest.ts",
     "installedThemesRoot": "src/lib/themes/installed",
     "mcp": [

@@ -46,16 +46,19 @@ describe('oauth provider route', () => {
   it('redirects to supabase authorize endpoint for available providers', async () => {
     const response = await GET({
       params: { provider: 'google' },
+      request: new Request('https://adastrocms.vercel.app/auth/oauth/google?redirect=%2Fprofile'),
       url: new URL('https://adastrocms.vercel.app/auth/oauth/google?redirect=%2Fprofile')
     } as any);
 
     expect(response.status).toBe(302);
+    expect(response.headers.get('set-cookie')).toContain('adastro-oauth-state=');
 
     const location = response.headers.get('location');
     expect(location).toBeTruthy();
     const authorizeUrl = new URL(location as string);
     expect(authorizeUrl.origin + authorizeUrl.pathname).toBe(`${import.meta.env.SUPABASE_URL}/auth/v1/authorize`);
     expect(authorizeUrl.searchParams.get('provider')).toBe('google');
+    expect(authorizeUrl.searchParams.get('state')).toBeTruthy();
     expect(authorizeUrl.searchParams.get('redirect_to')).toBe(
       'https://adastrocms.vercel.app/auth/callback?redirect=%2Fprofile'
     );

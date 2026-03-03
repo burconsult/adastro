@@ -130,8 +130,22 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
   }, [featureData, profile]);
 
   const handleSignOut = useCallback(async () => {
+    const clearClientAuthArtifacts = () => {
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach((key) => {
+          if ((key.startsWith('sb-') && key.endsWith('-auth-token')) || key === 'supabase.auth.token') {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {
+        // Ignore storage access issues.
+      }
+    };
+
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
-    window.location.reload();
+    clearClientAuthArtifacts();
+    window.location.href = '/auth/login?logged_out=1';
   }, []);
 
   const handlePasswordUpdate = useCallback(async () => {

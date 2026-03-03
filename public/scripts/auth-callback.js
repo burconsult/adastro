@@ -9,8 +9,10 @@ const getParam = (key) => hashParams.get(key) ?? queryParams.get(key);
 const accessToken = getParam('access_token');
 const authCode = getParam('code');
 const tokenHash = getParam('token_hash');
+const oauthState = getParam('state');
 const errorParam = getParam('error_description') || getParam('error');
 const authFlowType = (getParam('type') || '').toLowerCase();
+const OAUTH_STATE_COOKIE = 'adastro-oauth-state';
 
 const safeDecode = (value) => {
   if (!value) return '';
@@ -28,6 +30,24 @@ const setMessage = (text) => {
   }
 };
 
+const getCookie = (name) => {
+  const cookie = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`));
+  if (!cookie) return null;
+  const value = cookie.slice(name.length + 1);
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const clearCookie = (name) => {
+  document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+};
+
 const shouldForcePasswordReset = (authFlowType === 'invite' || authFlowType === 'recovery')
   && !redirectTarget.startsWith('/auth/reset-password');
 const resolveNextTarget = () => {
@@ -41,37 +61,55 @@ const resolveNextTarget = () => {
 if (errorParam) {
   setMessage(`Authentication failed: ${safeDecode(errorParam)}`);
 } else {
-  let endpoint = '';
-  let body = {};
-
-  if (accessToken) {
-    endpoint = '/api/auth/session';
-    body = { access_token: accessToken };
-  } else if (tokenHash && authFlowType) {
-    endpoint = '/api/auth/verify-otp';
-    body = { token_hash: tokenHash, type: authFlowType };
-  } else if (authCode) {
-    endpoint = '/api/auth/exchange-code';
-    body = { code: authCode };
+  const callbackCarriesOAuthSession = Boolean(accessToken || authCode);
+  const expectedOAuthState = getCookie(OAUTH_STATE_COOKIE);
+  let oauthStateValid = true;
+  if (callbackCarriesOAuthSession) {
+    if (!expectedOAuthState || !oauthState || expectedOAuthState !== oauthState) {
+      clearCookie(OAUTH_STATE_COOKIE);
+      setMessage('Authentication could not be verified. Please try signing in again.');
+      oauthStateValid = false;
+    }
+    if (oauthStateValid) {
+      clearCookie(OAUTH_STATE_COOKIE);
+    }
   }
 
-  if (!endpoint) {
-    setMessage('Missing authentication token. Please try signing in again.');
+  if (!oauthStateValid) {
+    // Stop early on state mismatch.
   } else {
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-    fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to finalize session.');
-        }
-        window.location.replace(resolveNextTarget());
+    let endpoint = '';
+    let body = {};
+
+    if (accessToken) {
+      endpoint = '/api/auth/session';
+      body = { access_token: accessToken };
+    } else if (tokenHash && authFlowType) {
+      endpoint = '/api/auth/verify-otp';
+      body = { token_hash: tokenHash, type: authFlowType };
+    } else if (authCode) {
+      endpoint = '/api/auth/exchange-code';
+      body = { code: authCode };
+    }
+
+    if (!endpoint) {
+      setMessage('Missing authentication token. Please try signing in again.');
+    } else {
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       })
-      .catch(() => {
-        setMessage('Unable to finish sign in. Please try again.');
-      });
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to finalize session.');
+          }
+          window.location.replace(resolveNextTarget());
+        })
+        .catch(() => {
+          setMessage('Unable to finish sign in. Please try again.');
+        });
+    }
   }
 }

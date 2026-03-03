@@ -9,6 +9,7 @@ import ToastHost from "@/lib/components/ui/ToastHost.tsx";
 import FooterNewsletterSlot from "@/lib/components/FooterNewsletterSlot";
 import { Facebook, Github, Link2, Linkedin } from "lucide-react";
 import { isFeatureActive } from "@/lib/features/state";
+import { authService } from "@/lib/auth/auth-helpers";
 import { getSiteCustomScripts, getSiteIdentity, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
 import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 
@@ -129,14 +130,17 @@ const socialLinks = dedupedSocialLinks.filter((link) => !usedFooterHrefs.has(lin
 const prefetchStrategy = (href?: string) =>
   typeof href === 'string' && href.startsWith('/') ? 'hover' : undefined;
 const themeClass = siteTheme.mode === 'dark' ? 'min-h-full dark' : 'min-h-full';
-const hasAuthTokenCookie = (Astro.request.headers.get('cookie') || '').includes('sb-access-token=');
+const currentUser = await authService.getUserFromRequest(Astro.request);
 const authRedirectPath = Astro.url.pathname.startsWith('/auth')
   ? '/'
   : `${Astro.url.pathname}${Astro.url.search || ''}`;
-const authLink = hasAuthTokenCookie
+const authLink = currentUser
   ? { label: 'Profile', href: '/profile' }
   : { label: 'Sign in', href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
-const authState = hasAuthTokenCookie ? 'authenticated' : 'guest';
+const authState = currentUser ? 'authenticated' : 'guest';
+const adminLink = currentUser?.role === 'admin'
+  ? { label: 'Admin', href: '/admin' }
+  : null;
 const fontImports = activeTheme?.fontImports ?? [];
 const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
 ---
@@ -212,6 +216,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
           siteLogoUrl={siteIdentity.logoUrl}
           navLinks={navLinks}
           authLink={authLink}
+          adminLink={adminLink}
           authState={authState}
         />
       </div>
