@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '@/layouts/AdminLayout.astro';
 import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
+import MigrationManager from '@/lib/components/MigrationManager';
 ---
 
 <AdminLayout title="Migration" description="Import your WordPress WXR export">
@@ -9,6 +10,11 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
       title="Migration"
       description="Import your WordPress WXR export."
     />
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Migration tools require JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
     <section class="card p-6 space-y-4">
       <h2 class="text-2xl font-semibold tracking-tight">WordPress Migration</h2>
       <p class="text-muted-foreground text-sm leading-relaxed">
@@ -204,5 +210,5 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader.astro';
     </section>
   </div>
 
-  <script src="/scripts/admin-migration.js" defer is:inline></script>
+  <MigrationManager client:load />
 </AdminLayout>

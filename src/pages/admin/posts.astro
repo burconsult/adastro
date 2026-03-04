@@ -47,6 +47,12 @@ try {
       </a>
     </AdminPageHeader>
 
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Post management requires JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
+
     <PostListing
       client:load
       initialPosts={JSON.parse(JSON.stringify(initialPosts, (_key, value) => value instanceof Date ? value.toISOString() : value))}

@@ -32,6 +32,12 @@ try {
       </a>
     </AdminPageHeader>
 
+    <noscript>
+      <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        Page management requires JavaScript. Please enable it to continue.
+      </div>
+    </noscript>
+
     <PageListing
       client:load
       initialPages={JSON.parse(JSON.stringify(initialPages, (_key, value) => value instanceof Date ? value.toISOString() : value))}
