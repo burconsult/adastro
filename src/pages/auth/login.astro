@@ -3,6 +3,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import { authService } from "@/lib/auth/auth-helpers";
 import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 import { getOAuthProviderAvailability } from "@/lib/auth/oauth-providers";
+import loginScriptUrl from "@/lib/client/auth/login.js?url";
 
 const rawRedirect = Astro.url.searchParams.get('redirect') || '/admin';
 const redirect = sanitizeRedirectPath(rawRedirect, '/admin');
@@ -124,5 +125,5 @@ const oauthProviders = (await getOAuthProviderAvailability()).filter((provider) 
     </div>
   </div>
 
-  <script src="/scripts/login.js" defer is:inline></script>
+  <script type="module" src={loginScriptUrl}></script>
 </BaseLayout>

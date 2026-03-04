@@ -12,6 +12,7 @@ import { getSiteIdentity, getSiteTheme } from "@/lib/site-config";
 import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 import { isFeatureActive } from "@/lib/features/state";
 import { loadFeatureModules } from "@/lib/features/loader";
+import adminLogoutScriptUrl from "@/lib/client/admin/logout.js?url";
 
 type Props = { 
   title?: string; 
@@ -139,7 +140,7 @@ const [aiActive, commentsActive, newsletterActive] = await Promise.all([
       </main>
     </div>
 
-    <script src="/scripts/admin-logout.js" defer is:inline></script>
+    <script type="module" src={adminLogoutScriptUrl}></script>
     <ToastHost client:load />
   </body>
 </html>

@@ -8,6 +8,11 @@ const ADMIN_PAGES_ROOT = resolve(PROJECT_ROOT, 'src/pages/admin');
 const ADMIN_ROOT_PAGE = resolve(PROJECT_ROOT, 'src/pages/admin.astro');
 const NAV_ITEMS_PATH = resolve(PROJECT_ROOT, 'src/components/admin/nav-items.tsx');
 const COMMENTS_PAGE_PATH = resolve(PROJECT_ROOT, 'src/pages/admin/comments.astro');
+const FEATURE_DETAIL_PAGE_PATHS = [
+  resolve(PROJECT_ROOT, 'src/pages/admin/features/ai.astro'),
+  resolve(PROJECT_ROOT, 'src/pages/admin/features/comments.astro'),
+  resolve(PROJECT_ROOT, 'src/pages/admin/features/newsletter.astro')
+];
 
 function walk(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -114,6 +119,13 @@ function main() {
   const commentsSource = readFileSync(COMMENTS_PAGE_PATH, 'utf8');
   if (!commentsSource.includes("Astro.redirect('/admin/features/comments')")) {
     issues.push('src/pages/admin/comments.astro: missing redirect to /admin/features/comments legacy route.');
+  }
+
+  for (const featurePagePath of FEATURE_DETAIL_PAGE_PATHS) {
+    const source = readFileSync(featurePagePath, 'utf8');
+    if (!/href=["']\/admin\/features["'][^>]*slot=["']actions["']/.test(source)) {
+      issues.push(`${toProjectPath(featurePagePath)}: missing "Back to Features" header action.`);
+    }
   }
 
   if (issues.length > 0) {

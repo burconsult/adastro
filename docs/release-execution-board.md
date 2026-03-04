@@ -348,10 +348,10 @@ Exit criteria:
     - `src/pages/api/auth/password.ts`
     - `src/pages/auth/forgot-password.astro`
     - `src/pages/auth/reset-password.astro`
-    - `public/scripts/auth-callback.js`
-    - `public/scripts/login.js`
-    - `public/scripts/forgot-password.js`
-    - `public/scripts/reset-password.js`
+    - `src/lib/client/auth/auth-callback.js`
+    - `src/lib/client/auth/login.js`
+    - `src/lib/client/auth/forgot-password.js`
+    - `src/lib/client/auth/reset-password.js`
     - `src/lib/components/ProfileManager.tsx`
     - `INSTALLATION.md`
     - `docs/architecture/auth-rls.md`
