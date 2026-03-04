@@ -15,7 +15,7 @@ This workflow is optimized for rapid, repeatable verification with local Supabas
 - `npm run local:dev` - run Astro dev with local Supabase env auto-injected.
 - `npm run verify:content` - validate seeded default content coherence (required pages, nav links, and internal link integrity).
 - `npm run verify:features` - run bundled feature lifecycle checks (activate -> use -> deactivate -> uninstall -> reinstall) on local Supabase.
-- `npm run ci:check-admin-consistency` - verify admin pages/nav contracts (layout/header parity, nav-to-route mapping, comments gate).
+- `npm run ci:check-admin-consistency` - verify admin pages/nav contracts (layout/header parity, nav-to-route mapping, hydrated page `<noscript>` fallbacks, comments gate).
 - `npm run ci:check-theme-tokens` - verify every installed theme defines the required token set for light/dark mode.
 - `npm run ci:check-release-hygiene` - enforce release-doc hygiene (no legacy env names/branding/local absolute paths).
 - `npm run verify:quick` - local core DB reset + quick smoke checks.

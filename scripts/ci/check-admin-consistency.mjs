@@ -83,6 +83,7 @@ function main() {
     const source = readFileSync(pageFile, 'utf8');
     const isRedirectOnly = /Astro\.redirect\(\s*['"][^'"]+['"]\s*\)/.test(source);
     if (isRedirectOnly) continue;
+    const hasClientHydration = /client:(load|idle|visible|media|only)\b/.test(source);
 
     if (!/import\s+AdminLayout\s+from\s+["']@\/layouts\/AdminLayout\.astro["'];?/.test(source)) {
       issues.push(`${toProjectPath(pageFile)}: missing AdminLayout import`);
@@ -95,6 +96,9 @@ function main() {
     }
     if (!/<AdminPageHeader\b/.test(source)) {
       issues.push(`${toProjectPath(pageFile)}: missing <AdminPageHeader> usage`);
+    }
+    if (hasClientHydration && !/<noscript>/.test(source)) {
+      issues.push(`${toProjectPath(pageFile)}: missing <noscript> fallback for hydrated admin UI.`);
     }
   }
 
