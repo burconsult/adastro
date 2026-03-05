@@ -252,6 +252,23 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     validation: { required: true, options: ['segment', 'wordpress'] }
   },
   {
+    key: 'content.defaultLocale',
+    displayName: 'Default Locale',
+    description: 'Default content locale code used when a specific localized version is unavailable.',
+    type: 'string',
+    category: 'content',
+    defaultValue: 'en',
+    validation: { required: true, pattern: '^[a-z]{2}(?:-[a-z]{2})?$' }
+  },
+  {
+    key: 'content.locales',
+    displayName: 'Enabled Locales',
+    description: 'Locale codes enabled for localized content and URL prefixes.',
+    type: 'array',
+    category: 'content',
+    defaultValue: ['en']
+  },
+  {
     key: 'content.postsPerPage',
     displayName: 'Posts Per Page',
     description: 'Number of posts to display per page',

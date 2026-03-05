@@ -7,6 +7,12 @@ import {
   normalizeArticlePermalinkStyle,
   type ArticlePermalinkStyle
 } from './routing/articles.js';
+import {
+  DEFAULT_LOCALE,
+  ensureDefaultLocaleInList,
+  normalizeLocaleCode,
+  normalizeLocaleList
+} from './i18n/locales.js';
 
 export interface SiteIdentity {
   title: string;
@@ -57,6 +63,11 @@ export interface SiteContentRouting {
 export interface SiteContentPreferences {
   postsPerPage: number;
   excerptLength: number;
+}
+
+export interface SiteLocaleConfig {
+  defaultLocale: string;
+  locales: string[];
 }
 
 export interface SiteCustomScripts {
@@ -115,6 +126,11 @@ const DEFAULT_CONTENT_PREFERENCES: SiteContentPreferences = {
   excerptLength: 150
 };
 
+const DEFAULT_LOCALE_CONFIG: SiteLocaleConfig = {
+  defaultLocale: DEFAULT_LOCALE,
+  locales: [DEFAULT_LOCALE]
+};
+
 const DEFAULT_CUSTOM_SCRIPTS: SiteCustomScripts = {
   headHtml: '',
   footerHtml: ''
@@ -137,6 +153,8 @@ let cachedContentRouting: SiteContentRouting | null = null;
 let loadingContentRoutingPromise: Promise<SiteContentRouting> | null = null;
 let cachedContentPreferences: SiteContentPreferences | null = null;
 let loadingContentPreferencesPromise: Promise<SiteContentPreferences> | null = null;
+let cachedLocaleConfig: SiteLocaleConfig | null = null;
+let loadingLocaleConfigPromise: Promise<SiteLocaleConfig> | null = null;
 let cachedCustomScripts: SiteCustomScripts | null = null;
 let loadingCustomScriptsPromise: Promise<SiteCustomScripts> | null = null;
 
@@ -257,6 +275,25 @@ async function fetchSiteContentPreferences(): Promise<SiteContentPreferences> {
   return {
     postsPerPage,
     excerptLength
+  };
+}
+
+async function fetchSiteLocaleConfig(): Promise<SiteLocaleConfig> {
+  const settingsService = new SettingsService();
+  const settings = await settingsService.getSettings([
+    'content.defaultLocale',
+    'content.locales'
+  ]);
+
+  const defaultLocale = normalizeLocaleCode(settings['content.defaultLocale'], DEFAULT_LOCALE_CONFIG.defaultLocale);
+  const locales = ensureDefaultLocaleInList(
+    defaultLocale,
+    normalizeLocaleList(settings['content.locales'], defaultLocale)
+  );
+
+  return {
+    defaultLocale,
+    locales
   };
 }
 
@@ -578,6 +615,29 @@ export async function getSiteContentPreferences(options?: { refresh?: boolean })
   return loadingContentPreferencesPromise;
 }
 
+export async function getSiteLocaleConfig(options?: { refresh?: boolean }): Promise<SiteLocaleConfig> {
+  if (options?.refresh) {
+    cachedLocaleConfig = null;
+    loadingLocaleConfigPromise = null;
+  }
+
+  if (cachedLocaleConfig) {
+    return cachedLocaleConfig;
+  }
+
+  if (!loadingLocaleConfigPromise) {
+    loadingLocaleConfigPromise = fetchSiteLocaleConfig().catch((error) => {
+      console.warn('Failed to load locale settings. Falling back to defaults.', error);
+      return DEFAULT_LOCALE_CONFIG;
+    }).then((localeConfig) => {
+      cachedLocaleConfig = localeConfig;
+      return localeConfig;
+    });
+  }
+
+  return loadingLocaleConfigPromise;
+}
+
 export async function getSiteCustomScripts(options?: { refresh?: boolean }): Promise<SiteCustomScripts> {
   if (options?.refresh) {
     cachedCustomScripts = null;
@@ -627,6 +687,11 @@ export function resetSiteContentPreferencesCache(): void {
   loadingContentPreferencesPromise = null;
 }
 
+export function resetSiteLocaleConfigCache(): void {
+  cachedLocaleConfig = null;
+  loadingLocaleConfigPromise = null;
+}
+
 export function resetSiteSeoDefaultsCache(): void {
   cachedSeoDefaults = null;
   loadingSeoDefaultsPromise = null;
@@ -650,6 +715,7 @@ export function resetAllSiteConfigCaches(): void {
   resetSiteSocialProfilesCache();
   resetSiteContentRoutingCache();
   resetSiteContentPreferencesCache();
+  resetSiteLocaleConfigCache();
   resetSiteCustomScriptsCache();
 }
 
@@ -679,6 +745,10 @@ export function getDefaultSiteContentRouting(): SiteContentRouting {
 
 export function getDefaultSiteContentPreferences(): SiteContentPreferences {
   return { ...DEFAULT_CONTENT_PREFERENCES };
+}
+
+export function getDefaultSiteLocaleConfig(): SiteLocaleConfig {
+  return { ...DEFAULT_LOCALE_CONFIG, locales: [...DEFAULT_LOCALE_CONFIG.locales] };
 }
 
 export function getDefaultSiteCustomScripts(): SiteCustomScripts {

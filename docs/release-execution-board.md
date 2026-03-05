@@ -41,9 +41,9 @@ Use this board to drive v1.0.0 release readiness with deterministic gate progres
 
 ---
 
-## v2 Roadmap (Deferred From v1.0.0)
+## Post-v1 Strategic Tracks
 
-- Full multilingual CMS support (localized content records, locale routing, hreflang/canonical handling, translated menus/settings UI, and translation workflows) is deferred to v2 to keep v1.0.0 stable and focused.
+- Multilingual CMS rollout (localized content records, locale-prefixed routing, hreflang/canonical handling, translated shared UI strings, and feature-level i18n integration).
 
 ## Gate Definitions
 
@@ -253,6 +253,24 @@ Exit criteria:
 ---
 
 ## Evidence Log
+
+### 2026-03-05
+
+- Multilingual foundation rollout (active):
+  - Added locale model settings (`content.defaultLocale`, `content.locales`) and locale runtime (`src/lib/i18n/locales.ts`, `src/lib/i18n/runtime.ts`).
+  - Added locale-prefixed public routes under `src/pages/[locale]/*` with locale-aware post/page lookup + fallback.
+  - Added locale-aware middleware context + deterministic unprefixed -> default locale redirects.
+  - Added locale column + locale-scoped slug uniqueness for posts/pages in core SQL and upgrade migration (`infra/supabase/migrations/001_content_locales.sql`).
+  - Added locale-aware admin CRUD/filtering and slug validation for posts/pages.
+  - Added locale-aware canonical/hreflang/OG locale output plus locale-aware sitemap/RSS generation.
+  - Removed legacy unprefixed dynamic page route `src/pages/[slug].astro` to avoid SSR route collisions with `src/pages/[locale]/index.astro`.
+  - Updated routing tests for locale-aware routing config shape.
+  - Verification:
+    - `npm run test:run` -> PASS
+    - `npm run build` -> PASS
+    - `npm run ci:check-admin-consistency` -> PASS
+    - `npm run ci:check-release-hygiene` -> PASS
+    - `npm run verify:quick` -> PASS
 
 ### 2026-02-19
 

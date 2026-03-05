@@ -6,6 +6,12 @@ declare global {
   namespace App {
     interface Locals {
       user?: AuthUser;
+      locale?: string;
+      defaultLocale?: string;
+      supportedLocales?: string[];
+      hasLocalePrefix?: boolean;
+      localizedPath?: string;
+      requestPathname?: string;
     }
   }
 }

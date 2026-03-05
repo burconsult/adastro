@@ -179,6 +179,8 @@ async function migrationAlreadyReflected(version) {
   switch (version) {
     case '000_core.sql':
       return (await tableExists('site_settings')) && (await columnExists('media_assets', 'original_filename'))
+    case '001_content_locales.sql':
+      return (await columnExists('posts', 'locale')) && (await columnExists('pages', 'locale'))
     default:
       return false
   }

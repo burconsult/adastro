@@ -25,6 +25,7 @@ interface Post {
   id: string;
   title: string;
   slug: string;
+  locale?: string;
   status: 'draft' | 'published' | 'scheduled';
   publishedAt?: string;
   updatedAt: string;
@@ -37,6 +38,7 @@ interface Post {
 
 interface PostFilters {
   status: string;
+  locale: string;
   search: string;
   category: string;
   tag: string;
@@ -46,6 +48,8 @@ interface PostListingProps {
   initialPosts?: Post[];
   articleBasePath: string;
   articlePermalinkStyle: 'segment' | 'wordpress';
+  defaultLocale?: string;
+  supportedLocales?: string[];
 }
 
 type ConfirmDialogState = {
@@ -65,13 +69,20 @@ export default function PostListing(props: PostListingProps) {
   );
 }
 
-function PostListingInner({ initialPosts = [], articleBasePath, articlePermalinkStyle }: PostListingProps) {
+function PostListingInner({
+  initialPosts = [],
+  articleBasePath,
+  articlePermalinkStyle,
+  defaultLocale = 'en',
+  supportedLocales = ['en']
+}: PostListingProps) {
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [loading, setLoading] = useState(false);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<PostFilters>({
     status: '',
+    locale: defaultLocale,
     search: '',
     category: '',
     tag: ''
@@ -87,16 +98,28 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
   const [tags, setTags] = useState<Array<{ name: string; slug: string }>>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const localeOptions = useMemo(() => {
+    const deduped = Array.from(new Set(
+      (supportedLocales || []).filter((locale) => typeof locale === 'string' && locale.trim().length > 0)
+    ));
+    return deduped.length > 0 ? deduped : [defaultLocale];
+  }, [defaultLocale, supportedLocales]);
 
   const getPublicPostHref = (post: Post) => buildArticlePostPath(post.slug, post.publishedAt || post.updatedAt, {
     basePath: articleBasePath,
-    permalinkStyle: articlePermalinkStyle
+    permalinkStyle: articlePermalinkStyle,
+    localePrefix: post.locale || defaultLocale
   });
 
   const openConfirm = useCallback((config: Omit<ConfirmDialogState, 'open'>) => {
     setConfirmBusy(false);
     setConfirmDialog({ ...config, open: true });
   }, []);
+
+  useEffect(() => {
+    if (localeOptions.includes(filters.locale)) return;
+    setFilters((prev) => ({ ...prev, locale: localeOptions[0] }));
+  }, [filters.locale, localeOptions]);
 
   // Load categories and tags for filters
   useEffect(() => {
@@ -137,6 +160,7 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
     try {
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
+      if (filters.locale) params.append('locale', filters.locale);
       if (filters.search) params.append('search', filters.search);
       if (filters.category) params.append('category', filters.category);
       if (filters.tag) params.append('tag', filters.tag);
@@ -170,10 +194,18 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
 
   // Load posts when filters change (but not on initial mount if we have initial posts)
   useEffect(() => {
-    if (initialPosts.length === 0 || filters.status || filters.search || filters.category || filters.tag || pagination.page > 1) {
+    if (
+      initialPosts.length === 0
+      || filters.status
+      || filters.search
+      || filters.category
+      || filters.tag
+      || (filters.locale && filters.locale !== defaultLocale)
+      || pagination.page > 1
+    ) {
       loadPosts();
     }
-  }, [loadPosts, initialPosts.length, filters.status, filters.search, filters.category, filters.tag, pagination.page]);
+  }, [defaultLocale, loadPosts, initialPosts.length, filters.status, filters.locale, filters.search, filters.category, filters.tag, pagination.page]);
 
   // Handle filter changes
   const handleFilterChange = (key: keyof PostFilters, value: string) => {
@@ -431,7 +463,7 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
       <div className="space-y-6">
       {/* Filters */}
       <ListingFiltersCard>
-        <ListingFiltersGrid columnsClassName="grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
+        <ListingFiltersGrid columnsClassName="grid-cols-1 md:grid-cols-2 lg:grid-cols-6">
           <ListingFilterField label="Status" htmlFor="status-filter">
             <select
               id="status-filter"
@@ -443,6 +475,21 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="scheduled">Scheduled</option>
+            </select>
+          </ListingFilterField>
+
+          <ListingFilterField label="Locale" htmlFor="locale-filter">
+            <select
+              id="locale-filter"
+              value={filters.locale}
+              onChange={(e) => handleFilterChange('locale', e.target.value)}
+              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {localeOptions.map((locale) => (
+                <option key={locale} value={locale}>
+                  {locale}
+                </option>
+              ))}
             </select>
           </ListingFilterField>
 
@@ -611,7 +658,7 @@ function PostListingInner({ initialPosts = [], articleBasePath, articlePermalink
                           {post.title}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          /{post.slug}
+                          /{post.locale || defaultLocale}/{post.slug}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:hidden">
                           <span>{post.author?.name || 'Unknown'}</span>

@@ -4,6 +4,7 @@ import PostListing from "@/lib/components/PostListing";
 import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { PostRepository } from "@/lib/database/repositories/post-repository";
 import { getSiteContentRouting } from "@/lib/site-config";
+import { SettingsService } from "@/lib/services/settings-service";
 import { FolderTree, Plus, Tags } from "lucide-react";
 
 const user = Astro.locals.user;
@@ -12,15 +13,30 @@ const authorId = user?.authorId;
 
 // Get initial posts for the listing
 let initialPosts: any[] = [];
+let defaultLocale = 'en';
+let supportedLocales: string[] = ['en'];
 const contentRouting = await getSiteContentRouting();
 
 try {
   const postRepo = new PostRepository(true);
-  const result = await postRepo.findWithFilters({
-    limit: 20,
-    authorId: !isAdmin ? authorId : undefined
-  });
+  const settingsService = new SettingsService();
+  const [result, localeSettings] = await Promise.all([
+    postRepo.findWithFilters({
+      limit: 20,
+      authorId: !isAdmin ? authorId : undefined
+    }),
+    settingsService.getSettings(['content.defaultLocale', 'content.locales'])
+  ]);
   initialPosts = Array.isArray(result) ? result : result.posts || [];
+  defaultLocale = typeof localeSettings['content.defaultLocale'] === 'string'
+    ? localeSettings['content.defaultLocale']
+    : 'en';
+  supportedLocales = Array.isArray(localeSettings['content.locales'])
+    ? localeSettings['content.locales'].filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : ['en'];
+  if (!supportedLocales.includes(defaultLocale)) {
+    supportedLocales.unshift(defaultLocale);
+  }
 } catch (error) {
   console.error('Error loading posts:', error);
 }
@@ -58,6 +74,8 @@ try {
       initialPosts={JSON.parse(JSON.stringify(initialPosts, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       articleBasePath={contentRouting.articleBasePath}
       articlePermalinkStyle={contentRouting.articlePermalinkStyle}
+      defaultLocale={defaultLocale}
+      supportedLocales={supportedLocales}
     />
   </div>
 </AdminLayout>

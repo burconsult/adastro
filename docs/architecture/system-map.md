@@ -7,7 +7,7 @@ This document is the fast orientation map for both humans and AI agents working 
 
 | Surface | Entry points | Primary responsibility |
 | --- | --- | --- |
-| Public site | `src/pages/index.astro`, `src/pages/[slug].astro`, `src/pages/blog/*` | Render pages/posts with theme + settings |
+| Public site | `src/pages/[locale]/*`, `src/pages/blog/*` | Render locale-prefixed pages/posts with theme + settings |
 | Admin UI | `src/pages/admin*.astro` + React islands in `src/lib/components/*` | Editorial workflow, settings, feature/theme management |
 | API | `src/pages/api/*` | Auth, CRUD, setup automation, feature dispatch |
 | MCP endpoint | `src/pages/mcp.ts` | Token-protected MCP over HTTP surface for remote tooling |
@@ -43,6 +43,8 @@ flowchart TD
 - MCP token gate: `src/lib/mcp/auth.ts`
 - Theme resolution: `src/lib/site-config.ts`, `src/lib/themes/*`
 - Content routing resolution: `src/lib/site-config.ts`, `src/lib/routing/articles.ts`
+- Locale resolution + redirects: `src/middleware.ts`, `src/lib/i18n/locales.ts`
+- Locale message resolution (core + features): `src/lib/i18n/runtime.ts`, `src/lib/features/i18n.ts`
 
 ## 4. Source of Truth by Concern
 
@@ -56,6 +58,7 @@ flowchart TD
 | Setup runtime primitives | `src/lib/setup/runtime.ts` |
 | MCP endpoint + auth | `src/pages/mcp.ts`, `src/lib/mcp/server.ts`, `src/lib/mcp/auth.ts` |
 | Settings definitions | `src/lib/settings/core-definitions.ts`, `src/lib/features/*/settings.ts` |
+| Locale settings + helpers | `content.defaultLocale`, `content.locales`, `src/lib/i18n/locales.ts`, `src/lib/i18n/runtime.ts` |
 | Features manifest | `src/lib/features/manifest.ts` |
 | AI feature architecture | `docs/architecture/ai-feature.md`, `src/lib/features/ai/lib/provider-catalog.ts`, `src/lib/features/ai/lib/usage.ts` |
 | Themes manifest | `src/lib/themes/manifest.ts` |
@@ -69,6 +72,7 @@ flowchart TD
 3. Read `src/lib/settings/core-definitions.ts`.
 4. Read `src/lib/features/types.ts`, `src/lib/features/manifest.ts`, `src/lib/features/state.ts`.
 5. Read `src/lib/site-config.ts`.
+6. Read `src/lib/i18n/locales.ts` and `src/middleware.ts` locale redirect logic.
 
 ## 6. Change Entry Matrix
 

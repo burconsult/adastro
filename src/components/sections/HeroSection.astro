@@ -1,8 +1,10 @@
 ---
 import { applyArticleBasePathToHref } from "@/lib/routing/articles";
+import { localizeHref } from "@/lib/i18n/locales";
 
 const { content = {} } = Astro.props as { content?: Record<string, any> };
 const articleBasePath = typeof Astro.props.articleBasePath === 'string' ? Astro.props.articleBasePath : undefined;
+const localePrefix = typeof Astro.locals.locale === 'string' ? Astro.locals.locale : undefined;
 const label = typeof content.label === 'string' ? content.label : '';
 const heading = typeof content.heading === 'string' ? content.heading : '';
 const subheading = typeof content.subheading === 'string' ? content.subheading : '';
@@ -11,10 +13,18 @@ const rawPrimaryHref = typeof content.primaryCtaHref === 'string' ? content.prim
 const secondaryLabel = typeof content.secondaryCtaLabel === 'string' ? content.secondaryCtaLabel : '';
 const rawSecondaryHref = typeof content.secondaryCtaHref === 'string' ? content.secondaryCtaHref : '';
 const primaryHref = rawPrimaryHref
-  ? applyArticleBasePathToHref(rawPrimaryHref, { basePath: articleBasePath })
+  ? localizeHref(
+      applyArticleBasePathToHref(rawPrimaryHref, { basePath: articleBasePath, localePrefix }),
+      localePrefix || 'en',
+      { skipPrefixes: ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp'] }
+    )
   : '';
 const secondaryHref = rawSecondaryHref
-  ? applyArticleBasePathToHref(rawSecondaryHref, { basePath: articleBasePath })
+  ? localizeHref(
+      applyArticleBasePathToHref(rawSecondaryHref, { basePath: articleBasePath, localePrefix }),
+      localePrefix || 'en',
+      { skipPrefixes: ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp'] }
+    )
   : '';
 const imageUrl = typeof content.imageUrl === 'string' ? content.imageUrl : '';
 const imageAlt = typeof content.imageAlt === 'string' ? content.imageAlt : 'Hero image';

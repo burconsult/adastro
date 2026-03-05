@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { RSSGenerator } from '../lib/seo/rss-generator.js';
 import { PostRepository } from '../lib/database/repositories/post-repository.js';
 import { AuthorRepository } from '../lib/database/repositories/author-repository.js';
-import { getSiteContentRouting, getSiteIdentity } from '../lib/site-config.js';
+import { getSiteContentRouting, getSiteIdentity, getSiteLocaleConfig } from '../lib/site-config.js';
 import { resolveSiteUrl } from '../lib/url/site-url.js';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -10,13 +10,19 @@ export const GET: APIRoute = async ({ request }) => {
     const postRepository = new PostRepository();
     const authorRepository = new AuthorRepository();
     
-    // Get all published posts
+    // Get all authors for the posts
+    const [localeConfig, identity, contentRouting] = await Promise.all([
+      getSiteLocaleConfig(),
+      getSiteIdentity(),
+      getSiteContentRouting()
+    ]);
+    const defaultLocale = localeConfig.defaultLocale;
     const posts = await postRepository.findWithFilters({
       status: 'published',
+      locale: defaultLocale,
       limit: 20 // RSS feeds typically show recent posts
     });
 
-    // Get all authors for the posts
     const authorIds = [...new Set(posts.map((post: any) => post.author.id))];
     const authors = await Promise.all(
       authorIds.map((id: string) => authorRepository.findById(id))
@@ -26,19 +32,22 @@ export const GET: APIRoute = async ({ request }) => {
     );
 
     const siteUrl = resolveSiteUrl(request, import.meta.env.SITE);
-    const [identity, contentRouting] = await Promise.all([
-      getSiteIdentity(),
-      getSiteContentRouting()
-    ]);
     const siteName = identity.title || 'Adastro';
     const siteDescription = identity.description || 'A practical, speed-first CMS built with Astro and Supabase.';
+    const feedLanguage = defaultLocale.includes('-')
+      ? defaultLocale.toLowerCase()
+      : defaultLocale === 'en'
+        ? 'en-us'
+        : `${defaultLocale.toLowerCase()}-${defaultLocale.toLowerCase()}`;
     
     const rssGenerator = new RSSGenerator({
       siteUrl,
       siteName,
       siteDescription,
+      language: feedLanguage,
       articleBasePath: contentRouting.articleBasePath,
-      articlePermalinkStyle: contentRouting.articlePermalinkStyle
+      articlePermalinkStyle: contentRouting.articlePermalinkStyle,
+      localePrefix: defaultLocale
     });
     
     // Generate RSS XML

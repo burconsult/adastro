@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Base validation schemas
 export const uuidSchema = z.string().uuid();
 export const slugSchema = z.string().min(1).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+export const localeSchema = z.string().min(2).max(5).regex(/^[a-z]{2}(?:-[a-z]{2})?$/);
 export const emailSchema = z.string().email();
 export const urlSchema = z.string().url();
 
@@ -99,6 +100,7 @@ export const blogPostSchema = z.object({
   id: uuidSchema,
   title: z.string().min(1).max(200),
   slug: slugSchema,
+  locale: localeSchema.default('en'),
   content: z.string().min(1),
   excerpt: z.string().max(500).optional(),
   author: authorSchema,
@@ -128,6 +130,7 @@ export const pageSchema = z.object({
   id: uuidSchema,
   title: z.string().min(1).max(200),
   slug: slugSchema,
+  locale: localeSchema.default('en'),
   status: z.enum(['draft', 'published', 'archived']),
   template: z.string().min(1).max(50),
   contentBlocks: z.record(z.any()).optional(),
@@ -185,6 +188,7 @@ export const updateBlogPostSchema = createBlogPostSchema.partial();
 export const postFiltersSchema = z.object({
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
   authorId: uuidSchema.optional(),
+  locale: localeSchema.optional(),
   categoryId: uuidSchema.optional(),
   tagId: uuidSchema.optional(),
   search: z.string().max(100).optional(),
@@ -195,6 +199,7 @@ export const postFiltersSchema = z.object({
 export const pageFiltersSchema = z.object({
   status: z.enum(['draft', 'published', 'archived']).optional(),
   authorId: uuidSchema.optional(),
+  locale: localeSchema.optional(),
   search: z.string().max(100).optional(),
   limit: z.number().positive().max(100).default(10),
   offset: z.number().nonnegative().default(0),

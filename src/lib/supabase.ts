@@ -142,6 +142,7 @@ export type Database = {
           id: string
           title: string
           slug: string
+          locale: string
           content: string
           blocks: any
           excerpt: string | null
@@ -159,6 +160,7 @@ export type Database = {
           id?: string
           title: string
           slug: string
+          locale?: string
           content: string
           blocks?: any
           excerpt?: string | null
@@ -176,6 +178,7 @@ export type Database = {
           id?: string
           title?: string
           slug?: string
+          locale?: string
           content?: string
           blocks?: any
           excerpt?: string | null
@@ -195,6 +198,7 @@ export type Database = {
           id: string
           title: string
           slug: string
+          locale: string
           status: 'draft' | 'published' | 'archived'
           template: string
           content_blocks: any
@@ -210,6 +214,7 @@ export type Database = {
           id?: string
           title: string
           slug: string
+          locale?: string
           status?: 'draft' | 'published' | 'archived'
           template?: string
           content_blocks?: any
@@ -225,6 +230,7 @@ export type Database = {
           id?: string
           title?: string
           slug?: string
+          locale?: string
           status?: 'draft' | 'published' | 'archived'
           template?: string
           content_blocks?: any

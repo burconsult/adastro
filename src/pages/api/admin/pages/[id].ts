@@ -135,6 +135,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
     const updatePayload: UpdatePage = {
       title: data.title,
       slug: data.slug,
+      locale: data.locale,
       status: data.status,
       template: data.template,
       excerpt: data.excerpt,

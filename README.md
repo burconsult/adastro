@@ -9,6 +9,7 @@ AdAstro pairs Astro + React with Supabase Auth, Postgres, and Storage to deliver
 - **Pages system** – editable pages with reusable section layouts and SEO metadata.
 - **Media pipeline** – upload + CDN-aware delivery with optional AI alt-text suggestions.
 - **SEO + performance** – JSON‑LD, OG metadata, fast SSR, and PageSpeed-friendly defaults.
+- **Locale-first routing** – locale-prefixed public URLs (`/{locale}/...`) with locale-scoped post/page slugs.
 - **Bundled modular features** – AI, comments, and newsletter ship in the repo but stay disabled until enabled.
 
 ## Deploy
@@ -84,6 +85,10 @@ Choose the article base path and permalink style in setup:
 - `content.articlePermalinkStyle`: `segment` or `wordpress`
 
 This helps preserve imported URL structures while keeping article slugs unchanged.
+
+Locale settings (configured in admin settings):
+- `content.defaultLocale`: default locale used for redirects/fallback.
+- `content.locales`: enabled locale codes used for public route prefixes.
 
 ### Additional Scripts
 | Command | Description |

@@ -1,0 +1,9 @@
+{
+  "core.auth.signIn": "Logg inn",
+  "core.auth.profile": "Profil",
+  "core.auth.admin": "Admin",
+  "core.nav.home": "Hjem",
+  "core.nav.articles": "Artikler",
+  "core.search.title": "Sok",
+  "core.search.noResults": "Ingen publiserte innlegg matchet soket ditt."
+}

@@ -1,0 +1,9 @@
+{
+  "core.auth.signIn": "Sign in",
+  "core.auth.profile": "Profile",
+  "core.auth.admin": "Admin",
+  "core.nav.home": "Home",
+  "core.nav.articles": "Articles",
+  "core.search.title": "Search",
+  "core.search.noResults": "No published posts matched your search."
+}

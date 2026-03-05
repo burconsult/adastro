@@ -3,6 +3,7 @@ export type ArticlePermalinkStyle = 'segment' | 'wordpress';
 export interface ArticleRoutingConfig {
   basePath: string;
   permalinkStyle: ArticlePermalinkStyle;
+  localePrefix?: string;
 }
 
 export const DEFAULT_ARTICLE_ROUTING: ArticleRoutingConfig = {
@@ -26,6 +27,17 @@ const RESERVED_BASE_PATHS = new Set([
 
 const trimSlashes = (value: string) => value.replace(/^\/+|\/+$/g, '');
 const defaultArticlesPrefix = `/${DEFAULT_ARTICLE_ROUTING.basePath}`;
+const normalizeLocalePrefix = (value: unknown): string => {
+  if (typeof value !== 'string') return '';
+  const normalized = trimSlashes(value.trim().toLowerCase());
+  return normalized.length > 0 ? normalized : '';
+};
+const applyLocalePrefix = (pathname: string, localePrefix?: string): string => {
+  const normalizedLocale = normalizeLocalePrefix(localePrefix);
+  if (!normalizedLocale) return pathname;
+  if (pathname === '/') return `/${normalizedLocale}`;
+  return `/${normalizedLocale}${pathname}`;
+};
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -48,20 +60,22 @@ export const normalizeArticlePermalinkStyle = (value: unknown): ArticlePermalink
 
 export const normalizeArticleRoutingConfig = (config: Partial<ArticleRoutingConfig> | null | undefined): ArticleRoutingConfig => ({
   basePath: normalizeArticleBasePath(config?.basePath),
-  permalinkStyle: normalizeArticlePermalinkStyle(config?.permalinkStyle)
+  permalinkStyle: normalizeArticlePermalinkStyle(config?.permalinkStyle),
+  localePrefix: normalizeLocalePrefix(config?.localePrefix)
 });
 
 export const buildArticlesIndexPath = (config: Partial<ArticleRoutingConfig> | null | undefined): string => {
   const normalized = normalizeArticleRoutingConfig(config);
-  return `/${normalized.basePath}`;
+  return applyLocalePrefix(`/${normalized.basePath}`, normalized.localePrefix);
 };
 
 export const buildArticlesPagePath = (page: number, config: Partial<ArticleRoutingConfig> | null | undefined): string => {
   const normalized = normalizeArticleRoutingConfig(config);
   const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-  return safePage <= 1
+  const basePath = safePage <= 1
     ? `/${normalized.basePath}`
     : `/${normalized.basePath}/page/${safePage}/`;
+  return applyLocalePrefix(basePath, normalized.localePrefix);
 };
 
 export const buildArticlePostPath = (
@@ -76,11 +90,14 @@ export const buildArticlePostPath = (
   if (normalized.permalinkStyle === 'wordpress') {
     const date = normalizeDate(publishedAt);
     if (date) {
-      return `/${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())}/${safeSlug}/`;
+      return applyLocalePrefix(
+        `/${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())}/${safeSlug}/`,
+        normalized.localePrefix
+      );
     }
   }
 
-  return `/${normalized.basePath}/${safeSlug}/`;
+  return applyLocalePrefix(`/${normalized.basePath}/${safeSlug}/`, normalized.localePrefix);
 };
 
 export const applyArticleBasePathToHref = (
@@ -88,9 +105,17 @@ export const applyArticleBasePathToHref = (
   config: Partial<ArticleRoutingConfig> | null | undefined
 ): string => {
   const normalized = normalizeArticleRoutingConfig(config);
+  const localePrefix = normalized.localePrefix ? `/${normalized.localePrefix}` : '';
   const targetPrefix = `/${normalized.basePath}`;
-  if (href === defaultArticlesPrefix || href === `${defaultArticlesPrefix}/`) return targetPrefix;
-  if (href.startsWith(`${defaultArticlesPrefix}/`)) return `${targetPrefix}${href.slice(defaultArticlesPrefix.length)}`;
+  const normalizedHref = localePrefix && href.startsWith(localePrefix)
+    ? href.slice(localePrefix.length) || '/'
+    : href;
+  if (normalizedHref === defaultArticlesPrefix || normalizedHref === `${defaultArticlesPrefix}/`) {
+    return `${localePrefix}${targetPrefix}`;
+  }
+  if (normalizedHref.startsWith(`${defaultArticlesPrefix}/`)) {
+    return `${localePrefix}${targetPrefix}${normalizedHref.slice(defaultArticlesPrefix.length)}`;
+  }
   return href;
 };
 

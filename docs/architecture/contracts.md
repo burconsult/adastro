@@ -82,11 +82,20 @@ Invariants:
 Content routing settings:
 - `content.articleBasePath`
 - `content.articlePermalinkStyle`
+- `content.defaultLocale`
+- `content.locales`
 
 Consumers:
 - `src/lib/site-config.ts`
 - `src/lib/routing/articles.ts`
-- `src/middleware.ts` (legacy rewrite behavior)
+- `src/lib/i18n/locales.ts`
+- `src/lib/i18n/runtime.ts`
+- `src/middleware.ts` (default-locale redirect + legacy rewrite behavior)
+
+Invariants:
+- Public GET/HEAD requests must resolve to locale-prefixed URLs (`/{locale}/...`) unless on explicit bypass surfaces (`/admin`, `/api`, `/auth`, `/setup`, `/mcp`, static assets, protected profile route).
+- Slug uniqueness is locale-scoped for posts/pages (`UNIQUE (locale, slug)`).
+- Locale-aware metadata output must include deterministic canonical + hreflang alternates.
 
 ## 5. Theme Contract
 

@@ -25,6 +25,7 @@ interface PageRow {
   id: string;
   title: string;
   slug: string;
+  locale?: string;
   status: 'draft' | 'published' | 'archived';
   updatedAt: string;
   publishedAt?: string;
@@ -35,6 +36,8 @@ interface PageRow {
 
 interface PageListingProps {
   initialPages?: PageRow[];
+  defaultLocale?: string;
+  supportedLocales?: string[];
 }
 
 type ConfirmDialogState = {
@@ -69,15 +72,25 @@ export default function PageListing(props: PageListingProps) {
   );
 }
 
-function PageListingInner({ initialPages = [] }: PageListingProps) {
+function PageListingInner({
+  initialPages = [],
+  defaultLocale = 'en',
+  supportedLocales = ['en']
+}: PageListingProps) {
   const { toast } = useToast();
   const [hydrated, setHydrated] = useState(false);
   const [pages, setPages] = useState<PageRow[]>(initialPages);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ status: '', search: '', searchField: 'all' });
+  const [filters, setFilters] = useState({ status: '', locale: defaultLocale, search: '', searchField: 'all' });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: initialPages.length });
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const localeOptions = useMemo(() => {
+    const deduped = Array.from(new Set(
+      (supportedLocales || []).filter((locale) => typeof locale === 'string' && locale.trim().length > 0)
+    ));
+    return deduped.length > 0 ? deduped : [defaultLocale];
+  }, [defaultLocale, supportedLocales]);
 
   const openConfirm = useCallback((config: Omit<ConfirmDialogState, 'open'>) => {
     setConfirmBusy(false);
@@ -89,11 +102,17 @@ function PageListingInner({ initialPages = [] }: PageListingProps) {
     setConfirmDialog(null);
   };
 
+  useEffect(() => {
+    if (localeOptions.includes(filters.locale)) return;
+    setFilters((prev) => ({ ...prev, locale: localeOptions[0] }));
+  }, [filters.locale, localeOptions]);
+
   const loadPages = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
+      if (filters.locale) params.append('locale', filters.locale);
       if (filters.search) params.append('search', filters.search);
       params.append('limit', pagination.limit.toString());
       params.append('offset', ((pagination.page - 1) * pagination.limit).toString());
@@ -116,19 +135,25 @@ function PageListingInner({ initialPages = [] }: PageListingProps) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, pagination.limit, pagination.page, toast]);
+  }, [filters.locale, filters.search, filters.status, pagination.limit, pagination.page, toast]);
 
   useEffect(() => {
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (initialPages.length === 0 || filters.status || filters.search || pagination.page > 1) {
+    if (
+      initialPages.length === 0
+      || filters.status
+      || filters.search
+      || (filters.locale && filters.locale !== defaultLocale)
+      || pagination.page > 1
+    ) {
       loadPages();
     }
-  }, [filters.search, filters.status, pagination.page, initialPages.length, loadPages]);
+  }, [defaultLocale, filters.locale, filters.search, filters.status, pagination.page, initialPages.length, loadPages]);
 
-  const handleFilterChange = (key: 'status' | 'search' | 'searchField', value: string) => {
+  const handleFilterChange = (key: 'status' | 'locale' | 'search' | 'searchField', value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
@@ -201,7 +226,7 @@ function PageListingInner({ initialPages = [] }: PageListingProps) {
   return (
     <div className="space-y-4">
       <ListingFiltersCard>
-        <ListingFiltersGrid columnsClassName="grid-cols-1 md:grid-cols-[180px_180px_1fr]">
+        <ListingFiltersGrid columnsClassName="grid-cols-1 md:grid-cols-[160px_140px_180px_1fr]">
           <ListingFilterField label="Status" htmlFor="page-status-filter">
             <select
               id="page-status-filter"
@@ -213,6 +238,20 @@ function PageListingInner({ initialPages = [] }: PageListingProps) {
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="archived">Archived</option>
+            </select>
+          </ListingFilterField>
+          <ListingFilterField label="Locale" htmlFor="page-locale-filter">
+            <select
+              id="page-locale-filter"
+              value={filters.locale}
+              onChange={(e) => handleFilterChange('locale', e.target.value)}
+              className="mt-2 w-full rounded-md border border-input px-3 py-2 text-sm"
+            >
+              {localeOptions.map((locale) => (
+                <option key={locale} value={locale}>
+                  {locale}
+                </option>
+              ))}
             </select>
           </ListingFilterField>
           <ListingFilterField label="Search In" htmlFor="page-search-field-filter">
@@ -256,17 +295,18 @@ function PageListingInner({ initialPages = [] }: PageListingProps) {
             <tbody className="divide-y divide-border/60 bg-card">
               {filteredPages.map((page) => {
                 const status = statusStyles[page.status];
-                const viewHref = page.slug === 'home' ? '/' : `/${page.slug}`;
+                const locale = page.locale || defaultLocale;
+                const viewHref = page.slug === 'home' ? `/${locale}` : `/${locale}/${page.slug}`;
                 return (
                   <tr key={page.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{page.title}</div>
-                      <div className="text-xs text-muted-foreground md:hidden">/{page.slug}</div>
+                      <div className="text-xs text-muted-foreground md:hidden">/{page.locale || defaultLocale}/{page.slug}</div>
                       {page.author?.name && (
                         <div className="text-xs text-muted-foreground">by {page.author.name}</div>
                       )}
                     </td>
-                    <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">/{page.slug}</td>
+                    <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">/{page.locale || defaultLocale}/{page.slug}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${status.className}`}>
                         {status.label}

@@ -115,6 +115,7 @@ export interface Page {
   id: string;
   title: string;
   slug: string;
+  locale?: string;
   status: PageStatus;
   template: string;
   contentBlocks?: EditorJSData;
@@ -132,6 +133,7 @@ export interface BlogPost {
   id: string;
   title: string;
   slug: string;
+  locale?: string;
   content: string;
   blocks?: PostContentBlocks | EditorJSData;
   excerpt?: string;
@@ -159,6 +161,7 @@ export type PageStatus = 'draft' | 'published' | 'archived';
 export interface PostFilters {
   status?: PostStatus;
   authorId?: string;
+  locale?: string;
   categoryId?: string;
   tagId?: string;
   search?: string;
@@ -169,6 +172,7 @@ export interface PostFilters {
 export interface PageFilters {
   status?: PageStatus;
   authorId?: string;
+  locale?: string;
   search?: string;
   limit?: number;
   offset?: number;

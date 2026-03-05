@@ -111,6 +111,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
     const updatePayload: UpdatePost = {
       title: data.title,
       slug: data.slug,
+      locale: data.locale,
       excerpt: data.excerpt,
       status: data.status,
       categoryIds: Array.isArray(data.categoryIds) ? data.categoryIds : undefined,

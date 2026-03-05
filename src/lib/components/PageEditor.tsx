@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToastProvider, useToast } from '@/lib/components/ui/toast';
 import { EditorJSEditor } from '@/lib/components/EditorJSEditor';
 import { SEOMetadataEditor } from '@/lib/components/SEOMetadataEditor';
@@ -22,11 +22,14 @@ interface PageEditorProps {
   page?: Page;
   authors: Author[];
   mode: 'create' | 'edit';
+  defaultLocale?: string;
+  supportedLocales?: string[];
 }
 
 interface PageFormData {
   title: string;
   slug: string;
+  locale: string;
   status: PageStatus;
   template: PageTemplate;
   blocks: EditorJSData;
@@ -150,7 +153,13 @@ export const PageEditor: React.FC<PageEditorProps> = (props) => (
   </ToastProvider>
 );
 
-const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => {
+const PageEditorInner: React.FC<PageEditorProps> = ({
+  page,
+  authors,
+  mode,
+  defaultLocale = 'en',
+  supportedLocales = ['en']
+}) => {
   const { toast } = useToast();
   const normalizedPage = useMemo(() => {
     if (!page) return undefined;
@@ -163,6 +172,7 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
   const [formData, setFormData] = useState<PageFormData>(() => ({
     title: normalizedPage?.title || '',
     slug: normalizedPage?.slug || '',
+    locale: normalizedPage?.locale || defaultLocale,
     status: normalizedPage?.status || 'draft',
     template: (normalizedPage?.template as PageTemplate) || 'default',
     blocks: normalizedPage?.blocks ?? { blocks: [] },
@@ -181,6 +191,13 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sectionType, setSectionType] = useState<SectionType>('hero');
+  const localeOptions = useMemo(() => {
+    const normalized = Array.isArray(supportedLocales)
+      ? supportedLocales.filter((locale) => typeof locale === 'string' && locale.trim().length > 0)
+      : [];
+    const deduped = Array.from(new Set(normalized));
+    return deduped.length > 0 ? deduped : [defaultLocale];
+  }, [defaultLocale, supportedLocales]);
 
   const updateField = useCallback((key: keyof PageFormData, value: any) => {
     setFormData((prev) => ({
@@ -237,17 +254,23 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
     updateField('slug', generateSlug(value));
   };
 
+  useEffect(() => {
+    if (localeOptions.includes(formData.locale)) return;
+    updateField('locale', localeOptions[0]);
+  }, [formData.locale, localeOptions, updateField]);
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      if (!formData.title.trim() || !formData.slug.trim()) {
-        throw new Error('Title and slug are required.');
+      if (!formData.title.trim() || !formData.slug.trim() || !formData.locale.trim()) {
+        throw new Error('Title, slug, and locale are required.');
       }
 
       const payload = {
         title: formData.title.trim(),
         slug: formData.slug.trim(),
+        locale: formData.locale.trim(),
         status: formData.status,
         template: formData.template,
         blocks: formData.blocks,
@@ -335,6 +358,24 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
               onChange={(e) => handleSlugChange(e.target.value)}
               placeholder="page-slug"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground" htmlFor="page-locale">
+              Locale
+            </label>
+            <select
+              id="page-locale"
+              className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+              value={formData.locale}
+              onChange={(e) => updateField('locale', e.target.value)}
+            >
+              {localeOptions.map((locale) => (
+                <option key={locale} value={locale}>
+                  {locale}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -836,7 +877,7 @@ const PageEditorInner: React.FC<PageEditorProps> = ({ page, authors, mode }) => 
             postTitle={formData.title}
             postExcerpt={formData.excerpt}
             postContent=""
-            previewPathTemplate={`/${(formData.slug || '{slug}').replace(/^\/+|\/+$/g, '')}`}
+            previewPathTemplate={`/${(formData.locale || defaultLocale).replace(/^\/+|\/+$/g, '')}/${(formData.slug || '{slug}').replace(/^\/+|\/+$/g, '')}`}
           />
         </div>
       </div>

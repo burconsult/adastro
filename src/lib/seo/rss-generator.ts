@@ -15,6 +15,7 @@ export class RSSGenerator {
   private language: string;
   private articleBasePath: string;
   private articlePermalinkStyle: ArticlePermalinkStyle;
+  private localePrefix: string;
 
   constructor(config: {
     siteUrl: string;
@@ -23,6 +24,7 @@ export class RSSGenerator {
     language?: string;
     articleBasePath?: string;
     articlePermalinkStyle?: ArticlePermalinkStyle;
+    localePrefix?: string;
   }) {
     this.siteUrl = config.siteUrl.replace(/\/$/, '');
     this.siteName = config.siteName;
@@ -30,6 +32,9 @@ export class RSSGenerator {
     this.language = config.language || 'en-us';
     this.articleBasePath = normalizeArticleBasePath(config.articleBasePath ?? DEFAULT_ARTICLE_ROUTING.basePath);
     this.articlePermalinkStyle = normalizeArticlePermalinkStyle(config.articlePermalinkStyle ?? DEFAULT_ARTICLE_ROUTING.permalinkStyle);
+    this.localePrefix = typeof config.localePrefix === 'string'
+      ? config.localePrefix.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+      : '';
   }
 
   /**
@@ -51,7 +56,8 @@ export class RSSGenerator {
   private postToRSSItem(post: BlogPost, author?: Author): RSSItem {
     const postPath = buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, {
       basePath: this.articleBasePath,
-      permalinkStyle: this.articlePermalinkStyle
+      permalinkStyle: this.articlePermalinkStyle,
+      localePrefix: this.localePrefix
     }).replace(/\/$/, '');
     return {
       title: post.title,

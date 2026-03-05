@@ -1,6 +1,6 @@
 import { BaseRepository } from '../base-repository.js';
 import { ValidationError, ConflictError, NotFoundError } from '../connection.js';
-import { createBlogPostSchema, updateBlogPostSchema, postFiltersSchema } from '../../validation/schemas.js';
+import { postFiltersSchema } from '../../validation/schemas.js';
 import { AuthorRepository } from './author-repository.js';
 import { CategoryRepository } from './category-repository.js';
 import { TagRepository } from './tag-repository.js';
@@ -8,6 +8,7 @@ import { MediaRepository } from './media-repository.js';
 import type { BlogPost, PostFilters, PostStatus, PostContentBlocks } from '../../types/index.js';
 import type { EditorJSData } from '../../editorjs/types.js';
 import type { Database } from '../../supabase.js';
+import { DEFAULT_LOCALE, normalizeLocaleCode } from '../../i18n/locales.js';
 
 type PostRow = Database['public']['Tables']['posts']['Row'];
 type CreatePostData = Database['public']['Tables']['posts']['Insert'];
@@ -16,6 +17,7 @@ type UpdatePostData = Database['public']['Tables']['posts']['Update'];
 export interface CreatePost {
   title: string;
   slug: string;
+  locale?: string;
   content: string;
   blocks?: PostContentBlocks | EditorJSData;
   excerpt?: string;
@@ -33,6 +35,7 @@ export interface CreatePost {
 export interface UpdatePost {
   title?: string;
   slug?: string;
+  locale?: string;
   content?: string;
   blocks?: PostContentBlocks | EditorJSData;
   excerpt?: string;
@@ -53,6 +56,8 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
   private tagRepo: TagRepository;
   private mediaRepo: MediaRepository;
   private currentUpdatePostId: string | null = null;
+  private currentUpdatePostSlug: string | null = null;
+  private currentUpdatePostLocale: string | null = null;
 
   constructor(useAdmin = false) {
     super('posts', useAdmin);
@@ -63,12 +68,11 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
   }
 
   mapFromDatabase(row: PostRow): BlogPost {
-    // Note: This is a simplified mapping. In practice, you'd need to join
-    // with related tables to get the full author, categories, and tags data
     return {
       id: row.id,
       title: row.title,
       slug: row.slug,
+      locale: row.locale || DEFAULT_LOCALE,
       content: row.content,
       excerpt: row.excerpt || undefined,
       blocks: (row.blocks as PostContentBlocks | EditorJSData | null | undefined) ?? { blocks: [] },
@@ -77,28 +81,31 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
         name: '',
         email: '',
         createdAt: new Date(),
-        updatedAt: new Date(),
-      }, // This will be populated by the full query methods
+        updatedAt: new Date()
+      },
       publishedAt: row.published_at ? new Date(row.published_at) : undefined,
       updatedAt: new Date(row.updated_at),
       createdAt: new Date(row.created_at),
       status: row.status as PostStatus,
-      categories: [], // Will be populated by full query methods
-      tags: [], // Will be populated by full query methods
-      featuredImage: undefined, // Will be populated if needed
+      categories: [],
+      tags: [],
+      featuredImage: undefined,
       featuredImageId: row.featured_image_id || undefined,
       audioAsset: undefined,
       audioAssetId: row.audio_asset_id || undefined,
       seoMetadata: row.seo_metadata || undefined,
-      customFields: row.custom_fields || undefined,
+      customFields: row.custom_fields || undefined
     };
   }
 
   mapToDatabase(data: CreatePost | UpdatePost): CreatePostData | UpdatePostData {
     const mapped: any = {};
-    
+
     if ('title' in data && data.title !== undefined) mapped.title = data.title;
     if ('slug' in data && data.slug !== undefined) mapped.slug = data.slug;
+    if ('locale' in data && data.locale !== undefined) {
+      mapped.locale = normalizeLocaleCode(data.locale, DEFAULT_LOCALE);
+    }
     if ('content' in data && data.content !== undefined) mapped.content = data.content;
     if (Object.prototype.hasOwnProperty.call(data, 'blocks')) mapped.blocks = data.blocks ?? { blocks: [] };
     if ('excerpt' in data) mapped.excerpt = data.excerpt || null;
@@ -111,25 +118,14 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     if ('audioAssetId' in data) mapped.audio_asset_id = data.audioAssetId || null;
     if ('seoMetadata' in data) mapped.seo_metadata = data.seoMetadata || null;
     if ('customFields' in data) mapped.custom_fields = data.customFields || null;
-    
+
     return mapped;
   }
 
   async validateCreate(data: CreatePost): Promise<void> {
-    // Validate basic post data structure
-    const validationData = {
-      title: data.title,
-      slug: data.slug,
-      content: data.content,
-      excerpt: data.excerpt,
-      status: data.status || 'draft',
-      seoMetadata: data.seoMetadata,
-      customFields: data.customFields,
-    };
+    const locale = normalizeLocaleCode(data.locale, DEFAULT_LOCALE);
 
     try {
-      // Note: We're not validating the full schema here since we don't have
-      // the complete author/categories/tags objects yet
       if (!data.title || data.title.trim().length === 0) {
         throw new Error('Title is required');
       }
@@ -149,23 +145,23 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       if (!data.authorId) {
         throw new Error('Author ID is required');
       }
+      if (!locale) {
+        throw new Error('Locale is required');
+      }
     } catch (error: any) {
       throw new ValidationError(`Invalid post data: ${error.message}`);
     }
 
-    // Check for slug uniqueness
-    const existingPost = await this.findBySlug(data.slug);
+    const existingPost = await this.findBySlug(data.slug, locale);
     if (existingPost) {
-      throw new ConflictError('Post with this slug already exists');
+      throw new ConflictError('Post with this slug already exists for the selected locale');
     }
 
-    // Validate author exists
     const authorExists = await this.authorRepo.exists(data.authorId);
     if (!authorExists) {
       throw new ValidationError('Author does not exist');
     }
 
-    // Validate categories exist if provided
     if (data.categoryIds && data.categoryIds.length > 0) {
       for (const categoryId of data.categoryIds) {
         const categoryExists = await this.categoryRepo.exists(categoryId);
@@ -175,7 +171,6 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       }
     }
 
-    // Validate tags exist if provided
     if (data.tagIds && data.tagIds.length > 0) {
       for (const tagId of data.tagIds) {
         const tagExists = await this.tagRepo.exists(tagId);
@@ -208,16 +203,18 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       throw new ValidationError(`Invalid post data: ${error.message}`);
     }
 
-    // Check for slug uniqueness if slug is being updated
-    if (data.slug) {
-      const existingPost = await this.findBySlug(data.slug);
-      const updatingId = this.currentUpdatePostId;
-      if (existingPost && (!updatingId || existingPost.id !== updatingId)) {
-        throw new ConflictError('Post with this slug already exists');
+    if (data.slug || data.locale) {
+      const targetSlug = (data.slug ?? this.currentUpdatePostSlug ?? '').trim();
+      const targetLocale = normalizeLocaleCode(data.locale ?? this.currentUpdatePostLocale, DEFAULT_LOCALE);
+      if (targetSlug) {
+        const existingPost = await this.findBySlug(targetSlug, targetLocale);
+        const updatingId = this.currentUpdatePostId;
+        if (existingPost && (!updatingId || existingPost.id !== updatingId)) {
+          throw new ConflictError('Post with this slug already exists for the selected locale');
+        }
       }
     }
 
-    // Validate author exists if being updated
     if (data.authorId) {
       const authorExists = await this.authorRepo.exists(data.authorId);
       if (!authorExists) {
@@ -225,7 +222,6 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       }
     }
 
-    // Validate categories exist if provided
     if (data.categoryIds && data.categoryIds.length > 0) {
       for (const categoryId of data.categoryIds) {
         const categoryExists = await this.categoryRepo.exists(categoryId);
@@ -235,7 +231,6 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       }
     }
 
-    // Validate tags exist if provided
     if (data.tagIds && data.tagIds.length > 0) {
       for (const tagId of data.tagIds) {
         const tagExists = await this.tagRepo.exists(tagId);
@@ -246,12 +241,15 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     }
   }
 
-  // Override create to handle relationships
   async create(data: CreatePost): Promise<BlogPost> {
-    await this.validateCreate(data);
-    
-    // Create the post first
-    const postData = this.mapToDatabase(data);
+    const payload: CreatePost = {
+      ...data,
+      locale: normalizeLocaleCode(data.locale, DEFAULT_LOCALE)
+    };
+
+    await this.validateCreate(payload);
+
+    const postData = this.mapToDatabase(payload);
     const post = await this.db.executeQuery(
       async (client) => {
         const result = await client
@@ -259,37 +257,44 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
           .insert(postData)
           .select()
           .single();
-        
+
         return result;
       },
       'create post'
     );
 
-    // Handle category relationships
-    if (data.categoryIds && data.categoryIds.length > 0) {
-      await this.updatePostCategories(post.id, data.categoryIds);
+    if (payload.categoryIds && payload.categoryIds.length > 0) {
+      await this.updatePostCategories(post.id, payload.categoryIds);
     }
 
-    // Handle tag relationships
-    if (data.tagIds && data.tagIds.length > 0) {
-      await this.updatePostTags(post.id, data.tagIds);
+    if (payload.tagIds && payload.tagIds.length > 0) {
+      await this.updatePostTags(post.id, payload.tagIds);
     }
 
-    // Return the full post with relationships
     return this.findByIdWithRelations(post.id) as Promise<BlogPost>;
   }
 
-  // Override update to handle relationships
   async update(id: string, data: UpdatePost): Promise<BlogPost> {
+    const existingPost = await this.findById(id);
+    if (!existingPost) {
+      throw new NotFoundError('Post', id);
+    }
+
     this.currentUpdatePostId = id;
+    this.currentUpdatePostSlug = existingPost.slug;
+    this.currentUpdatePostLocale = existingPost.locale;
     try {
       await this.validateUpdate(data);
     } finally {
       this.currentUpdatePostId = null;
+      this.currentUpdatePostSlug = null;
+      this.currentUpdatePostLocale = null;
     }
-    
-    // Update the post
-    const postData = this.mapToDatabase(data);
+
+    const postData = this.mapToDatabase({
+      ...data,
+      ...(data.locale ? { locale: normalizeLocaleCode(data.locale, DEFAULT_LOCALE) } : {})
+    });
     await this.db.executeOptionalQuery(
       async (client) => {
         const result = await client
@@ -298,18 +303,16 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
           .eq('id', id)
           .select()
           .maybeSingle();
-        
+
         return result;
       },
       'update post'
     );
 
-    // Handle category relationships if provided
     if (data.categoryIds !== undefined) {
       await this.updatePostCategories(id, data.categoryIds);
     }
 
-    // Handle tag relationships if provided
     if (data.tagIds !== undefined) {
       await this.updatePostTags(id, data.tagIds);
     }
@@ -321,26 +324,85 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     return withRelations;
   }
 
-  async findBySlug(slug: string): Promise<BlogPost | null> {
-    const post = await this.db.executeOptionalQuery(
+  async findBySlug(slug: string, locale?: string): Promise<BlogPost | null> {
+    const normalizedLocale = locale ? normalizeLocaleCode(locale, DEFAULT_LOCALE) : null;
+
+    if (normalizedLocale) {
+      const post = await this.db.executeOptionalQuery(
+        async (client) => {
+          const result = await client
+            .from('posts')
+            .select('*')
+            .eq('slug', slug)
+            .eq('locale', normalizedLocale)
+            .maybeSingle();
+
+          if (result.data) {
+            result.data = this.mapFromDatabase(result.data);
+          }
+
+          return result;
+        },
+        'findBySlug posts'
+      );
+
+      if (!post) return null;
+      return this.populateRelations(post);
+    }
+
+    const posts = await this.db.executeArrayQuery(
       async (client) => {
         const result = await client
           .from('posts')
           .select('*')
           .eq('slug', slug)
-          .maybeSingle();
-        
+          .order('created_at', { ascending: false })
+          .limit(1);
+
         if (result.data) {
-          result.data = this.mapFromDatabase(result.data);
+          result.data = result.data.map((row) => this.mapFromDatabase(row));
         }
-        
+
         return result;
       },
-      'findBySlug posts'
+      'findBySlug posts fallback'
     );
 
-    if (!post) return null;
-    return this.populateRelations(post);
+    const first = posts[0];
+    if (!first) return null;
+    return this.populateRelations(first);
+  }
+
+  async findBySlugInLocales(slug: string, locales: string[]): Promise<BlogPost | null> {
+    const normalizedLocales = Array.from(new Set(
+      locales
+        .map((locale) => normalizeLocaleCode(locale, ''))
+        .filter((locale) => locale.length > 0)
+    ));
+    if (normalizedLocales.length === 0) return null;
+
+    const matches = await this.db.executeArrayQuery(
+      async (client) => {
+        const result = await client
+          .from('posts')
+          .select('*')
+          .eq('slug', slug)
+          .in('locale', normalizedLocales);
+
+        if (result.data) {
+          result.data = result.data.map((row) => this.mapFromDatabase(row));
+        }
+
+        return result;
+      },
+      'findBySlugInLocales posts'
+    );
+
+    if (matches.length === 0) return null;
+    const sorted = [...matches].sort((a, b) => (
+      normalizedLocales.indexOf(a.locale || DEFAULT_LOCALE) - normalizedLocales.indexOf(b.locale || DEFAULT_LOCALE)
+    ));
+    return this.populateRelations(sorted[0]);
   }
 
   async findBySlugOrThrow(slug: string): Promise<BlogPost> {
@@ -358,7 +420,6 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
   }
 
   async findWithFilters(filters: PostFilters): Promise<BlogPost[]> {
-    // Validate filters
     try {
       postFiltersSchema.parse(filters);
     } catch (error: any) {
@@ -371,18 +432,19 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
           .from('posts')
           .select('*');
 
-        // Apply filters
         if (filters.status) {
           query = query.eq('status', filters.status);
         }
         if (filters.authorId) {
           query = query.eq('author_id', filters.authorId);
         }
+        if (filters.locale) {
+          query = query.eq('locale', normalizeLocaleCode(filters.locale, DEFAULT_LOCALE));
+        }
         if (filters.search) {
           query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
         }
 
-        // Collect post ids constrained by taxonomy filters
         let allowedPostIds: string[] | null = null;
 
         if (filters.categoryId) {
@@ -421,7 +483,7 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
           }
 
           allowedPostIds = allowedPostIds
-            ? allowedPostIds.filter((id) => tagPostIds.includes(id))
+            ? allowedPostIds.filter((matchId) => tagPostIds.includes(matchId))
             : tagPostIds;
 
           if (allowedPostIds.length === 0) {
@@ -434,41 +496,33 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
           query = query.in('id', uniqueIds);
         }
 
-        // Apply pagination
         const limit = filters.limit || 10;
         const offset = filters.offset || 0;
         query = query.range(offset, offset + limit - 1);
 
-        // Apply ordering
         query = query.order('created_at', { ascending: false });
 
         const result = await query;
-        
+
         if (result.data) {
-          result.data = result.data.map(row => this.mapFromDatabase(row));
+          result.data = result.data.map((row) => this.mapFromDatabase(row));
         }
-        
+
         return result;
       },
       'findWithFilters posts'
     );
 
-    // Populate relations for each post
     const postsWithRelations = await Promise.all(
-      posts.map(post => this.populateRelations(post))
+      posts.map((post) => this.populateRelations(post))
     );
 
     return postsWithRelations;
   }
 
   private async populateRelations(post: BlogPost): Promise<BlogPost> {
-    // Get author
     const author = await this.authorRepo.findByIdOrThrow(post.author.id);
-    
-    // Get categories
     const categories = await this.getPostCategories(post.id);
-    
-    // Get tags
     const tags = await this.getPostTags(post.id);
 
     let featuredImage = post.featuredImage;
@@ -487,12 +541,11 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       categories,
       tags,
       featuredImage,
-      audioAsset,
+      audioAsset
     };
   }
 
   private async updatePostCategories(postId: string, categoryIds: string[]): Promise<void> {
-    // Remove existing relationships
     await this.db.executeArrayQuery(
       async (client) => {
         const result = await client
@@ -505,11 +558,10 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       'delete post categories'
     );
 
-    // Add new relationships
     if (categoryIds.length > 0) {
-      const relationships = categoryIds.map(categoryId => ({
+      const relationships = categoryIds.map((categoryId) => ({
         post_id: postId,
-        category_id: categoryId,
+        category_id: categoryId
       }));
 
       await this.db.executeArrayQuery(
@@ -526,7 +578,6 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
   }
 
   private async updatePostTags(postId: string, tagIds: string[]): Promise<void> {
-    // Remove existing relationships
     await this.db.executeArrayQuery(
       async (client) => {
         const result = await client
@@ -539,11 +590,10 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       'delete post tags'
     );
 
-    // Add new relationships
     if (tagIds.length > 0) {
-      const relationships = tagIds.map(tagId => ({
+      const relationships = tagIds.map((tagId) => ({
         post_id: postId,
-        tag_id: tagId,
+        tag_id: tagId
       }));
 
       await this.db.executeArrayQuery(
@@ -568,14 +618,14 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
             categories (*)
           `)
           .eq('post_id', postId);
-        
+
         if (result.data) {
           result.data = result.data
             .map((row: any) => row.categories)
             .filter(Boolean)
-            .map(row => this.categoryRepo.mapFromDatabase(row));
+            .map((row) => this.categoryRepo.mapFromDatabase(row));
         }
-        
+
         return result;
       },
       'getPostCategories'
@@ -591,14 +641,14 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
             tags (*)
           `)
           .eq('post_id', postId);
-        
+
         if (result.data) {
           result.data = result.data
             .map((row: any) => row.tags)
             .filter(Boolean)
-            .map(row => this.tagRepo.mapFromDatabase(row));
+            .map((row) => this.tagRepo.mapFromDatabase(row));
         }
-        
+
         return result;
       },
       'getPostTags'

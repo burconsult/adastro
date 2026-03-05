@@ -3,6 +3,7 @@ import ResponsiveImage from './ResponsiveImage.astro';
 import type { BlogPost } from '@/lib/types/index.js';
 import { getSiteContentPreferences, getSiteContentRouting } from '@/lib/site-config';
 import { buildArticlePostPath } from '@/lib/routing/articles';
+import { buildLocalizedPath } from '@/lib/i18n/locales';
 
 export interface Props {
   post: BlogPost;
@@ -23,7 +24,8 @@ const contentRouting = await getSiteContentRouting();
 const contentPreferences = await getSiteContentPreferences();
 const postHref = buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, {
   basePath: contentRouting.articleBasePath,
-  permalinkStyle: contentRouting.articlePermalinkStyle
+  permalinkStyle: contentRouting.articlePermalinkStyle,
+  localePrefix: post.locale
 });
 const excerptLimit = contentPreferences.excerptLength;
 const excerptText = typeof post.excerpt === 'string' ? post.excerpt.trim() : '';
@@ -93,7 +95,7 @@ const cardClasses = {
         {showCategories && post.categories && post.categories.length > 0 && (
           <div class="flex flex-wrap gap-2">
             {post.categories.map((category) => (
-              <a href={`/category/${category.slug}/`} data-astro-prefetch="hover" class="badge badge-secondary hover:bg-secondary/80 transition-colors">
+              <a href={buildLocalizedPath(`/category/${category.slug}/`, post.locale)} data-astro-prefetch="hover" class="badge badge-secondary hover:bg-secondary/80 transition-colors">
                 {category.name}
               </a>
             ))}
@@ -104,7 +106,7 @@ const cardClasses = {
         {showTags && post.tags && post.tags.length > 0 && (
           <div class="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <a href={`/tag/${tag.slug}/`} data-astro-prefetch="hover" class="badge hover:bg-accent hover:text-accent-foreground transition-colors">
+              <a href={buildLocalizedPath(`/tag/${tag.slug}/`, post.locale)} data-astro-prefetch="hover" class="badge hover:bg-accent hover:text-accent-foreground transition-colors">
                 #{tag.name}
               </a>
             ))}

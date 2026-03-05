@@ -4,6 +4,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { PageRepository } from "@/lib/database/repositories/page-repository";
 import { AuthorRepository } from "@/lib/database/repositories/author-repository";
 import { PageEditor } from "@/lib/components/PageEditor.tsx";
+import { SettingsService } from "@/lib/services/settings-service";
 
 const { id } = Astro.params;
 const user = Astro.locals.user;
@@ -17,18 +18,33 @@ if (!id) {
 let page: any = null;
 let authors: any[] = [];
 let pageHref = '/';
+let defaultLocale = 'en';
+let supportedLocales: string[] = ['en'];
 
 try {
   const pageRepo = new PageRepository(true);
   const authorRepo = new AuthorRepository(true);
-  const [pageResult, authorResults] = await Promise.all([
+  const settingsService = new SettingsService();
+  const [pageResult, authorResults, localeSettings] = await Promise.all([
     pageRepo.findByIdWithRelations(id),
-    authorRepo.findAll()
+    authorRepo.findAll(),
+    settingsService.getSettings(['content.defaultLocale', 'content.locales'])
   ]);
 
   page = pageResult;
   authors = authorResults;
-  pageHref = page?.slug === 'home' ? '/' : `/${page?.slug}`;
+  defaultLocale = typeof localeSettings['content.defaultLocale'] === 'string'
+    ? localeSettings['content.defaultLocale']
+    : 'en';
+  supportedLocales = Array.isArray(localeSettings['content.locales'])
+    ? localeSettings['content.locales'].filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : ['en'];
+  if (!supportedLocales.includes(defaultLocale)) {
+    supportedLocales.unshift(defaultLocale);
+  }
+  pageHref = page?.slug === 'home'
+    ? `/${page?.locale || defaultLocale}`
+    : `/${page?.locale || defaultLocale}/${page?.slug}`;
 
   if (!page || (!isAdmin && page.author?.id !== authorId)) {
     return Astro.redirect('/admin/pages');
@@ -65,6 +81,8 @@ try {
       mode="edit"
       page={JSON.parse(JSON.stringify(page, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      defaultLocale={defaultLocale}
+      supportedLocales={supportedLocales}
     />
   </div>
 </AdminLayout>

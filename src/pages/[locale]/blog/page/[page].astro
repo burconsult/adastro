@@ -1,0 +1,118 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import BlogPostGrid from "@/components/BlogPostGrid.astro";
+import PageRenderer from "@/components/PageRenderer.astro";
+import CtaSection from "@/components/sections/CtaSection.astro";
+import { getPublishedPosts, calculatePagination, getPublishedPageBySlug } from "@/lib/database/index.js";
+import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
+import { buildArticlesPagePath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
+
+const rawLocale = Astro.params.locale || '';
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
+if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
+  return new Response(null, { status: 404 });
+}
+
+const { page } = Astro.params;
+const pageNum = Number.parseInt(page || '1', 10);
+if (!Number.isFinite(pageNum) || pageNum < 1) {
+  return new Response(null, { status: 404 });
+}
+
+const contentPreferences = await getSiteContentPreferences();
+const postsPerPage = contentPreferences.postsPerPage;
+const allPosts = await getPublishedPosts(undefined, undefined, locale);
+const totalPosts = allPosts.length;
+const offset = (pageNum - 1) * postsPerPage;
+const posts = allPosts.slice(offset, offset + postsPerPage);
+const pagination = calculatePagination(totalPosts, postsPerPage, pageNum);
+const contentRouting = await getSiteContentRouting();
+const articleRouting = {
+  basePath: contentRouting.articleBasePath,
+  permalinkStyle: contentRouting.articlePermalinkStyle,
+  localePrefix: locale
+} as const;
+const toArticlesPagePath = (targetPage: number) => buildArticlesPagePath(targetPage, articleRouting);
+const canonicalUrl = new URL(buildArticlesPagePath(pageNum, articleRouting), Astro.url.origin).toString();
+
+const pageSlugCandidates = [...new Set([contentRouting.articleBasePath, DEFAULT_ARTICLE_ROUTING.basePath])];
+let blogPage = null;
+for (const slugCandidate of pageSlugCandidates) {
+  blogPage = await getPublishedPageBySlug(slugCandidate, { locale, includeFallback: true });
+  if (blogPage) break;
+}
+
+const baseTitle = blogPage?.seoMetadata?.metaTitle ?? 'Articles';
+const pageTitle = pageNum > 1 ? `${baseTitle} — Page ${pageNum}` : baseTitle;
+const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published articles.';
+const showBlogPage = Boolean(blogPage && pageNum === 1);
+---
+<BaseLayout title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl}>
+  {showBlogPage && blogPage ? (
+    <PageRenderer page={blogPage} showTitle={blogPage.template === 'default'} />
+  ) : (
+    <section class="mx-auto max-w-6xl px-5 py-10 sm:px-7 sm:py-14 lg:px-8">
+      <header class="mx-auto max-w-3xl text-center">
+        <h1 id="blog-title" class="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">Articles</h1>
+        <p class="mt-4 text-base text-muted-foreground">
+          Page {pageNum} of {pagination.totalPages}.
+        </p>
+      </header>
+    </section>
+  )}
+
+  <section class="mx-auto max-w-6xl px-5 pb-14 sm:px-7 sm:pb-18 lg:px-8" aria-labelledby="blog-title">
+    <BlogPostGrid
+      posts={posts}
+      variant="default"
+      showExcerpts={true}
+      showTags={true}
+      showCategories={true}
+    />
+
+    {pagination.totalPages > 1 && (
+      <div class="mt-12 flex flex-wrap justify-center items-center gap-4">
+        {pagination.hasPrevPage && (
+          <a href={toArticlesPagePath(pagination.prevPage!)} data-astro-prefetch="hover" class="btn btn-outline">
+            ← Previous
+          </a>
+        )}
+
+        <div class="flex items-center gap-2">
+          {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageIndex) => (
+            <a
+              href={toArticlesPagePath(pageIndex)}
+              data-astro-prefetch="hover"
+              class={`px-3 py-2 rounded-md text-sm transition-colors ${
+                pageIndex === pagination.currentPage
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {pageIndex}
+            </a>
+          ))}
+        </div>
+
+        {pagination.hasNextPage && (
+          <a href={toArticlesPagePath(pagination.nextPage!)} data-astro-prefetch="hover" class="btn btn-outline">
+            Next →
+          </a>
+        )}
+      </div>
+    )}
+
+    <CtaSection
+      embedded={true}
+      content={{
+        heading: 'Need help with your build?',
+        body: 'If you are migrating content or tuning for PageSpeed, the contact page is the fastest way to reach support.',
+        ctaLabel: 'Contact',
+        ctaHref: '/contact'
+      }}
+      articleBasePath={contentRouting.articleBasePath}
+    />
+  </section>
+</BaseLayout>

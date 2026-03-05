@@ -61,7 +61,8 @@ ALTER TABLE public.media_assets
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
+  slug TEXT NOT NULL,
+  locale TEXT NOT NULL DEFAULT 'en' CHECK (locale ~ '^[a-z]{2}(-[a-z]{2})?$'),
   content TEXT NOT NULL,
   blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
   excerpt TEXT,
@@ -72,7 +73,8 @@ CREATE TABLE IF NOT EXISTS posts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   seo_metadata JSONB,
-  custom_fields JSONB
+  custom_fields JSONB,
+  CONSTRAINT posts_locale_slug_unique UNIQUE (locale, slug)
 );
 
 CREATE TABLE IF NOT EXISTS post_categories (
@@ -158,6 +160,8 @@ CREATE TABLE IF NOT EXISTS system_logs (
 CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_published_at ON posts(published_at);
+CREATE INDEX IF NOT EXISTS idx_posts_locale ON posts(locale);
+CREATE INDEX IF NOT EXISTS idx_posts_locale_slug ON posts(locale, slug);
 CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
 CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
@@ -640,7 +644,8 @@ CREATE TRIGGER update_user_profiles_updated_at
 CREATE TABLE IF NOT EXISTS pages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
+  slug TEXT NOT NULL,
+  locale TEXT NOT NULL DEFAULT 'en' CHECK (locale ~ '^[a-z]{2}(-[a-z]{2})?$'),
   status TEXT CHECK (status IN ('draft', 'published', 'archived')) DEFAULT 'draft',
   template TEXT NOT NULL DEFAULT 'default',
   content_blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -650,10 +655,13 @@ CREATE TABLE IF NOT EXISTS pages (
   seo_metadata JSONB,
   published_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT pages_locale_slug_unique UNIQUE (locale, slug)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pages_slug ON pages(slug);
+CREATE INDEX IF NOT EXISTS idx_pages_locale ON pages(locale);
+CREATE INDEX IF NOT EXISTS idx_pages_locale_slug ON pages(locale, slug);
 CREATE INDEX IF NOT EXISTS idx_pages_status ON pages(status);
 
 CREATE TABLE IF NOT EXISTS page_sections (

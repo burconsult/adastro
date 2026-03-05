@@ -10,9 +10,13 @@ const { page, showTitle = true } = Astro.props as { page: Page; showTitle?: bool
 const blocks = normalizeEditorJsData(page.contentBlocks ?? {});
 const contentHtml = page.contentHtml || editorJsToHtml(blocks);
 const contentRouting = await getSiteContentRouting();
+const localePrefix = typeof Astro.locals.locale === 'string' ? Astro.locals.locale : undefined;
 const normalizedContentHtml = contentHtml.replace(/(href=["'])\/blog(\/[^"']*)?(["'])/g, (_match, prefix, suffix = '', suffixQuote) => {
   const href = `/blog${suffix}`;
-  const mapped = applyArticleBasePathToHref(href, { basePath: contentRouting.articleBasePath });
+  const mapped = applyArticleBasePathToHref(href, {
+    basePath: contentRouting.articleBasePath,
+    localePrefix
+  });
   return `${prefix}${mapped}${suffixQuote}`;
 });
 const safeHtml = sanitizeHtml(normalizedContentHtml);

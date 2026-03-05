@@ -1,12 +1,11 @@
 {
   "project": "adastro",
   "version": "1.0.0",
-  "lastUpdated": "2026-03-04",
+  "lastUpdated": "2026-03-05",
   "surfaces": {
     "public": {
       "entryRoots": [
-        "src/pages/index.astro",
-        "src/pages/[slug].astro",
+        "src/pages/[locale]",
         "src/pages/blog"
       ]
     },
@@ -79,6 +78,11 @@
       "src/lib/mcp/auth.ts"
     ],
     "routing": "src/lib/routing/articles.ts",
+    "i18n": [
+      "src/lib/i18n/locales.ts",
+      "src/lib/i18n/runtime.ts",
+      "src/lib/features/i18n.ts"
+    ],
     "config": [
       "src/lib/config/media.ts"
     ]

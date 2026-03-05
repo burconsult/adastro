@@ -11,6 +11,7 @@ type NavLink = {
 type Props = {
   siteTitle?: string;
   siteLogoUrl?: string;
+  homeHref?: string;
   navLinks?: NavLink[];
   authLink?: NavLink;
   adminLink?: NavLink | null;
@@ -24,6 +25,7 @@ type Props = {
 export default function MobileNavigation({
   siteTitle = 'AdAstro',
   siteLogoUrl = '/logo.svg',
+  homeHref = '/',
   navLinks = [],
   authLink,
   adminLink = null,
@@ -36,7 +38,7 @@ export default function MobileNavigation({
   const secondaryLinks = useMemo(() => navLinks.filter((link) => Boolean(link)), [navLinks]);
   const links = secondaryLinks.length > 0
     ? secondaryLinks
-    : [{ label: 'Home', href: '/' }];
+    : [{ label: 'Home', href: homeHref }];
   const menuLinks = [...links, ...(adminLink ? [adminLink] : []), ...(authLink ? [authLink] : [])];
   const isAuthenticated = authState === 'authenticated';
   const isAdmin = Boolean(adminLink);
@@ -64,7 +66,7 @@ export default function MobileNavigation({
           className="ml-0 mr-auto flex h-full w-[85vw] max-w-sm flex-col gap-6 rounded-none border-r border-border bg-background p-6 shadow-xl"
         >
           <div className="flex items-center justify-between">
-            <a href="/" {...prefetchProps('/')} className="flex items-center gap-2 text-lg font-semibold">
+            <a href={homeHref} {...prefetchProps(homeHref)} className="flex items-center gap-2 text-lg font-semibold">
               <img src={siteLogoUrl} alt={`${siteTitle} logo`} className="h-7 w-7" />
               <span>{siteTitle}</span>
             </a>
@@ -186,7 +188,7 @@ export default function MobileNavigation({
               {...prefetchProps(authLink.href)}
               className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
-              Sign in
+              {authLink.label}
             </a>
           )
         )}

@@ -7,6 +7,7 @@ export const GET: APIRoute = async ({ request }) => {
     await requireAuthor(request);
     const url = new URL(request.url);
     const slug = url.searchParams.get('slug');
+    const locale = url.searchParams.get('locale') || 'en';
     const excludeId = url.searchParams.get('excludeId');
 
     if (!slug) {
@@ -17,14 +18,15 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     const postRepo = new PostRepository(true);
-    const existing = await postRepo.findBySlug(slug);
+    const existing = await postRepo.findBySlug(slug, locale);
 
     const available = !existing || (excludeId && existing.id === excludeId);
 
     return new Response(
       JSON.stringify({
         available,
-        conflictingPostId: available ? null : existing?.id ?? null
+        conflictingPostId: available ? null : existing?.id ?? null,
+        locale
       }),
       {
         status: 200,

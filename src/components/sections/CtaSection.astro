@@ -1,15 +1,21 @@
 ---
 import { applyArticleBasePathToHref } from "@/lib/routing/articles";
+import { localizeHref } from "@/lib/i18n/locales";
 
 const { content = {} } = Astro.props as { content?: Record<string, any> };
 const articleBasePath = typeof Astro.props.articleBasePath === 'string' ? Astro.props.articleBasePath : undefined;
+const localePrefix = typeof Astro.locals.locale === 'string' ? Astro.locals.locale : undefined;
 const embedded = Astro.props.embedded === true;
 const heading = typeof content.heading === 'string' ? content.heading : '';
 const body = typeof content.body === 'string' ? content.body : '';
 const ctaLabel = typeof content.ctaLabel === 'string' ? content.ctaLabel : '';
 const rawCtaHref = typeof content.ctaHref === 'string' ? content.ctaHref : '';
 const ctaHref = rawCtaHref
-  ? applyArticleBasePathToHref(rawCtaHref, { basePath: articleBasePath })
+  ? localizeHref(
+      applyArticleBasePathToHref(rawCtaHref, { basePath: articleBasePath, localePrefix }),
+      localePrefix || 'en',
+      { skipPrefixes: ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp'] }
+    )
   : '';
 ---
 

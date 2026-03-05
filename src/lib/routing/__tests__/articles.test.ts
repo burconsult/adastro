@@ -67,11 +67,13 @@ describe('article routing helpers', () => {
   it('normalizes partial routing config to defaults', () => {
     expect(normalizeArticleRoutingConfig({ basePath: 'articles' })).toEqual({
       basePath: 'articles',
-      permalinkStyle: 'segment'
+      permalinkStyle: 'segment',
+      localePrefix: ''
     });
     expect(normalizeArticleRoutingConfig({ basePath: 'admin', permalinkStyle: 'wordpress' })).toEqual({
       basePath: 'blog',
-      permalinkStyle: 'wordpress'
+      permalinkStyle: 'wordpress',
+      localePrefix: ''
     });
   });
 });

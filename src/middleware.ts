@@ -2,9 +2,10 @@ import { defineMiddleware } from 'astro:middleware';
 import { canRoleAccessAdminPath } from './lib/auth/access-policy.js';
 import { authService } from './lib/auth/auth-helpers.js';
 import { isSameOriginRequest, isUnsafeMethod } from './lib/security/request-guards.js';
-import { getSiteContentRouting } from './lib/site-config.js';
+import { getSiteContentRouting, getSiteLocaleConfig } from './lib/site-config.js';
 import { resolveLegacyBlogPath } from './lib/routing/articles.js';
 import { supabaseAdmin } from './lib/supabase.js';
+import { buildLocalizedPath, DEFAULT_LOCALE, resolveLocalePath } from './lib/i18n/locales.js';
 import {
   hasRequiredSetupEnv,
   isMissingRelationError,
@@ -19,6 +20,10 @@ const CONTENT_ROUTING_CACHE_TTL_MS = 30000;
 let contentRoutingCache:
   | { articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress'; checkedAt: number }
   | null = null;
+const LOCALE_CONFIG_CACHE_TTL_MS = 30000;
+let localeConfigCache:
+  | { defaultLocale: string; locales: string[]; checkedAt: number }
+  | null = null;
 
 const SETUP_ALLOWED_PREFIXES = [
   '/setup',
@@ -30,11 +35,29 @@ const SETUP_ALLOWED_PREFIXES = [
   '/favicon'
 ];
 const STATIC_ASSET_PATTERN = /\.[a-z0-9]+$/i;
+const LOCALE_REDIRECT_BYPASS_PREFIXES = [
+  '/admin',
+  '/api',
+  '/auth',
+  '/setup',
+  '/mcp',
+  '/_astro',
+  '/images',
+  '/scripts',
+  '/favicon',
+  '/profile',
+  '/404'
+];
 
 const shouldBypassSetupRedirect = (pathname: string) => {
   if (STATIC_ASSET_PATTERN.test(pathname)) return true;
   if (pathname === '/') return false;
   return SETUP_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+};
+
+const shouldRedirectToDefaultLocale = (pathname: string) => {
+  if (STATIC_ASSET_PATTERN.test(pathname)) return false;
+  return !LOCALE_REDIRECT_BYPASS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 };
 
 const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: boolean }> => {
@@ -99,8 +122,45 @@ const getContentRoutingForRewrite = async (): Promise<{ articleBasePath: string;
   return routing;
 };
 
+const getLocaleConfigForRequest = async (): Promise<{ defaultLocale: string; locales: string[] }> => {
+  const now = Date.now();
+  if (localeConfigCache && now - localeConfigCache.checkedAt <= LOCALE_CONFIG_CACHE_TTL_MS) {
+    return {
+      defaultLocale: localeConfigCache.defaultLocale,
+      locales: localeConfigCache.locales
+    };
+  }
+
+  try {
+    const localeConfig = await getSiteLocaleConfig({ refresh: true });
+    localeConfigCache = {
+      defaultLocale: localeConfig.defaultLocale || DEFAULT_LOCALE,
+      locales: localeConfig.locales.length > 0 ? localeConfig.locales : [DEFAULT_LOCALE],
+      checkedAt: now
+    };
+    return localeConfigCache;
+  } catch (error) {
+    console.warn('Locale config lookup failed. Falling back to default locale.', error);
+    localeConfigCache = {
+      defaultLocale: DEFAULT_LOCALE,
+      locales: [DEFAULT_LOCALE],
+      checkedAt: now
+    };
+    return localeConfigCache;
+  }
+};
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { url, redirect } = context;
+  const localeConfig = await getLocaleConfigForRequest();
+  const localePath = resolveLocalePath(url.pathname, localeConfig.locales, localeConfig.defaultLocale);
+  context.locals.locale = localePath.locale;
+  context.locals.defaultLocale = localeConfig.defaultLocale;
+  context.locals.supportedLocales = localeConfig.locales;
+  context.locals.hasLocalePrefix = localePath.hasLocalePrefix;
+  context.locals.localizedPath = localePath.pathnameWithoutLocale;
+  context.locals.requestPathname = url.pathname;
+
   const isSetupRoute = url.pathname === '/setup' || url.pathname.startsWith('/setup/');
   const isAdminRoute = url.pathname.startsWith('/admin');
   const isProfileRoute = url.pathname === '/profile' || url.pathname.startsWith('/profile/');
@@ -121,6 +181,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
+  if (
+    !localePath.hasLocalePrefix
+    && (context.request.method === 'GET' || context.request.method === 'HEAD')
+    && shouldRedirectToDefaultLocale(url.pathname)
+  ) {
+    const localizedUrl = new URL(url);
+    localizedUrl.pathname = buildLocalizedPath(url.pathname, localeConfig.defaultLocale);
+    return redirect(`${localizedUrl.pathname}${localizedUrl.search}`, 308);
+  }
+
   if (url.pathname.startsWith('/api') && isUnsafeMethod(context.request.method)) {
     if (!isSameOriginRequest(context.request, url.origin)) {
       return new Response(JSON.stringify({ error: 'Cross-origin requests are not allowed.' }), {
@@ -137,13 +207,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   ) {
     try {
       const routing = await getContentRoutingForRewrite();
-      const rewritePath = resolveLegacyBlogPath(url.pathname, {
+      const rewriteInput = localePath.hasLocalePrefix ? localePath.pathnameWithoutLocale : url.pathname;
+      const rewritePath = resolveLegacyBlogPath(rewriteInput, {
         basePath: routing.articleBasePath,
         permalinkStyle: routing.articlePermalinkStyle
       });
-      if (rewritePath && rewritePath !== url.pathname) {
+      if (rewritePath && rewritePath !== rewriteInput) {
         const rewriteUrl = new URL(url);
-        rewriteUrl.pathname = rewritePath;
+        rewriteUrl.pathname = localePath.hasLocalePrefix
+          ? `/${localePath.locale}${rewritePath}`
+          : rewritePath;
         return context.rewrite(rewriteUrl);
       }
     } catch (routingError) {

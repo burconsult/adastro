@@ -37,6 +37,7 @@ export const GET: APIRoute = async ({ request }) => {
     const url = new URL(request.url);
     const status = url.searchParams.get('status') as 'draft' | 'published' | 'archived' | null;
     const search = url.searchParams.get('search');
+    const locale = url.searchParams.get('locale');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
@@ -44,6 +45,7 @@ export const GET: APIRoute = async ({ request }) => {
     const pages = await pageRepo.findWithFilters({
       status: status ?? undefined,
       search: search ?? undefined,
+      locale: locale ?? undefined,
       authorId: user.role === 'author' ? user.authorId : undefined,
       limit,
       offset
@@ -109,6 +111,7 @@ export const POST: APIRoute = async ({ request }) => {
     const page = await pageRepo.createWithSections({
       title: data.title,
       slug: data.slug,
+      locale: data.locale,
       status: data.status || 'draft',
       template: data.template || 'default',
       contentBlocks: rawBlocksProvided ? normalizedBlocks : undefined,

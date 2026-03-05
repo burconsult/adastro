@@ -46,11 +46,14 @@ interface PostEditorProps {
   activeFeatureIds?: string[];
   articleBasePath?: string;
   articlePermalinkStyle?: 'segment' | 'wordpress';
+  defaultLocale?: string;
+  supportedLocales?: string[];
 }
 
 interface PostFormData {
   title: string;
   slug: string;
+  locale: string;
   content: string;
   blocks: EditorJSData;
   excerpt: string;
@@ -70,6 +73,7 @@ const serializePostFormData = (data: PostFormData) => {
   return JSON.stringify({
     title: data.title,
     slug: data.slug,
+    locale: data.locale,
     content: data.content,
     blocks: data.blocks,
     excerpt: data.excerpt,
@@ -101,7 +105,9 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   blockEditorEnabled = false,
   activeFeatureIds = [],
   articleBasePath = 'articles',
-  articlePermalinkStyle = 'segment'
+  articlePermalinkStyle = 'segment',
+  defaultLocale = 'en',
+  supportedLocales = ['en']
 }) => {
   const { toast } = useToast();
   const normalizedPost = useMemo(() => {
@@ -121,6 +127,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   const [formData, setFormData] = useState<PostFormData>(() => ({
     title: normalizedPost?.title || '',
     slug: normalizedPost?.slug || '',
+    locale: normalizedPost?.locale || defaultLocale,
     content: normalizedPost?.content || '',
     blocks: normalizedPost?.blocks ?? { blocks: [] },
     excerpt: normalizedPost?.excerpt || '',
@@ -173,12 +180,20 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     [editorExtensions]
   );
   const seoPreviewPathTemplate = useMemo(() => {
+    const localePrefix = `/${(formData.locale || defaultLocale).replace(/^\/+|\/+$/g, '')}`;
     if (articlePermalinkStyle === 'wordpress') {
-      return '/YYYY/MM/DD/{slug}/';
+      return `${localePrefix}/YYYY/MM/DD/{slug}/`;
     }
     const basePath = (articleBasePath || 'articles').replace(/^\/+|\/+$/g, '') || 'articles';
-    return `/${basePath}/{slug}/`;
-  }, [articleBasePath, articlePermalinkStyle]);
+    return `${localePrefix}/${basePath}/{slug}/`;
+  }, [articleBasePath, articlePermalinkStyle, defaultLocale, formData.locale]);
+  const localeOptions = useMemo(() => {
+    const normalized = Array.isArray(supportedLocales)
+      ? supportedLocales.filter((locale) => typeof locale === 'string' && locale.trim().length > 0)
+      : [];
+    const deduped = Array.from(new Set(normalized));
+    return deduped.length > 0 ? deduped : [defaultLocale];
+  }, [defaultLocale, supportedLocales]);
 
   const updateField = useCallback((field: keyof typeof formData, value: any) => {
     setFormData((prev) => ({
@@ -272,6 +287,9 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
         setFormData((prev) => ({
           ...prev,
           ...parsed,
+          locale: typeof parsed.locale === 'string' && parsed.locale.trim().length > 0
+            ? parsed.locale
+            : prev.locale,
           blocks: parsedBlocks.blocks.length > 0 ? parsedBlocks : prev.blocks,
           publishedAt: parsed.publishedAt ? new Date(parsed.publishedAt) : prev.publishedAt,
           featuredImage: parsed.featuredImage || prev.featuredImage,
@@ -397,7 +415,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
 
     const handler = window.setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ slug });
+        const params = new URLSearchParams({ slug, locale: formData.locale || defaultLocale });
         if (mode === 'edit' && normalizedPost?.id) {
           params.set('excludeId', normalizedPost.id);
         }
@@ -428,7 +446,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
       active = false;
       window.clearTimeout(handler);
     };
-  }, [formData.slug, mode, normalizedPost?.id, hydrated]);
+  }, [defaultLocale, formData.locale, formData.slug, mode, normalizedPost?.id, hydrated]);
 
   useEffect(() => {
     setTagOptions(tags);
@@ -454,6 +472,9 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
       newErrors.slug = 'Slug is required';
     } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(formData.slug)) {
       newErrors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens';
+    }
+    if (!formData.locale.trim()) {
+      newErrors.locale = 'Locale is required';
     }
 
     const hasLegacyContent = formData.content && formData.content.trim().length > 0;
@@ -586,6 +607,11 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     }
   }, [errors]);
 
+  useEffect(() => {
+    if (localeOptions.includes(formData.locale)) return;
+    handleFieldChange('locale', localeOptions[0]);
+  }, [formData.locale, handleFieldChange, localeOptions]);
+
   const handleBlocksChange = useCallback((nextBlocks: EditorJSData) => {
     setFormData((prev) => {
       const normalized = normalizeEditorJsData(nextBlocks);
@@ -703,6 +729,25 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
                     {slugStatus === 'checking' ? 'Checking slug…' : slugMessage}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label htmlFor="locale" className="block text-sm font-medium mb-2">
+                  Locale *
+                </label>
+                <select
+                  id="locale"
+                  value={formData.locale}
+                  onChange={(e) => handleFieldChange('locale', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md ${errors.locale ? 'border-red-500' : 'border-input'}`}
+                >
+                  {localeOptions.map((locale) => (
+                    <option key={locale} value={locale}>
+                      {locale}
+                    </option>
+                  ))}
+                </select>
+                {errors.locale && <p className="text-destructive text-sm mt-1">{errors.locale}</p>}
               </div>
 
               <div>

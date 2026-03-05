@@ -10,8 +10,10 @@ import FooterNewsletterSlot from "@/lib/components/FooterNewsletterSlot";
 import { Facebook, Github, Link2, Linkedin } from "lucide-react";
 import { isFeatureActive } from "@/lib/features/state";
 import { authService } from "@/lib/auth/auth-helpers";
-import { getSiteCustomScripts, getSiteIdentity, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
+import { getSiteCustomScripts, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
 import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
+import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 type Props = {
   title?: string;
@@ -28,6 +30,7 @@ const siteTheme = await getSiteTheme();
 const siteSeoDefaults = await getSiteSeoDefaults();
 const siteSocialProfiles = await getSiteSocialProfiles();
 const siteCustomScripts = await getSiteCustomScripts();
+const siteLocaleConfig = await getSiteLocaleConfig();
 const activeTheme = getThemeModuleById(siteTheme.preset);
 const themeFontMap = Object.fromEntries(
   getThemeModules().map((theme) => [theme.id, theme.fontImports ?? []])
@@ -41,9 +44,23 @@ const {
   hideFooterNewsletter = false
 } = Astro.props as Props;
 const showFooterNewsletter = !hideFooterNewsletter && await isFeatureActive('newsletter');
+const currentLocale = normalizeLocaleCode(Astro.locals.locale, siteLocaleConfig.defaultLocale);
+const localizedPathname = typeof Astro.locals.localizedPath === 'string'
+  ? Astro.locals.localizedPath
+  : Astro.url.pathname;
+const requestPathname = typeof Astro.locals.requestPathname === 'string'
+  ? Astro.locals.requestPathname
+  : Astro.url.pathname;
+const localeMessages = getLocaleMessages(currentLocale);
+const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
+const localizeSiteHref = (href: string) => localizeHref(href, currentLocale, { skipPrefixes: LOCALIZED_HREF_SKIP_PREFIXES });
+const localizedHomeHref = buildLocalizedPath('/', currentLocale);
 
 const site = Astro.site?.toString() ?? '';
-const computedUrl = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.href;
+const computedRequestPath = `${requestPathname}${Astro.url.search || ''}`;
+const computedUrl = site
+  ? new URL(computedRequestPath, site).toString()
+  : new URL(computedRequestPath, Astro.url.origin).toString();
 const siteBaseUrl = site ? new URL('/', site).toString() : `${Astro.url.origin}/`;
 const normalizedCanonicalUrl = typeof canonicalUrl === 'string' && canonicalUrl.trim().length > 0
   ? canonicalUrl.trim()
@@ -101,7 +118,7 @@ const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
   links.findIndex((candidate) => candidate.href.toLowerCase() === link.href.toLowerCase()) === index
 ));
 const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
-const navLinks = siteNavigation.topLinks;
+const navLinks = siteNavigation.topLinks.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
 const websiteStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -138,8 +155,10 @@ const navigationStructuredData = navLinks.length > 0
 
 const footerLinks = siteNavigation.bottomLinks;
 const footerItems = siteNavigation.footerLinks;
+const localizedFooterLinks = footerLinks.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
+const localizedFooterItems = footerItems.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
 const usedFooterHrefs = new Set(
-  [...footerLinks, ...footerItems]
+  [...localizedFooterLinks, ...localizedFooterItems]
     .map((item) => item?.href)
     .filter((href): href is string => typeof href === 'string' && href.trim().length > 0)
 );
@@ -152,18 +171,23 @@ const authRedirectPath = Astro.url.pathname.startsWith('/auth')
   ? '/'
   : `${Astro.url.pathname}${Astro.url.search || ''}`;
 const authLink = currentUser
-  ? { label: 'Profile', href: '/profile' }
-  : { label: 'Sign in', href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
+  ? { label: t(localeMessages, 'core.auth.profile', 'Profile'), href: '/profile' }
+  : { label: t(localeMessages, 'core.auth.signIn', 'Sign in'), href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
 const authState = currentUser ? 'authenticated' : 'guest';
 const adminLink = currentUser?.role === 'admin'
-  ? { label: 'Admin', href: '/admin' }
+  ? { label: t(localeMessages, 'core.auth.admin', 'Admin'), href: '/admin' }
   : null;
 const fontImports = activeTheme?.fontImports ?? [];
 const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
+const alternateLocalizedLinks = siteLocaleConfig.locales.map((locale) => ({
+  locale,
+  href: new URL(buildLocalizedPath(localizedPathname, locale), siteBaseUrl).toString()
+}));
+const xDefaultHref = new URL(buildLocalizedPath(localizedPathname, siteLocaleConfig.defaultLocale), siteBaseUrl).toString();
 ---
 <!doctype html>
 <html
-  lang="en"
+  lang={toHtmlLang(currentLocale)}
   class={themeClass}
   data-theme={siteTheme.preset}
   data-theme-mode={siteTheme.mode}
@@ -183,6 +207,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
     <meta property="og:description" content={description} />
     <meta property="og:url" content={normalizedCanonicalUrl} />
     <meta property="og:type" content={ogType} />
+    <meta property="og:locale" content={toOpenGraphLocale(currentLocale)} />
     <meta property="og:image" content={image} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -194,6 +219,10 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
     {dedupedSocialLinks.map((link) => (
       <link rel="me" href={link.href} />
     ))}
+    {alternateLocalizedLinks.map((link) => (
+      <link rel="alternate" hreflang={link.locale} href={link.href} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={xDefaultHref} />
     <link rel="alternate" type="application/rss+xml" title={`${siteIdentity.title} RSS`} href="/rss.xml" />
     {needsGoogleFonts && (
       <>
@@ -224,7 +253,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
     <div class="h-1 w-full brand-gradient"></div>
     <header class="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 p-4">
-        <a href="/" data-astro-prefetch="hover" class="group flex items-center gap-2">
+        <a href={localizedHomeHref} data-astro-prefetch="hover" class="group flex items-center gap-2">
           <img src={siteIdentity.logoUrl} alt={`${siteIdentity.title} logo`} class="h-8 w-8" />
           <span class="text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition">
             {siteIdentity.title}
@@ -234,6 +263,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
           client:load
           siteTitle={siteIdentity.title}
           siteLogoUrl={siteIdentity.logoUrl}
+          homeHref={localizedHomeHref}
           navLinks={navLinks}
           authLink={authLink}
           adminLink={adminLink}
@@ -267,7 +297,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
           <div class="space-y-3">
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">Navigate</p>
             <nav class="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              {footerLinks.map((link) => (
+              {localizedFooterLinks.map((link) => (
                 <a
                   href={link.href}
                   data-astro-prefetch={prefetchStrategy(link.href)}
@@ -312,7 +342,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
             )}
           </div>
         </div>
-        {footerItems.length > 0 && (
+        {localizedFooterItems.length > 0 && (
           <div class="pt-2">
             <div class="mb-4 flex items-center justify-center gap-2 text-xs tracking-[0.25em] text-background/40" aria-hidden="true">
               <span>✦</span>
@@ -320,7 +350,7 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
               <span>✦</span>
             </div>
             <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-              {footerItems.map((item) => (
+              {localizedFooterItems.map((item) => (
                 item?.href ? (
                   <a href={item.href} data-astro-prefetch={prefetchStrategy(item.href)} class="text-sm text-background/70 transition-colors hover:text-background">
                     {item.label}

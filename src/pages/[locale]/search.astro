@@ -6,11 +6,16 @@ import { getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlePostPath } from "@/lib/routing/articles";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
 
+const rawLocale = Astro.params.locale || '';
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
+if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
+  return new Response(null, { status: 404 });
+}
+
 const rawQuery = Astro.url.searchParams.get('q') || '';
 const query = rawQuery.trim();
 const normalizedQuery = query.toLowerCase();
-const localeConfig = await getSiteLocaleConfig();
-const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
 const contentRouting = await getSiteContentRouting();
 const allPosts = await getPublishedPosts(undefined, undefined, locale);
 const results = normalizedQuery.length >= 2

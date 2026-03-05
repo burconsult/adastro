@@ -17,6 +17,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const url = new URL(request.url);
     const status = url.searchParams.get('status') as 'draft' | 'published' | 'scheduled' | null;
     const search = url.searchParams.get('search');
+    const locale = url.searchParams.get('locale');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
@@ -25,6 +26,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const posts = await postRepo.findWithFilters({
       status,
       search,
+      locale: locale || undefined,
       authorId: user.role === 'author' ? user.authorId : undefined,
       limit,
       offset
@@ -91,6 +93,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const post = await postRepo.create({
       title: data.title,
       slug: data.slug,
+      locale: data.locale,
       content: contentToPersist,
       blocks: rawBlocksProvided ? normalizedBlocks : undefined,
       excerpt: data.excerpt,

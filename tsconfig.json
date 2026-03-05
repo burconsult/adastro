@@ -10,6 +10,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
+    "resolveJsonModule": true,
     "types": ["vitest", "vitest/globals", "node"],
     "baseUrl": ".",
     "paths": {

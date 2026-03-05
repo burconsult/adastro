@@ -3,16 +3,33 @@ import AdminLayout from "@/layouts/AdminLayout.astro";
 import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { AuthorRepository } from "@/lib/database/repositories/author-repository";
 import { PageEditor } from "@/lib/components/PageEditor.tsx";
+import { SettingsService } from "@/lib/services/settings-service";
 
 const user = Astro.locals.user;
 const isAdmin = user?.role === 'admin';
 const authorId = user?.authorId;
 
 let authors: any[] = [];
+let defaultLocale = 'en';
+let supportedLocales: string[] = ['en'];
 
 try {
   const authorRepo = new AuthorRepository(true);
-  authors = await authorRepo.findAll();
+  const settingsService = new SettingsService();
+  const [authorResults, localeSettings] = await Promise.all([
+    authorRepo.findAll(),
+    settingsService.getSettings(['content.defaultLocale', 'content.locales'])
+  ]);
+  authors = authorResults;
+  defaultLocale = typeof localeSettings['content.defaultLocale'] === 'string'
+    ? localeSettings['content.defaultLocale']
+    : 'en';
+  supportedLocales = Array.isArray(localeSettings['content.locales'])
+    ? localeSettings['content.locales'].filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : ['en'];
+  if (!supportedLocales.includes(defaultLocale)) {
+    supportedLocales.unshift(defaultLocale);
+  }
 
   if (!isAdmin && authorId) {
     authors = authors.filter((author) => author.id === authorId);
@@ -40,6 +57,8 @@ try {
       client:load
       mode="create"
       authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
+      defaultLocale={defaultLocale}
+      supportedLocales={supportedLocales}
     />
   </div>
 </AdminLayout>

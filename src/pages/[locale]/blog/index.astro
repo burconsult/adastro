@@ -1,0 +1,98 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import BlogPostGrid from "@/components/BlogPostGrid.astro";
+import PageRenderer from "@/components/PageRenderer.astro";
+import CtaSection from "@/components/sections/CtaSection.astro";
+import { getPublishedPosts, calculatePagination, getPublishedPageBySlug } from "@/lib/database/index.js";
+import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
+import { buildArticlesPagePath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
+
+const rawLocale = Astro.params.locale || '';
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
+if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
+  return new Response(null, { status: 404 });
+}
+
+const contentPreferences = await getSiteContentPreferences();
+const postsPerPage = contentPreferences.postsPerPage;
+const allPosts = await getPublishedPosts(undefined, undefined, locale);
+const posts = allPosts.slice(0, postsPerPage);
+const pagination = calculatePagination(allPosts.length, postsPerPage, 1);
+const contentRouting = await getSiteContentRouting();
+const articleRouting = {
+  basePath: contentRouting.articleBasePath,
+  permalinkStyle: contentRouting.articlePermalinkStyle,
+  localePrefix: locale
+} as const;
+const toArticlesPagePath = (page: number) => buildArticlesPagePath(page, articleRouting);
+const canonicalUrl = new URL(buildArticlesPagePath(1, articleRouting), Astro.url.origin).toString();
+
+const pageSlugCandidates = [...new Set([contentRouting.articleBasePath, DEFAULT_ARTICLE_ROUTING.basePath])];
+let blogPage = null;
+for (const slug of pageSlugCandidates) {
+  blogPage = await getPublishedPageBySlug(slug, { locale, includeFallback: true });
+  if (blogPage) break;
+}
+
+const pageTitle = blogPage?.seoMetadata?.metaTitle ?? 'Articles';
+const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published articles.';
+---
+<BaseLayout title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl}>
+  {blogPage ? (
+    <PageRenderer page={blogPage} showTitle={blogPage.template === 'default'} />
+  ) : (
+    <section class="mx-auto max-w-6xl px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
+      <header class="mx-auto max-w-3xl text-center">
+        <h1 id="blog-title" class="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">Articles</h1>
+      </header>
+    </section>
+  )}
+
+  <section class="mx-auto max-w-6xl px-5 pb-14 sm:px-7 sm:pb-18 lg:px-8" aria-labelledby="blog-title">
+    <BlogPostGrid
+      posts={posts}
+      variant="featured-first"
+      showExcerpts={true}
+      showTags={true}
+      showCategories={true}
+    />
+
+    {pagination.totalPages > 1 && (
+      <div class="mt-12 flex flex-wrap justify-center items-center gap-4">
+        <div class="flex items-center gap-2">
+          {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <a
+              href={toArticlesPagePath(pageNum)}
+              data-astro-prefetch="hover"
+              class={`px-3 py-2 rounded-md text-sm transition-colors ${
+                pageNum === pagination.currentPage
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {pageNum}
+            </a>
+          ))}
+        </div>
+        {pagination.hasNextPage && pagination.nextPage && (
+          <a href={toArticlesPagePath(pagination.nextPage)} data-astro-prefetch="hover" class="btn btn-outline">
+            Next →
+          </a>
+        )}
+      </div>
+    )}
+
+    <CtaSection
+      embedded={true}
+      content={{
+        heading: 'Need help with your build?',
+        body: 'If you are migrating content or tuning for PageSpeed, the contact page is the fastest way to reach support.',
+        ctaLabel: 'Contact',
+        ctaHref: '/contact'
+      }}
+      articleBasePath={contentRouting.articleBasePath}
+    />
+  </section>
+</BaseLayout>

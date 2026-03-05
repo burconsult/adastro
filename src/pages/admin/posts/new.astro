@@ -16,6 +16,8 @@ let categories: any[] = [];
 let tags: any[] = [];
 let blockEditorEnabled = false;
 let activeFeatureIds: string[] = [];
+let defaultLocale = 'en';
+let supportedLocales: string[] = ['en'];
 const contentRouting = await getSiteContentRouting();
 const user = Astro.locals.user;
 const isAdmin = user?.role === 'admin';
@@ -33,7 +35,9 @@ try {
     categoryRepo.findAll(),
     tagRepo.findAll(),
     settingsService.getSettings([
-      'editor.blocks.enabled'
+      'editor.blocks.enabled',
+      'content.defaultLocale',
+      'content.locales'
     ]),
     Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) })))
   ]);
@@ -42,6 +46,15 @@ try {
   categories = categoryResults;
   tags = tagResults;
   blockEditorEnabled = Boolean(editorSettings['editor.blocks.enabled']);
+  defaultLocale = typeof editorSettings['content.defaultLocale'] === 'string'
+    ? editorSettings['content.defaultLocale']
+    : 'en';
+  supportedLocales = Array.isArray(editorSettings['content.locales'])
+    ? editorSettings['content.locales'].filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : ['en'];
+  if (!supportedLocales.includes(defaultLocale)) {
+    supportedLocales.unshift(defaultLocale);
+  }
   activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
   if (!isAdmin && authorId) {
     authors = authors.filter((author) => author.id === authorId);
@@ -76,6 +89,8 @@ try {
       activeFeatureIds={activeFeatureIds}
       articleBasePath={contentRouting.articleBasePath}
       articlePermalinkStyle={contentRouting.articlePermalinkStyle}
+      defaultLocale={defaultLocale}
+      supportedLocales={supportedLocales}
     />
   </div>
 </AdminLayout>

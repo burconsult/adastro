@@ -1,12 +1,16 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PageRenderer from "@/components/PageRenderer.astro";
-import { getPageStaticPaths, getPublishedPageBySlug } from "@/lib/database/index.js";
-import { getSiteIdentity } from "@/lib/site-config";
+import { getPublishedPageBySlug } from "@/lib/database/index.js";
+import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import type { Page } from "@/lib/types/index.js";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
 
-export async function getStaticPaths() {
-  return await getPageStaticPaths();
+const rawLocale = Astro.params.locale || '';
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
+if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
+  return new Response(null, { status: 404 });
 }
 
 const { slug } = Astro.params;
@@ -14,7 +18,7 @@ if (slug?.includes('.')) {
   return Astro.redirect('/404');
 }
 
-const page = await getPublishedPageBySlug(slug!);
+const page = await getPublishedPageBySlug(slug!, { locale, includeFallback: true });
 
 if (!page) {
   return Astro.redirect('/404');
