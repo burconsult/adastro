@@ -10,7 +10,6 @@ Path:
 - `infra/supabase/migrations/000_core.sql`
 - `infra/supabase/migrations/001_content_locales.sql`
 - `infra/supabase/migrations/002_locale_nb_bootstrap.sql`
-- `infra/supabase/migrations/003_locale_no_to_nb_cleanup.sql`
 
 What it contains:
 - Core CMS tables (`authors`, `posts`, `pages`, `media_assets`, settings, taxonomy, etc.)
@@ -28,7 +27,6 @@ This is the baseline SQL the setup flow requires before wizard automation can pr
 Migration notes:
 - `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
 - `002_locale_nb_bootstrap.sql` is idempotent and intended for existing `en` content stacks that want Norwegian (`nb`) as active primary locale; it clones/bootstraps localized records where missing.
-- `003_locale_no_to_nb_cleanup.sql` is idempotent and upgrades legacy `no` locale settings/rows to `nb`, removing duplicates where equivalent `nb` records already exist.
 
 ### 2) Demo Data (optional)
 

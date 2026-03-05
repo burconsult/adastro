@@ -1,12 +1,16 @@
 import type { FeatureI18nMessages } from '../types.js';
 
-export const NEWSLETTER_I18N: FeatureI18nMessages = {
-  en: {
-    'settings.features.newsletter.title': 'Newsletter',
-    'settings.features.newsletter.description': 'Turn on email subscriptions and campaigns.'
+type FeatureMessageModule = { default: Record<string, string> };
+
+const MESSAGE_MODULES = import.meta.glob<FeatureMessageModule>('./messages/*.json', { eager: true });
+
+export const NEWSLETTER_I18N: FeatureI18nMessages = Object.entries(MESSAGE_MODULES).reduce(
+  (acc, [modulePath, module]) => {
+    const fileName = modulePath.split('/').pop() || '';
+    const locale = fileName.replace(/\.json$/i, '').trim().toLowerCase();
+    if (!locale) return acc;
+    acc[locale] = module.default || {};
+    return acc;
   },
-  nb: {
-    'settings.features.newsletter.title': 'Nyhetsbrev',
-    'settings.features.newsletter.description': 'Skru på e-postabonnementer og kampanjer.'
-  }
-};
+  {} as FeatureI18nMessages
+);

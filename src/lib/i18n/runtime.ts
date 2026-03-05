@@ -1,14 +1,22 @@
-import enMessages from './messages/en.json';
-import nbMessages from './messages/nb.json';
 import { loadFeatureMessages } from '@/lib/features/i18n';
 import { DEFAULT_LOCALE, normalizeLocaleCode } from './locales';
 
 export type MessageDictionary = Record<string, string>;
 
-const CORE_MESSAGES: Record<string, MessageDictionary> = {
-  en: enMessages,
-  nb: nbMessages
-};
+type CoreMessageModule = { default: MessageDictionary };
+
+const CORE_MESSAGE_MODULES = import.meta.glob<CoreMessageModule>('./messages/*.json', { eager: true });
+
+const CORE_MESSAGES: Record<string, MessageDictionary> = Object.entries(CORE_MESSAGE_MODULES).reduce(
+  (acc, [modulePath, module]) => {
+    const fileName = modulePath.split('/').pop() || '';
+    const locale = fileName.replace(/\.json$/i, '').trim().toLowerCase();
+    if (!locale) return acc;
+    acc[locale] = module.default || {};
+    return acc;
+  },
+  {} as Record<string, MessageDictionary>
+);
 
 const FEATURE_MESSAGES = loadFeatureMessages();
 

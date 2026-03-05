@@ -57,8 +57,7 @@
     "coreMigrations": [
       "infra/supabase/migrations/000_core.sql",
       "infra/supabase/migrations/001_content_locales.sql",
-      "infra/supabase/migrations/002_locale_nb_bootstrap.sql",
-      "infra/supabase/migrations/003_locale_no_to_nb_cleanup.sql"
+      "infra/supabase/migrations/002_locale_nb_bootstrap.sql"
     ],
     "setupRuntime": "src/lib/setup/runtime.ts",
     "dataAccess": "src/lib/database/repositories",
