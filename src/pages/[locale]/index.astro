@@ -23,7 +23,7 @@ const articlesIndexPath = buildArticlesIndexPath({
   localePrefix: locale
 });
 
-const homePage = await getPublishedPageBySlug('home', { locale, includeFallback: true });
+const homePage = await getPublishedPageBySlug('home', { locale, includeFallback: false });
 const pageTitle = homePage?.seoMetadata?.metaTitle ?? `${siteIdentity.title} - The Lightspeed CMS`;
 const pageDescription = homePage?.seoMetadata?.metaDescription ?? homePage?.excerpt ?? siteIdentity.description;
 ---

@@ -3,8 +3,12 @@ import { AdminLoadingState } from '@/lib/components/admin/ListingPrimitives';
 
 type TopPath = { path: string; count: number };
 type DailyPoint = { date: string; count: number };
+type LocalePoint = { locale: string; count: number };
 type Payload = {
   windowDays: number;
+  selectedLocale: string;
+  availableLocales: string[];
+  localeBreakdown: LocalePoint[];
   totalPageViews: number;
   previousWindowPageViews: number;
   uniquePaths: number;
@@ -23,6 +27,7 @@ function deltaText(current: number, previous: number) {
 
 export default function AnalyticsDashboard() {
   const [days, setDays] = React.useState<7 | 30>(30);
+  const [locale, setLocale] = React.useState<string>('all');
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [data, setData] = React.useState<Payload | null>(null);
@@ -33,7 +38,11 @@ export default function AnalyticsDashboard() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/admin/analytics?days=${days}`);
+        const params = new URLSearchParams({ days: String(days) });
+        if (locale !== 'all') {
+          params.set('locale', locale);
+        }
+        const res = await fetch(`/api/admin/analytics?${params.toString()}`);
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(payload?.error || 'Failed to load analytics');
         if (!cancelled) setData(payload as Payload);
@@ -47,7 +56,14 @@ export default function AnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, locale]);
+
+  React.useEffect(() => {
+    if (!data) return;
+    if (locale === 'all') return;
+    if (data.availableLocales.includes(locale)) return;
+    setLocale('all');
+  }, [data, locale]);
 
   if (loading) {
     return <AdminLoadingState label="Loading analytics..." className="p-8" />;
@@ -64,6 +80,7 @@ export default function AnalyticsDashboard() {
   if (!data) return null;
 
   const maxDaily = Math.max(1, ...data.dailyViews.map((p) => p.count));
+  const localeLabel = data.selectedLocale === 'all' ? 'All locales' : data.selectedLocale.toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -71,26 +88,47 @@ export default function AnalyticsDashboard() {
         <p className="text-sm text-muted-foreground">
           Lightweight first-party pageview analytics (no cookies, JavaScript-based tracking).
         </p>
-        <div className="inline-flex rounded-md border border-border p-1">
-          {[7, 30].map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={`rounded px-3 py-1.5 text-xs font-medium ${days === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={() => setDays(option as 7 | 30)}
-            >
-              {option}d
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-md border border-border p-1">
+            {[7, 30].map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`rounded px-3 py-1.5 text-xs font-medium ${days === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setDays(option as 7 | 30)}
+              >
+                {option}d
+              </button>
+            ))}
+          </div>
+          <select
+            aria-label="Locale filter"
+            value={locale}
+            onChange={(event) => setLocale(event.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="all">All locales</option>
+            {(data.availableLocales || []).map((option) => (
+              <option key={option} value={option}>
+                {option.toUpperCase()}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={`Page Views (${data.windowDays}d)`} value={numberFmt.format(data.totalPageViews)} hint={`vs previous ${data.windowDays}d: ${deltaText(data.totalPageViews, data.previousWindowPageViews)}`} />
+        <StatCard label={`Page Views (${data.windowDays}d)`} value={numberFmt.format(data.totalPageViews)} hint={`${localeLabel} • vs previous ${data.windowDays}d: ${deltaText(data.totalPageViews, data.previousWindowPageViews)}`} />
         <StatCard label="Today" value={numberFmt.format(data.todayPageViews)} />
         <StatCard label="Unique Pages" value={numberFmt.format(data.uniquePaths)} />
         <StatCard label="Previous Window" value={numberFmt.format(data.previousWindowPageViews)} />
       </div>
+
+      {data.localeBreakdown.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Locale split ({data.windowDays}d): {data.localeBreakdown.map((item) => `${item.locale.toUpperCase()} ${numberFmt.format(item.count)}`).join(' • ')}
+        </p>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <section className="card p-4 space-y-3">
@@ -144,4 +182,3 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
     </div>
   );
 }
-

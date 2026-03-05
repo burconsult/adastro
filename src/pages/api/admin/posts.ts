@@ -3,6 +3,24 @@ import { PostRepository } from '@/lib/database/repositories/post-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
 
+const toOptionalQueryValue = (value: string | null): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parsePositiveInt = (value: string | null, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+const parseNonNegativeInt = (value: string | null, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
+};
+
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
     // Validate authentication
@@ -15,18 +33,22 @@ export const GET: APIRoute = async ({ request, locals }) => {
     }
 
     const url = new URL(request.url);
-    const status = url.searchParams.get('status') as 'draft' | 'published' | 'scheduled' | null;
-    const search = url.searchParams.get('search');
-    const locale = url.searchParams.get('locale');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const status = toOptionalQueryValue(url.searchParams.get('status')) as 'draft' | 'published' | 'scheduled' | undefined;
+    const search = toOptionalQueryValue(url.searchParams.get('search'));
+    const locale = toOptionalQueryValue(url.searchParams.get('locale'));
+    const categoryId = toOptionalQueryValue(url.searchParams.get('category'));
+    const tagId = toOptionalQueryValue(url.searchParams.get('tag'));
+    const limit = parsePositiveInt(url.searchParams.get('limit'), 20);
+    const offset = parseNonNegativeInt(url.searchParams.get('offset'), 0);
 
     const postRepo = new PostRepository(true);
     
     const posts = await postRepo.findWithFilters({
       status,
       search,
-      locale: locale || undefined,
+      locale,
+      categoryId,
+      tagId,
       authorId: user.role === 'author' ? user.authorId : undefined,
       limit,
       offset

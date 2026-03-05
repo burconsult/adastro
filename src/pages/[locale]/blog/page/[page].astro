@@ -42,7 +42,7 @@ const canonicalUrl = new URL(buildArticlesPagePath(pageNum, articleRouting), Ast
 const pageSlugCandidates = [...new Set([contentRouting.articleBasePath, DEFAULT_ARTICLE_ROUTING.basePath])];
 let blogPage = null;
 for (const slugCandidate of pageSlugCandidates) {
-  blogPage = await getPublishedPageBySlug(slugCandidate, { locale, includeFallback: true });
+  blogPage = await getPublishedPageBySlug(slugCandidate, { locale, includeFallback: false });
   if (blogPage) break;
 }
 

@@ -3,6 +3,24 @@ import { PageRepository } from '@/lib/database/repositories/page-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
 
+const toOptionalQueryValue = (value: string | null): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parsePositiveInt = (value: string | null, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+const parseNonNegativeInt = (value: string | null, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
+};
+
 const normalizeSections = (sections: unknown) => {
   if (!Array.isArray(sections)) return [];
   return sections
@@ -35,11 +53,11 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     const url = new URL(request.url);
-    const status = url.searchParams.get('status') as 'draft' | 'published' | 'archived' | null;
-    const search = url.searchParams.get('search');
-    const locale = url.searchParams.get('locale');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const status = toOptionalQueryValue(url.searchParams.get('status')) as 'draft' | 'published' | 'archived' | undefined;
+    const search = toOptionalQueryValue(url.searchParams.get('search'));
+    const locale = toOptionalQueryValue(url.searchParams.get('locale'));
+    const limit = parsePositiveInt(url.searchParams.get('limit'), 20);
+    const offset = parseNonNegativeInt(url.searchParams.get('offset'), 0);
 
     const pageRepo = new PageRepository(true);
     const pages = await pageRepo.findWithFilters({

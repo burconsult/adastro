@@ -18,10 +18,10 @@ if (slug?.includes('.')) {
   return Astro.redirect('/404');
 }
 
-const page = await getPublishedPageBySlug(slug!, { locale, includeFallback: true });
+const page = await getPublishedPageBySlug(slug!, { locale, includeFallback: false });
 
 if (!page) {
-  return Astro.redirect('/404');
+  return new Response(null, { status: 404 });
 }
 
 const siteIdentity = await getSiteIdentity();

@@ -34,7 +34,7 @@ const canonicalUrl = new URL(buildArticlesPagePath(1, articleRouting), Astro.url
 const pageSlugCandidates = [...new Set([contentRouting.articleBasePath, DEFAULT_ARTICLE_ROUTING.basePath])];
 let blogPage = null;
 for (const slug of pageSlugCandidates) {
-  blogPage = await getPublishedPageBySlug(slug, { locale, includeFallback: true });
+  blogPage = await getPublishedPageBySlug(slug, { locale, includeFallback: false });
   if (blogPage) break;
 }
 
