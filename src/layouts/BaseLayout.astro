@@ -109,6 +109,9 @@ const localizeDefaultLabel = (label: string, href: string, pageSlug?: string): s
   if (normalized === 'om') return t(localeMessages, 'core.nav.about', 'About');
   if (normalized === 'contact') return t(localeMessages, 'core.nav.contact', 'Contact');
   if (normalized === 'kontakt') return t(localeMessages, 'core.nav.contact', 'Contact');
+  if (normalized === 'powered by adastro' || normalized === 'drevet av adastro') {
+    return t(localeMessages, 'core.footer.poweredBy', 'Powered by AdAstro');
+  }
   return label;
 };
 const getLocaleDisplayLabel = (locale: string): string => {
@@ -415,7 +418,7 @@ const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
           </div>
 
           <div class="space-y-3">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">Navigate</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">{t(localeMessages, 'core.footer.navigate', 'Navigate')}</p>
             <nav class="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {localizedFooterLinks.map((link) => (
                 <a
@@ -430,7 +433,7 @@ const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
           </div>
 
           <div class="space-y-3">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">Connect</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-background/60">{t(localeMessages, 'core.footer.connect', 'Connect')}</p>
             {socialLinks.length > 0 && (
               <div class="flex flex-wrap items-center justify-center gap-2 md:justify-start">
                 {socialLinks.map((link) => (

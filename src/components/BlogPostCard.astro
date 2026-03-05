@@ -73,6 +73,12 @@ const cardClasses = {
             />
           </a>
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent"></div>
+        {post.audioAsset?.url && (
+          <span class="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/30 bg-slate-950/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-white">
+            <span aria-hidden="true">♪</span>
+            {t(localeMessages, 'core.blog.audioBadge', 'Audio')}
+          </span>
+        )}
         
         <!-- Mobile-optimized overlay content -->
         <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
