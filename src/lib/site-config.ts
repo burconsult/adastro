@@ -24,6 +24,8 @@ export interface SiteIdentity {
 export interface NavLink {
   label: string;
   href: string;
+  type?: 'page' | 'custom';
+  pageSlug?: string;
 }
 
 export interface SiteNavigation {
@@ -84,16 +86,16 @@ const DEFAULT_IDENTITY: SiteIdentity = {
 
 const DEFAULT_NAVIGATION: SiteNavigation = {
   topLinks: [
-    { label: 'Home', href: '/' },
-    { label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
-    { label: 'About', href: '/about' },
-    { label: 'Contact', href: '/contact' }
+    { type: 'page', pageSlug: 'home', label: 'Home', href: '/' },
+    { type: 'page', pageSlug: DEFAULT_ARTICLE_ROUTING.basePath, label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
+    { type: 'page', pageSlug: 'about', label: 'About', href: '/about' },
+    { type: 'page', pageSlug: 'contact', label: 'Contact', href: '/contact' }
   ],
   bottomLinks: [
-    { label: 'Home', href: '/' },
-    { label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
-    { label: 'About', href: '/about' },
-    { label: 'Contact', href: '/contact' }
+    { type: 'page', pageSlug: 'home', label: 'Home', href: '/' },
+    { type: 'page', pageSlug: DEFAULT_ARTICLE_ROUTING.basePath, label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
+    { type: 'page', pageSlug: 'about', label: 'About', href: '/about' },
+    { type: 'page', pageSlug: 'contact', label: 'Contact', href: '/contact' }
   ],
   footerAttribution: 'Powered by AdAstro',
   footerAttributionUrl: 'https://github.com/burconsult/adastro',
@@ -182,23 +184,46 @@ async function fetchSiteIdentity(): Promise<SiteIdentity> {
   };
 }
 
+const normalizePageSlug = (value: string): string | null => {
+  const normalized = value.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!normalized) return 'home';
+  if (!/^[a-z0-9-]+$/.test(normalized)) return null;
+  return normalized;
+};
+
+const pageSlugToHref = (slug: string): string => (slug === 'home' ? '/' : `/${slug}`);
+
 const normalizeLinks = (value: unknown, fallback: NavLink[]): NavLink[] => {
   if (!Array.isArray(value)) return fallback;
   const normalized = value
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null;
-      const record = entry as { label?: unknown; href?: unknown };
+      const record = entry as { label?: unknown; href?: unknown; type?: unknown; pageSlug?: unknown };
       const label = typeof record.label === 'string' ? record.label.trim() : '';
       const href = typeof record.href === 'string' ? record.href.trim() : '';
+      const type = record.type === 'page' ? 'page' : 'custom';
+      const pageSlug = typeof record.pageSlug === 'string' ? normalizePageSlug(record.pageSlug) : null;
+
+      if (type === 'page' || pageSlug) {
+        const resolvedSlug = pageSlug ?? normalizePageSlug(href);
+        if (!resolvedSlug) return null;
+        return {
+          type: 'page' as const,
+          pageSlug: resolvedSlug,
+          label,
+          href: pageSlugToHref(resolvedSlug)
+        };
+      }
+
       if (!label || !href) return null;
-      return { label, href };
+      return { type: 'custom' as const, label, href };
     })
     .filter((entry): entry is NavLink => Boolean(entry));
   return normalized.length > 0 ? normalized : fallback;
 };
 
 const ensureCoreNavLink = (links: NavLink[], required: NavLink): NavLink[] => {
-  if (links.some((link) => link.href === required.href)) {
+  if (links.some((link) => link.href === required.href || (required.pageSlug && link.pageSlug === required.pageSlug))) {
     return links;
   }
   return [...links, required];
@@ -226,15 +251,23 @@ async function fetchSiteNavigation(): Promise<SiteNavigation> {
     : undefined;
 
   const topLinks = normalizeLinks(settings['navigation.topLinks'], DEFAULT_NAVIGATION.topLinks)
-    .map((link) => ({ ...link, href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }) }));
+    .map((link) => ({
+      ...link,
+      href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }),
+      ...(link.pageSlug === DEFAULT_ARTICLE_ROUTING.basePath ? { pageSlug: contentRouting.articleBasePath } : {})
+    }));
   const bottomLinks = normalizeLinks(settings['navigation.bottomLinks'], DEFAULT_NAVIGATION.bottomLinks)
-    .map((link) => ({ ...link, href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }) }));
+    .map((link) => ({
+      ...link,
+      href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }),
+      ...(link.pageSlug === DEFAULT_ARTICLE_ROUTING.basePath ? { pageSlug: contentRouting.articleBasePath } : {})
+    }));
   const footerPoweredByLabel = normalizedFooterAttribution || DEFAULT_NAVIGATION.footerAttribution;
   const footerPoweredByUrl = normalizedFooterAttributionUrl || DEFAULT_NAVIGATION.footerAttributionUrl;
 
   return {
-    topLinks: ensureCoreNavLink(topLinks, { label: 'About', href: '/about' }),
-    bottomLinks: ensureCoreNavLink(bottomLinks, { label: 'About', href: '/about' }),
+    topLinks: ensureCoreNavLink(topLinks, { type: 'page', pageSlug: 'about', label: 'About', href: '/about' }),
+    bottomLinks: ensureCoreNavLink(bottomLinks, { type: 'page', pageSlug: 'about', label: 'About', href: '/about' }),
     footerAttribution: footerPoweredByLabel,
     footerAttributionUrl: footerPoweredByUrl,
     footerLinks: footerPoweredByUrl

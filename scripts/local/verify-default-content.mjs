@@ -133,8 +133,22 @@ function loadLinksSetting(key) {
   return value
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null;
+      const type = entry.type === 'page' ? 'page' : 'custom';
+      const pageSlug = typeof entry.pageSlug === 'string'
+        ? entry.pageSlug.trim().toLowerCase().replace(/^\/+|\/+$/g, '')
+        : '';
       const label = typeof entry.label === 'string' ? entry.label.trim() : '';
       const href = typeof entry.href === 'string' ? entry.href.trim() : '';
+
+      if (type === 'page') {
+        const normalizedSlug = pageSlug || href.replace(/^\/+|\/+$/g, '').toLowerCase() || 'home';
+        if (!/^[a-z0-9-]+$/.test(normalizedSlug)) return null;
+        return {
+          label,
+          href: normalizedSlug === 'home' ? '/' : `/${normalizedSlug}`
+        };
+      }
+
       if (!label || !href) return null;
       return { label, href };
     })

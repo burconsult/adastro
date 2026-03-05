@@ -145,10 +145,10 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     type: 'json',
     category: 'navigation',
     defaultValue: [
-      { label: 'Home', href: '/' },
-      { label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
-      { label: 'About', href: '/about' },
-      { label: 'Contact', href: '/contact' }
+      { type: 'page', pageSlug: 'home', label: 'Home', href: '/' },
+      { type: 'page', pageSlug: DEFAULT_ARTICLE_ROUTING.basePath, label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
+      { type: 'page', pageSlug: 'about', label: 'About', href: '/about' },
+      { type: 'page', pageSlug: 'contact', label: 'Contact', href: '/contact' }
     ]
   },
   {
@@ -158,10 +158,10 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     type: 'json',
     category: 'navigation',
     defaultValue: [
-      { label: 'Home', href: '/' },
-      { label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
-      { label: 'About', href: '/about' },
-      { label: 'Contact', href: '/contact' }
+      { type: 'page', pageSlug: 'home', label: 'Home', href: '/' },
+      { type: 'page', pageSlug: DEFAULT_ARTICLE_ROUTING.basePath, label: 'Articles', href: `/${DEFAULT_ARTICLE_ROUTING.basePath}` },
+      { type: 'page', pageSlug: 'about', label: 'About', href: '/about' },
+      { type: 'page', pageSlug: 'contact', label: 'Contact', href: '/contact' }
     ]
   },
   {

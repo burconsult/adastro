@@ -23,8 +23,15 @@ interface SettingsManagerProps {
 }
 
 type NavLink = {
+  type?: 'page' | 'custom';
+  pageSlug?: string;
   label: string;
   href: string;
+};
+
+type PageOption = {
+  slug: string;
+  titles: Record<string, string>;
 };
 
 const NAV_LINK_KEYS = [
@@ -59,10 +66,12 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pageOptions, setPageOptions] = useState<PageOption[]>([]);
   const featurePanels = useMemo(() => getFeatureSettingsPanels(), []);
 
   useEffect(() => {
     loadSettings();
+    loadNavigationPageOptions();
   }, []);
 
   useEffect(() => {
@@ -96,6 +105,34 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
     }
   };
 
+  const loadNavigationPageOptions = async () => {
+    try {
+      const response = await fetch('/api/admin/pages?status=published&limit=200');
+      if (!response.ok) throw new Error('Failed to load pages');
+      const pages = await response.json();
+      if (!Array.isArray(pages)) {
+        setPageOptions([]);
+        return;
+      }
+
+      const grouped = new Map<string, PageOption>();
+      pages.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        const slug = typeof entry.slug === 'string' ? entry.slug.trim().toLowerCase() : '';
+        const locale = typeof entry.locale === 'string' ? entry.locale.trim().toLowerCase() : '';
+        const title = typeof entry.title === 'string' ? entry.title.trim() : '';
+        if (!slug || !locale || !title) return;
+        const existing = grouped.get(slug) ?? { slug, titles: {} };
+        existing.titles[locale] = title;
+        grouped.set(slug, existing);
+      });
+
+      setPageOptions([...grouped.values()].sort((a, b) => a.slug.localeCompare(b.slug)));
+    } catch {
+      setPageOptions([]);
+    }
+  };
+
   const handleSettingChange = (key: string, value: any) => {
     setPendingChanges(prev => ({
       ...prev,
@@ -113,12 +150,12 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
       const normalizedChanges = { ...pendingChanges };
       NAV_LINK_KEYS.forEach((key) => {
         if (Array.isArray(normalizedChanges[key])) {
-          normalizedChanges[key] = sanitizeNavLinks(normalizedChanges[key]);
+          normalizedChanges[key] = sanitizeMenuLinks(normalizedChanges[key]);
         }
       });
       SOCIAL_LINK_KEYS.forEach((key) => {
         if (Array.isArray(normalizedChanges[key])) {
-          normalizedChanges[key] = sanitizeNavLinks(normalizedChanges[key]);
+          normalizedChanges[key] = sanitizeSimpleLinks(normalizedChanges[key]);
         }
       });
 
@@ -289,9 +326,20 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
       .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
+  const normalizePageSlug = (value: string): string | null => {
+    const normalized = value.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+    if (!normalized) return 'home';
+    if (!/^[a-z0-9-]+$/.test(normalized)) return null;
+    return normalized;
+  };
+
+  const pageSlugToHref = (slug: string): string => (slug === 'home' ? '/' : `/${slug}`);
+
   const normalizeNavLinks = (value: unknown): NavLink[] => {
     if (Array.isArray(value)) {
       return value.map((entry) => ({
+        type: entry?.type === 'page' ? 'page' : 'custom',
+        pageSlug: typeof entry?.pageSlug === 'string' ? entry.pageSlug : '',
         label: typeof entry?.label === 'string' ? entry.label : '',
         href: typeof entry?.href === 'string' ? entry.href : ''
       }));
@@ -301,6 +349,8 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
           return parsed.map((entry) => ({
+            type: entry?.type === 'page' ? 'page' : 'custom',
+            pageSlug: typeof entry?.pageSlug === 'string' ? entry.pageSlug : '',
             label: typeof entry?.label === 'string' ? entry.label : '',
             href: typeof entry?.href === 'string' ? entry.href : ''
           }));
@@ -312,7 +362,36 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
     return [];
   };
 
-  const sanitizeNavLinks = (links: NavLink[]): NavLink[] => (
+  const sanitizeMenuLinks = (links: NavLink[]): NavLink[] => (
+    links
+      .map((link) => {
+        const type = link.type === 'page' ? 'page' : 'custom';
+        const label = link.label.trim();
+        const href = link.href.trim();
+        const pageSlug = typeof link.pageSlug === 'string' ? normalizePageSlug(link.pageSlug) : null;
+
+        if (type === 'page') {
+          const resolvedSlug = pageSlug ?? normalizePageSlug(href);
+          if (!resolvedSlug) return null;
+          return {
+            type: 'page',
+            pageSlug: resolvedSlug,
+            label,
+            href: pageSlugToHref(resolvedSlug)
+          };
+        }
+
+        if (!label || !href) return null;
+        return {
+          type: 'custom',
+          label,
+          href
+        };
+      })
+      .filter((link): link is NavLink => Boolean(link))
+  );
+
+  const sanitizeSimpleLinks = (links: NavLink[]): NavLink[] => (
     links
       .map((link) => ({
         label: link.label.trim(),
@@ -530,9 +609,28 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
     addLabel?: string;
     placeholderLabel?: string;
     placeholderHref?: string;
+    mode?: 'menu' | 'simple';
   }) => {
-    const { title, description, settingKey, addLabel, placeholderLabel, placeholderHref } = options;
+    const { title, description, settingKey, addLabel, placeholderLabel, placeholderHref, mode = 'simple' } = options;
     const links = normalizeNavLinks(getSettingValue(settingKey));
+    const isMenuEditor = mode === 'menu';
+    const pageChoices = pageOptions
+      .filter((option) => option.slug !== 'home')
+      .map((option) => {
+      const localizedTitles = Object.entries(option.titles)
+        .map(([locale, value]) => `${locale}: ${value}`)
+        .join(' | ');
+      return {
+        slug: option.slug,
+        label: localizedTitles ? `${option.slug} (${localizedTitles})` : option.slug
+      };
+    });
+
+    const buildEmptyLink = (): NavLink => (
+      isMenuEditor
+        ? { type: 'page', pageSlug: 'home', label: '', href: '/' }
+        : { label: '', href: '' }
+    );
 
     return (
       <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
@@ -544,7 +642,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={() => handleSettingChange(settingKey, [...links, { label: '', href: '' }])}
+            onClick={() => handleSettingChange(settingKey, [...links, buildEmptyLink()])}
           >
             {addLabel || 'Add link'}
           </button>
@@ -558,40 +656,145 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
           {links.map((link, index) => (
             <div
               key={`${settingKey}-${index}`}
-              className="grid gap-3 rounded-lg border border-border/60 bg-card/80 p-3 sm:grid-cols-[1fr_1.2fr_auto]"
+              className={isMenuEditor
+                ? 'space-y-3 rounded-lg border border-border/60 bg-card/80 p-3'
+                : 'grid gap-3 rounded-lg border border-border/60 bg-card/80 p-3 sm:grid-cols-[1fr_1.2fr_auto]'}
             >
-              <input
-                type="text"
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
-                placeholder={placeholderLabel || 'Label'}
-                value={link.label}
-                onChange={(event) => {
-                  const next = [...links];
-                  next[index] = { ...next[index], label: event.target.value };
-                  handleSettingChange(settingKey, next);
-                }}
-              />
-              <input
-                type="text"
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
-                placeholder={placeholderHref || '/path or https://'}
-                value={link.href}
-                onChange={(event) => {
-                  const next = [...links];
-                  next[index] = { ...next[index], href: event.target.value };
-                  handleSettingChange(settingKey, next);
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-outline btn-sm text-destructive sm:self-center"
-                onClick={() => {
-                  const next = links.filter((_, linkIndex) => linkIndex !== index);
-                  handleSettingChange(settingKey, next);
-                }}
-              >
-                Remove
-              </button>
+              {isMenuEditor ? (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-[140px_1fr_1fr_auto]">
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={link.type === 'page' ? 'page' : 'custom'}
+                      onChange={(event) => {
+                        const next = [...links];
+                        if (event.target.value === 'page') {
+                          next[index] = { type: 'page', pageSlug: 'home', label: '', href: '/' };
+                        } else {
+                          next[index] = { type: 'custom', label: '', href: '' };
+                        }
+                        handleSettingChange(settingKey, next);
+                      }}
+                    >
+                      <option value="page">Page</option>
+                      <option value="custom">Custom / External</option>
+                    </select>
+                    {link.type === 'page' ? (
+                      <>
+                        <select
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={link.pageSlug || 'home'}
+                          onChange={(event) => {
+                            const next = [...links];
+                            const nextSlug = normalizePageSlug(event.target.value) || 'home';
+                            next[index] = {
+                              ...next[index],
+                              type: 'page',
+                              pageSlug: nextSlug,
+                              href: pageSlugToHref(nextSlug)
+                            };
+                            handleSettingChange(settingKey, next);
+                          }}
+                        >
+                          <option value="home">home</option>
+                          {pageChoices.map((choice) => (
+                            <option key={choice.slug} value={choice.slug}>
+                              {choice.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                          placeholder="Label override (optional)"
+                          value={link.label}
+                          onChange={(event) => {
+                            const next = [...links];
+                            next[index] = { ...next[index], label: event.target.value };
+                            handleSettingChange(settingKey, next);
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                          placeholder={placeholderLabel || 'Label'}
+                          value={link.label}
+                          onChange={(event) => {
+                            const next = [...links];
+                            next[index] = { ...next[index], label: event.target.value };
+                            handleSettingChange(settingKey, next);
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                          placeholder={placeholderHref || '/path or https://'}
+                          value={link.href}
+                          onChange={(event) => {
+                            const next = [...links];
+                            next[index] = { ...next[index], href: event.target.value };
+                            handleSettingChange(settingKey, next);
+                          }}
+                        />
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm text-destructive sm:self-center"
+                      onClick={() => {
+                        const next = links.filter((_, linkIndex) => linkIndex !== index);
+                        handleSettingChange(settingKey, next);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {link.type === 'page' && (
+                    <p className="text-xs text-muted-foreground">
+                      Internal page link path: <span className="font-mono">{pageSlugToHref(normalizePageSlug(link.pageSlug || link.href || 'home') || 'home')}</span>.
+                      Leave label override empty to use the localized page title.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                    placeholder={placeholderLabel || 'Label'}
+                    value={link.label}
+                    onChange={(event) => {
+                      const next = [...links];
+                      next[index] = { ...next[index], label: event.target.value };
+                      handleSettingChange(settingKey, next);
+                    }}
+                  />
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                    placeholder={placeholderHref || '/path or https://'}
+                    value={link.href}
+                    onChange={(event) => {
+                      const next = [...links];
+                      next[index] = { ...next[index], href: event.target.value };
+                      handleSettingChange(settingKey, next);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm text-destructive sm:self-center"
+                    onClick={() => {
+                      const next = links.filter((_, linkIndex) => linkIndex !== index);
+                      handleSettingChange(settingKey, next);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -636,17 +839,19 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
       <div className="space-y-6">
         {renderLinkEditor({
           title: 'Header navigation',
-          description: 'Primary links shown next to the logo in the top bar.',
+          description: 'Mix internal page links (localized automatically) and custom/external links.',
           settingKey: 'navigation.topLinks',
           placeholderLabel: 'Home',
-          placeholderHref: '/'
+          placeholderHref: '/',
+          mode: 'menu'
         })}
         {renderLinkEditor({
           title: 'Footer navigation',
-          description: 'Primary links shown at the top of the footer.',
+          description: 'Footer menu links. Use page links for multilingual labels and routes.',
           settingKey: 'navigation.bottomLinks',
           placeholderLabel: 'Articles',
-          placeholderHref: articlePathPlaceholder
+          placeholderHref: articlePathPlaceholder,
+          mode: 'menu'
         })}
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-foreground">Footer Powered-By Link</h3>

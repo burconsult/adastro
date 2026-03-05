@@ -20,13 +20,13 @@ FROM (
     ),
     (
       'navigation.topLinks',
-      '[{"label":"Hjem","href":"/"},{"label":"Artikler","href":"/articles"},{"label":"Om","href":"/about"},{"label":"Kontakt","href":"/contact"}]'::jsonb,
+      '[{"type":"page","pageSlug":"home","label":"Hjem","href":"/"},{"type":"page","pageSlug":"articles","label":"Artikler","href":"/articles"},{"type":"page","pageSlug":"about","label":"Om","href":"/about"},{"type":"page","pageSlug":"contact","label":"Kontakt","href":"/contact"}]'::jsonb,
       'navigation',
       'Links shown in the header navigation.'
     ),
     (
       'navigation.bottomLinks',
-      '[{"label":"Hjem","href":"/"},{"label":"Artikler","href":"/articles"},{"label":"Om","href":"/about"},{"label":"Kontakt","href":"/contact"}]'::jsonb,
+      '[{"type":"page","pageSlug":"home","label":"Hjem","href":"/"},{"type":"page","pageSlug":"articles","label":"Artikler","href":"/articles"},{"type":"page","pageSlug":"about","label":"Om","href":"/about"},{"type":"page","pageSlug":"contact","label":"Kontakt","href":"/contact"}]'::jsonb,
       'navigation',
       'Links shown in the footer navigation.'
     ),
@@ -211,7 +211,11 @@ WHERE ps.page_id = p.id
   AND p.locale = 'nb'
   AND p.slug = 'about'
   AND ps.type = 'info_blocks'
-  AND ps.order_index = 1;
+  AND (
+    ps.order_index = 1
+    OR ps.content->>'heading' = 'How to work with AdAstro'
+    OR ps.content->>'heading' = 'Slik jobber du med AdAstro'
+  );
 
 UPDATE public.page_sections ps
 SET content = '{"heading":"Hva som er inkludert","subtitle":"Alt her kan redigeres fra admin-UI.","items":[{"badge":"Kjerne","title":"Sider, innlegg, media, brukere","description":"En komplett publiseringskjerne med oppsettflyt, temaer og sikker admin-tilgang."},{"badge":"Ytelse","title":"PageSpeed-først standarder","description":"Lette maler, redusert klient-JS og en forutsigbar renderingsmodell."},{"badge":"Modulært","title":"Valgfrie funksjonspakker","description":"AI, kommentarer og nyhetsbrev er med i kjernen, men inaktive til de aktiveres."}]}'::jsonb
@@ -220,7 +224,11 @@ WHERE ps.page_id = p.id
   AND p.locale = 'nb'
   AND p.slug = 'about'
   AND ps.type = 'feature_grid'
-  AND ps.order_index = 2;
+  AND (
+    ps.order_index = 2
+    OR ps.content->>'heading' = 'What is included'
+    OR ps.content->>'heading' = 'Hva som er inkludert'
+  );
 
 UPDATE public.page_sections ps
 SET content = '{"heading":"Vil du tilpasse videre?","body":"Bruk sideeditor, temabehandler og funksjonsrammeverket for å tilpasse AdAstro til egen publiseringsflyt.","ctaLabel":"Åpne dokumentasjon","ctaHref":"https://github.com/burconsult/adastro"}'::jsonb
@@ -230,6 +238,19 @@ WHERE ps.page_id = p.id
   AND p.slug = 'about'
   AND ps.type = 'cta'
   AND ps.order_index = 3;
+
+UPDATE public.page_sections ps
+SET content = '{"heading":"Musikkvideo jeg laget","sourceType":"embed","sourceUrl":"https://www.youtube.com/watch?v=SLNkd6_bENc","posterUrl":"","caption":""}'::jsonb
+FROM public.pages p
+WHERE ps.page_id = p.id
+  AND p.locale = 'nb'
+  AND p.slug = 'about'
+  AND ps.type = 'video'
+  AND (
+    ps.order_index = 4
+    OR ps.content->>'heading' = 'Fun music video I made'
+    OR ps.content->>'heading' = 'Musikkvideo jeg laget'
+  );
 
 UPDATE public.page_sections ps
 SET content = '{"label":"Kontakt","heading":"Spørsmål eller samarbeidsidéer","subheading":"Bruk denne siden for supportlenker, tilbakemelding på veikart og henvendelser fra bidragsytere.","primaryCtaLabel":"Åpne GitHub Issues","primaryCtaHref":"https://github.com/burconsult/adastro/issues","secondaryCtaLabel":"Diskusjoner","secondaryCtaHref":"https://github.com/burconsult/adastro/discussions","imageUrl":"/images/adastro.webp","imageAlt":"Illustrasjon av supportdesk"}'::jsonb

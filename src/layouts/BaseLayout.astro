@@ -7,10 +7,11 @@ import ThemeInitScript from "@/components/ThemeInitScript.astro";
 import AuthHashRecoveryScript from "@/components/AuthHashRecoveryScript.astro";
 import ToastHost from "@/lib/components/ui/ToastHost.tsx";
 import FooterNewsletterSlot from "@/lib/components/FooterNewsletterSlot";
+import { getPublishedPages } from "@/lib/astro-helpers";
 import { Facebook, Github, Link2, Linkedin } from "lucide-react";
 import { isFeatureActive } from "@/lib/features/state";
 import { authService } from "@/lib/auth/auth-helpers";
-import { getSiteCustomScripts, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
+import { getSiteContentRouting, getSiteCustomScripts, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
 import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
@@ -31,6 +32,7 @@ const siteSeoDefaults = await getSiteSeoDefaults();
 const siteSocialProfiles = await getSiteSocialProfiles();
 const siteCustomScripts = await getSiteCustomScripts();
 const siteLocaleConfig = await getSiteLocaleConfig();
+const siteContentRouting = await getSiteContentRouting();
 const activeTheme = getThemeModuleById(siteTheme.preset);
 const themeFontMap = Object.fromEntries(
   getThemeModules().map((theme) => [theme.id, theme.fontImports ?? []])
@@ -54,12 +56,55 @@ const requestPathname = typeof Astro.locals.requestPathname === 'string'
 const localeMessages = getLocaleMessages(currentLocale);
 const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
 const localizeSiteHref = (href: string) => localizeHref(href, currentLocale, { skipPrefixes: LOCALIZED_HREF_SKIP_PREFIXES });
-const localizeDefaultLabel = (label: string): string => {
+const localizedPages = await getPublishedPages(currentLocale);
+const fallbackPages = currentLocale === siteLocaleConfig.defaultLocale ? [] : await getPublishedPages(siteLocaleConfig.defaultLocale);
+const localizedPageTitlesBySlug = new Map<string, string>();
+fallbackPages.forEach((page) => {
+  localizedPageTitlesBySlug.set(page.slug.toLowerCase(), page.title);
+});
+localizedPages.forEach((page) => {
+  localizedPageTitlesBySlug.set(page.slug.toLowerCase(), page.title);
+});
+const coreArticleHref = `/${siteContentRouting.articleBasePath}`;
+const normalizeNavPath = (href: string): string | null => {
+  if (!href || href.startsWith('#')) return null;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith('/')) return null;
+  const normalizedHref = href.startsWith('/') ? href : `/${href}`;
+  const [pathOnly] = normalizedHref.split('?');
+  return pathOnly === '/' ? '/' : pathOnly.replace(/\/+$/, '').toLowerCase();
+};
+const localizePageSlugLabel = (pageSlug: string): string | null => {
+  const normalizedSlug = pageSlug.trim().toLowerCase();
+  if (!normalizedSlug) return null;
+  const title = localizedPageTitlesBySlug.get(normalizedSlug);
+  if (title) return title;
+  if (normalizedSlug === 'home') return t(localeMessages, 'core.nav.home', 'Home');
+  if (normalizedSlug === 'about') return t(localeMessages, 'core.nav.about', 'About');
+  if (normalizedSlug === 'contact') return t(localeMessages, 'core.nav.contact', 'Contact');
+  if (normalizedSlug === siteContentRouting.articleBasePath || normalizedSlug === 'articles' || normalizedSlug === 'blog') {
+    return t(localeMessages, 'core.nav.articles', 'Articles');
+  }
+  return null;
+};
+const localizeDefaultLabel = (label: string, href: string, pageSlug?: string): string => {
+  if (typeof pageSlug === 'string') {
+    const pageLabel = localizePageSlugLabel(pageSlug);
+    if (pageLabel && !label.trim()) return pageLabel;
+  }
+  const normalizedPath = normalizeNavPath(href);
+  if (normalizedPath === '/') return t(localeMessages, 'core.nav.home', 'Home');
+  if (normalizedPath === coreArticleHref) return t(localeMessages, 'core.nav.articles', 'Articles');
+  if (normalizedPath === '/about') return t(localeMessages, 'core.nav.about', 'About');
+  if (normalizedPath === '/contact') return t(localeMessages, 'core.nav.contact', 'Contact');
+
   const normalized = label.trim().toLowerCase();
   if (normalized === 'home') return t(localeMessages, 'core.nav.home', 'Home');
   if (normalized === 'articles') return t(localeMessages, 'core.nav.articles', 'Articles');
+  if (normalized === 'artikler') return t(localeMessages, 'core.nav.articles', 'Articles');
   if (normalized === 'about') return t(localeMessages, 'core.nav.about', 'About');
+  if (normalized === 'om') return t(localeMessages, 'core.nav.about', 'About');
   if (normalized === 'contact') return t(localeMessages, 'core.nav.contact', 'Contact');
+  if (normalized === 'kontakt') return t(localeMessages, 'core.nav.contact', 'Contact');
   return label;
 };
 const getLocaleDisplayLabel = (locale: string): string => {
@@ -134,7 +179,7 @@ const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
 const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
 const navLinks = siteNavigation.topLinks.map((link) => ({
   ...link,
-  label: localizeDefaultLabel(link.label),
+  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
   href: localizeSiteHref(link.href)
 }));
 const localizedSearchPath = buildLocalizedPath('/search', currentLocale);
@@ -176,12 +221,12 @@ const footerLinks = siteNavigation.bottomLinks;
 const footerItems = siteNavigation.footerLinks;
 const localizedFooterLinks = footerLinks.map((link) => ({
   ...link,
-  label: localizeDefaultLabel(link.label),
+  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
   href: localizeSiteHref(link.href)
 }));
 const localizedFooterItems = footerItems.map((link) => ({
   ...link,
-  label: localizeDefaultLabel(link.label),
+  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
   href: localizeSiteHref(link.href)
 }));
 const usedFooterHrefs = new Set(

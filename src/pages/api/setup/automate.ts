@@ -38,7 +38,12 @@ type SetupAutomationRequest = {
   forceFeatureDefaultsDisabled?: boolean;
 };
 
-type NavLinkSetting = { label: string; href: string };
+type NavLinkSetting = {
+  type?: 'page' | 'custom';
+  pageSlug?: string;
+  label: string;
+  href: string;
+};
 
 const requiredBucketBlueprint: Array<{
   key: keyof StorageBucketConfig;
@@ -80,37 +85,64 @@ const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const isStrongEnoughPassword = (value: string) => value.length >= 8;
 const defaultArticlesHref = `/${DEFAULT_ARTICLE_ROUTING.basePath}`;
 const DEFAULT_TOP_AND_BOTTOM_MENU: NavLinkSetting[] = [
-  { label: 'Home', href: '/' },
-  { label: 'Articles', href: defaultArticlesHref },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' }
+  { type: 'page', pageSlug: 'home', label: 'Home', href: '/' },
+  { type: 'page', pageSlug: DEFAULT_ARTICLE_ROUTING.basePath, label: 'Articles', href: defaultArticlesHref },
+  { type: 'page', pageSlug: 'about', label: 'About', href: '/about' },
+  { type: 'page', pageSlug: 'contact', label: 'Contact', href: '/contact' }
 ];
+
+const normalizePageSlug = (value: string): string | null => {
+  const normalized = value.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!normalized) return 'home';
+  if (!/^[a-z0-9-]+$/.test(normalized)) return null;
+  return normalized;
+};
+
+const pageSlugToHref = (slug: string): string => (slug === 'home' ? '/' : `/${slug}`);
 
 const normalizeNavLinks = (value: unknown): NavLinkSetting[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null;
-      const record = entry as { label?: unknown; href?: unknown };
+      const record = entry as { type?: unknown; pageSlug?: unknown; label?: unknown; href?: unknown };
+      const type = record.type === 'page' ? 'page' : 'custom';
+      const pageSlug = typeof record.pageSlug === 'string' ? normalizePageSlug(record.pageSlug) : null;
       const label = typeof record.label === 'string' ? record.label.trim() : '';
       const href = typeof record.href === 'string' ? record.href.trim() : '';
+
+      if (type === 'page' || pageSlug) {
+        const resolvedSlug = pageSlug ?? normalizePageSlug(href);
+        if (!resolvedSlug) return null;
+        return {
+          type: 'page',
+          pageSlug: resolvedSlug,
+          label,
+          href: pageSlugToHref(resolvedSlug)
+        };
+      }
+
       if (!label || !href) return null;
-      return { label, href };
+      return { type: 'custom', label, href };
     })
     .filter((entry): entry is NavLinkSetting => Boolean(entry));
 };
 
 const ensureRequiredNavLinks = (links: NavLinkSetting[], articleBasePath: string): NavLinkSetting[] => {
-  const articlesHref = `/${articleBasePath}`;
+  const articlesSlug = articleBasePath;
+  const articlesHref = pageSlugToHref(articlesSlug);
   const requiredLinks = DEFAULT_TOP_AND_BOTTOM_MENU.map((link) => (
-    link.href === defaultArticlesHref ? { ...link, href: articlesHref } : link
+    link.pageSlug === DEFAULT_ARTICLE_ROUTING.basePath
+      ? { ...link, pageSlug: articlesSlug, href: articlesHref }
+      : link
   ));
-  const byHref = new Map(links.map((link) => [link.href, link]));
+  const byTarget = new Map(links.map((link) => [link.pageSlug || link.href, link]));
 
   for (const required of requiredLinks) {
-    if (!byHref.has(required.href)) {
+    const key = required.pageSlug || required.href;
+    if (!byTarget.has(key)) {
       links.push(required);
-      byHref.set(required.href, required);
+      byTarget.set(key, required);
     }
   }
 
