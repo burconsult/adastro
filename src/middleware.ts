@@ -184,6 +184,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (
     !localePath.hasLocalePrefix
     && (context.request.method === 'GET' || context.request.method === 'HEAD')
+  ) {
+    const localeLikePrefix = /^\/([a-z]{2})(?:\/(.*))?$/i.exec(url.pathname);
+    if (localeLikePrefix) {
+      const candidateLocale = localeLikePrefix[1].toLowerCase();
+      if (!localeConfig.locales.includes(candidateLocale)) {
+        const remainder = localeLikePrefix[2] ? `/${localeLikePrefix[2]}` : '/';
+        const localizedUrl = new URL(url);
+        localizedUrl.pathname = buildLocalizedPath(remainder, localeConfig.defaultLocale);
+        return redirect(`${localizedUrl.pathname}${localizedUrl.search}`, 308);
+      }
+    }
+  }
+
+  if (
+    !localePath.hasLocalePrefix
+    && (context.request.method === 'GET' || context.request.method === 'HEAD')
     && shouldRedirectToDefaultLocale(url.pathname)
   ) {
     const localizedUrl = new URL(url);
