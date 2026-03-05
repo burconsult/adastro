@@ -6,9 +6,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const redirect = form?.dataset?.redirect || '/admin';
+  const messagesEl = document.getElementById('auth-login-messages');
+  const messages = (() => {
+    if (!messagesEl?.textContent) return {};
+    try {
+      return JSON.parse(messagesEl.textContent);
+    } catch {
+      return {};
+    }
+  })();
+  const text = (key, fallback) => {
+    const value = messages?.[key];
+    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+  };
 
   const notify = (detail) => {
-    const fallbackMessage = detail?.description || detail?.title || 'Something went wrong.';
+    const fallbackMessage = detail?.description || detail?.title || text('loginErrorDescription', 'Something went wrong.');
     if (typeof window.showToast === 'function') {
       window.showToast(detail);
     } else {
@@ -60,16 +73,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           notify({
             variant: 'destructive',
-            title: 'Login failed',
-            description: result.error || 'Please verify your credentials and try again.',
+            title: text('loginFailedTitle', 'Sign in failed'),
+            description: result.error || text('loginFailedDescription', 'Please verify your credentials and try again.'),
           });
         }
       } catch (error) {
         console.error('Login error:', error);
         notify({
           variant: 'destructive',
-          title: 'Login error',
-          description: 'An unexpected error occurred. Please try again.',
+          title: text('loginErrorTitle', 'Sign in error'),
+          description: text('loginErrorDescription', 'An unexpected error occurred. Please try again.'),
         });
       } finally {
         validateForm();

@@ -8,9 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitText = document.getElementById('submit-text');
   const submitLoading = document.getElementById('submit-loading');
   const nextTarget = root?.getAttribute('data-next-target') || '/profile';
+  const messagesEl = document.getElementById('auth-reset-messages');
+  const messages = (() => {
+    if (!messagesEl?.textContent) return {};
+    try {
+      return JSON.parse(messagesEl.textContent);
+    } catch {
+      return {};
+    }
+  })();
+  const text = (key, fallback) => {
+    const value = messages?.[key];
+    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+  };
 
   const notify = (detail) => {
-    const fallbackMessage = detail?.description || detail?.title || 'Something went wrong.';
+    const fallbackMessage = detail?.description || detail?.title || text('updateFailedDefault', 'Something went wrong.');
     if (typeof window.showToast === 'function') {
       window.showToast(detail);
     } else {
@@ -44,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const error = getParam('error_description') || getParam('error');
 
     if (error) {
-      setStatus(`Password reset link failed: ${error}`, 'error');
+      setStatus(`${text('linkFailedPrefix', 'Password reset link failed:')} ${error}`, 'error');
       return false;
     }
 
@@ -60,14 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to finalize reset session.');
+        throw new Error(text('finalizeSessionFailed', 'Failed to finalize reset session.'));
       }
 
       window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
       return true;
     } catch (error) {
       console.error('Reset password session sync error:', error);
-      setStatus('Your reset link is invalid or expired. Request a new one.', 'error');
+      setStatus(text('invalidLink', 'Your reset link is invalid or expired. Request a new one.'), 'error');
       return false;
     }
   };
@@ -89,11 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const authed = await verifyAuthSession();
     if (!authed) {
-      setStatus('Sign in first or request a new password reset link.', 'error');
+      setStatus(text('signInFirst', 'Sign in first or request a new password reset link.'), 'error');
       return;
     }
 
-    setStatus('Session verified. Set your new password below.');
+    setStatus(text('sessionVerified', 'Session verified. Set your new password below.'));
     showForm();
   };
 
@@ -103,12 +116,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPassword = confirmInput?.value || '';
 
     if (password.length < 8) {
-      setStatus('Password must be at least 8 characters.', 'error');
+      setStatus(text('passwordTooShort', 'Password must be at least 8 characters.'), 'error');
       return;
     }
 
     if (password !== confirmPassword) {
-      setStatus('Password confirmation does not match.', 'error');
+      setStatus(text('passwordMismatch', 'Password confirmation does not match.'), 'error');
       return;
     }
 
@@ -124,28 +137,28 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const message = payload.error || 'Unable to update password.';
+        const message = payload.error || text('updateFailed', 'Unable to update password.');
         setStatus(message, 'error');
         notify({
           variant: 'destructive',
-          title: 'Password update failed',
+          title: text('updateFailedTitle', 'Password update failed'),
           description: message
         });
         return;
       }
 
-      setStatus('Password updated. Redirecting…', 'success');
+      setStatus(text('updatedStatus', 'Password updated. Redirecting...'), 'success');
       notify({
         variant: 'success',
-        title: 'Password updated',
-        description: 'Your password was updated successfully.'
+        title: text('updatedTitle', 'Password updated'),
+        description: text('updatedBody', 'Your password was updated successfully.')
       });
       window.setTimeout(() => {
         window.location.replace(nextTarget);
       }, 900);
     } catch (error) {
       console.error('Reset password error:', error);
-      setStatus('Unable to update password right now.', 'error');
+      setStatus(text('updateFailedDefault', 'Unable to update password right now.'), 'error');
     } finally {
       if (submitBtn) submitBtn.disabled = false;
       submitText?.classList.remove('hidden');

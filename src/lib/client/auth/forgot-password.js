@@ -4,9 +4,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitText = document.getElementById('submit-text');
   const submitLoading = document.getElementById('submit-loading');
   const statusEl = document.getElementById('forgot-password-status');
+  const messagesEl = document.getElementById('auth-forgot-messages');
+  const messages = (() => {
+    if (!messagesEl?.textContent) return {};
+    try {
+      return JSON.parse(messagesEl.textContent);
+    } catch {
+      return {};
+    }
+  })();
+  const text = (key, fallback) => {
+    const value = messages?.[key];
+    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+  };
 
   const notify = (detail) => {
-    const fallbackMessage = detail?.description || detail?.title || 'Something went wrong.';
+    const fallbackMessage = detail?.description || detail?.title || text('sendFailed', 'Something went wrong.');
     if (typeof window.showToast === 'function') {
       window.showToast(detail);
     } else {
@@ -45,30 +58,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const description = payload.error || 'Unable to send reset link right now.';
+        const description = payload.error || text('sendFailed', 'Unable to send reset link right now.');
         setStatus(description, 'error');
         notify({
           variant: 'destructive',
-          title: 'Reset failed',
+          title: text('failedTitle', 'Reset failed'),
           description
         });
         return;
       }
 
-      const message = payload.message || 'If an account exists, a reset link was sent.';
+      const message = payload.message || text('defaultSuccess', 'If an account exists, a reset link was sent.');
       setStatus(message, 'success');
       notify({
         variant: 'success',
-        title: 'Check your inbox',
+        title: text('successTitle', 'Check your inbox'),
         description: message
       });
     } catch (error) {
       console.error('Forgot password error:', error);
-      setStatus('Unable to send reset link right now.', 'error');
+      setStatus(text('sendFailed', 'Unable to send reset link right now.'), 'error');
       notify({
         variant: 'destructive',
-        title: 'Reset failed',
-        description: 'Unable to send reset link right now.'
+        title: text('failedTitle', 'Reset failed'),
+        description: text('sendFailed', 'Unable to send reset link right now.')
       });
     } finally {
       if (submitBtn) submitBtn.disabled = false;

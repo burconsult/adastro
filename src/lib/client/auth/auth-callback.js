@@ -1,6 +1,19 @@
 const message = document.getElementById('callback-message');
 const root = document.getElementById('auth-callback-root');
 const redirectTarget = root?.getAttribute('data-redirect-target') || '/profile';
+const messagesEl = document.getElementById('auth-callback-messages');
+const messages = (() => {
+  if (!messagesEl?.textContent) return {};
+  try {
+    return JSON.parse(messagesEl.textContent);
+  } catch {
+    return {};
+  }
+})();
+const text = (key, fallback) => {
+  const value = messages?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+};
 
 const hash = window.location.hash ? window.location.hash.slice(1) : '';
 const hashParams = new URLSearchParams(hash);
@@ -39,7 +52,7 @@ const resolveNextTarget = () => {
 };
 
 if (errorParam) {
-  setMessage(`Authentication failed: ${safeDecode(errorParam)}`);
+  setMessage(`${text('authFailedPrefix', 'Authentication failed:')} ${safeDecode(errorParam)}`);
 } else {
   let endpoint = '';
   let body = {};
@@ -56,7 +69,7 @@ if (errorParam) {
   }
 
   if (!endpoint) {
-    setMessage('Missing authentication token. Please try signing in again.');
+    setMessage(text('missingToken', 'Missing authentication token. Please try signing in again.'));
   } else {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
     fetch(endpoint, {
@@ -66,12 +79,12 @@ if (errorParam) {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Failed to finalize session.');
+          throw new Error(text('finalizeFailed', 'Failed to finalize session.'));
         }
         window.location.replace(resolveNextTarget());
       })
       .catch(() => {
-        setMessage('Unable to finish sign in. Please try again.');
+        setMessage(text('unexpectedError', 'Unable to finish sign in. Please try again.'));
       });
   }
 }

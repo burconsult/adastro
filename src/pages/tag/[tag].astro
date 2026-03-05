@@ -3,8 +3,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import BlogPostGrid from "@/components/BlogPostGrid.astro";
 import { getTagStaticPaths, getPostsByTag, getTagsWithPosts } from "@/lib/database/index.js";
 import { TagRepository } from "@/lib/database/repositories/tag-repository";
-import { getSiteContentPreferences, getSiteContentRouting } from "@/lib/site-config";
+import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlesIndexPath } from "@/lib/routing/articles";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 export async function getStaticPaths() {
   return await getTagStaticPaths();
@@ -14,38 +16,46 @@ const { tag: tagSlug } = Astro.params;
 const initialTag = Astro.props.tag;
 const tagRepo = new TagRepository();
 const tag = initialTag ?? (tagSlug ? await tagRepo.findBySlug(tagSlug) : null);
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const localeMessages = getLocaleMessages(locale);
 
 if (!tag) {
   return new Response(null, { status: 404 });
 }
 
 const contentPreferences = await getSiteContentPreferences();
-const posts = await getPostsByTag(tag.slug, contentPreferences.postsPerPage);
+const posts = await getPostsByTag(tag.slug, contentPreferences.postsPerPage, 0, locale);
 const contentRouting = await getSiteContentRouting();
 const articlesIndexPath = buildArticlesIndexPath({
   basePath: contentRouting.articleBasePath,
-  permalinkStyle: contentRouting.articlePermalinkStyle
+  permalinkStyle: contentRouting.articlePermalinkStyle,
+  localePrefix: locale
 });
 const sidebarTags = (await getTagsWithPosts())
   .filter((item) => item.slug !== tag.slug)
   .slice(0, 10);
 ---
 
-<BaseLayout title={`Posts tagged ${tag.name}`}>
+<BaseLayout title={`${t(localeMessages, 'core.tag.titlePrefix', 'Posts tagged')} ${tag.name}`}>
   <div class="min-h-screen">
     <div class="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">
       <header class="mb-12 text-center">
         <div class="mb-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <a href="/" class="transition-colors hover:text-foreground">Home</a>
+          <a href={buildLocalizedPath('/', locale)} class="transition-colors hover:text-foreground">{t(localeMessages, 'core.nav.home', 'Home')}</a>
           <span class="opacity-60">→</span>
-          <span class="font-medium text-foreground">Tag</span>
+          <span class="font-medium text-foreground">{t(localeMessages, 'core.tag.label', 'Tag')}</span>
         </div>
 
         <h1 class="mb-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">#{tag.name}</h1>
 
         <div class="space-y-2 text-muted-foreground">
-          <p class="text-base sm:text-lg">Posts tagged with "{tag.name}".</p>
-          <p class="text-sm font-medium text-primary">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
+          <p class="text-base sm:text-lg">{t(localeMessages, 'core.tag.descriptionPrefix', 'Posts tagged with')} "{tag.name}".</p>
+          <p class="text-sm font-medium text-primary">
+            {posts.length} {posts.length === 1
+              ? t(localeMessages, 'core.tag.postSingular', 'post')
+              : t(localeMessages, 'core.tag.postPlural', 'posts')}
+          </p>
         </div>
       </header>
 
@@ -62,17 +72,17 @@ const sidebarTags = (await getTagsWithPosts())
 
         <aside class="space-y-6">
           <section class="rounded-2xl border border-border bg-card/70 p-5 shadow-sm">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">Browse tags</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">{t(localeMessages, 'core.tag.browseTags', 'Browse tags')}</h2>
             <div class="mt-4 flex flex-wrap gap-2">
               <a
                 href={articlesIndexPath}
                 class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-foreground hover:text-foreground"
               >
-                All posts
+                {t(localeMessages, 'core.tag.allPosts', 'All posts')}
               </a>
               {sidebarTags.map((item) => (
                 <a
-                  href={`/tag/${item.slug}/`}
+                  href={buildLocalizedPath(`/tag/${item.slug}/`, locale)}
                   class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-foreground hover:text-foreground"
                 >
                   #{item.name}
@@ -82,15 +92,15 @@ const sidebarTags = (await getTagsWithPosts())
           </section>
 
           <section class="rounded-2xl border border-border bg-card/70 p-5 shadow-sm">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">Suggest a tag</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">{t(localeMessages, 'core.tag.suggestTitle', 'Suggest a tag')}</h2>
             <p class="mt-3 text-sm text-muted-foreground leading-relaxed">
-              Want to see a topic covered? Share an idea with the community and we will add it to the roadmap.
+              {t(localeMessages, 'core.tag.suggestBody', 'Want to see a topic covered? Share an idea with the community and we will add it to the roadmap.')}
             </p>
             <a
-              href="/contact"
+              href={buildLocalizedPath('/contact', locale)}
               class="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
             >
-              Share a topic
+              {t(localeMessages, 'core.tag.suggestCta', 'Share a topic')}
               <span aria-hidden="true">→</span>
             </a>
           </section>

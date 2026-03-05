@@ -23,9 +23,14 @@ type ProfileResponse = {
 
 interface ProfileManagerProps {
   activeFeatureIds?: string[];
+  messages?: Record<string, string>;
 }
 
-export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds = [] }) => {
+export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds = [], messages }) => {
+  const text = useCallback((key: string, fallback: string) => {
+    const value = messages?.[key];
+    return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+  }, [messages]);
   const [loading, setLoading] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,7 +62,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || 'Failed to load profile');
+        throw new Error(payload?.error || text('core.profile.error.loadFailed', 'Failed to load profile'));
       }
       const payload = (await response.json()) as ProfileResponse;
       setProfile(payload.profile);
@@ -67,11 +72,11 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       setFeatureData(payload.profile.data || {});
       setAuthRequired(false);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load profile');
+      setError(loadError instanceof Error ? loadError.message : text('core.profile.error.loadFailed', 'Failed to load profile'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [text]);
 
   useEffect(() => {
     loadProfile();
@@ -117,17 +122,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || 'Failed to update profile');
+        throw new Error(payload?.error || text('core.profile.error.updateFailed', 'Failed to update profile'));
       }
       const payload = await response.json();
       setProfile(payload.profile);
-      setMessage('Profile updated.');
+      setMessage(text('core.profile.success.updated', 'Profile updated.'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to update profile');
+      setError(saveError instanceof Error ? saveError.message : text('core.profile.error.updateFailed', 'Failed to update profile'));
     } finally {
       setSaving(false);
     }
-  }, [featureData, profile]);
+  }, [featureData, profile, text]);
 
   const handleSignOut = useCallback(async () => {
     const clearClientAuthArtifacts = () => {
@@ -150,11 +155,11 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
 
   const handlePasswordUpdate = useCallback(async () => {
     if (password.length < 8) {
-      setError('Password must contain at least 8 characters.');
+      setError(text('core.profile.error.passwordTooShort', 'Password must contain at least 8 characters.'));
       return;
     }
     if (password !== passwordConfirm) {
-      setError('Password confirmation does not match.');
+      setError(text('core.profile.error.passwordMismatch', 'Password confirmation does not match.'));
       return;
     }
 
@@ -169,17 +174,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to update password');
+        throw new Error(payload?.error || text('core.profile.error.passwordUpdateFailed', 'Failed to update password'));
       }
       setPassword('');
       setPasswordConfirm('');
-      setMessage('Password updated.');
+      setMessage(text('core.profile.success.passwordUpdated', 'Password updated.'));
     } catch (passwordError) {
-      setError(passwordError instanceof Error ? passwordError.message : 'Failed to update password');
+      setError(passwordError instanceof Error ? passwordError.message : text('core.profile.error.passwordUpdateFailed', 'Failed to update password'));
     } finally {
       setPasswordSaving(false);
     }
-  }, [password, passwordConfirm]);
+  }, [password, passwordConfirm, text]);
 
   const avatarPreview = useMemo(() => {
     if (!profile) return '';
@@ -191,7 +196,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
 
   if (loading) {
     return (
-      <AdminLoadingState label="Loading your profile..." className="py-12" />
+      <AdminLoadingState label={text('core.profile.loading', 'Loading your profile...')} className="py-12" />
     );
   }
 
@@ -199,7 +204,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
     return (
       <div className="mx-auto max-w-lg">
         <div className="card p-6 text-center text-sm text-muted-foreground">
-          Redirecting to sign in...
+          {text('core.profile.redirecting', 'Redirecting to sign in...')}
         </div>
       </div>
     );
@@ -208,7 +213,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
   if (!profile) {
     return (
       <div className="text-sm text-muted-foreground">
-        Unable to load profile.
+        {text('core.profile.unableToLoad', 'Unable to load profile.')}
       </div>
     );
   }
@@ -229,17 +234,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       <div className="card p-6 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Your Profile</h1>
-            <p className="text-sm text-muted-foreground">Signed in as {email}</p>
+            <h1 className="text-2xl font-semibold">{text('core.profile.title', 'Your profile')}</h1>
+            <p className="text-sm text-muted-foreground">{text('core.profile.signedInAs', 'Signed in as')} {email}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {userRole === 'admin' && (
               <a href="/admin" className="btn btn-outline">
-                Open admin dashboard
+                {text('core.profile.openAdmin', 'Open admin dashboard')}
               </a>
             )}
             <button type="button" className="btn btn-outline" onClick={handleSignOut}>
-              Sign out
+              {text('core.profile.signOut', 'Sign out')}
             </button>
           </div>
         </div>
@@ -260,14 +265,14 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
                 onChange={(event) => updateField('avatarSource', event.target.checked ? 'gravatar' : 'custom')}
                 className="rounded border-input text-primary focus:ring-primary"
               />
-              Use Gravatar
+              {text('core.profile.useGravatar', 'Use Gravatar')}
             </label>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground" htmlFor="profile-full-name">
-                Real name
+                {text('core.profile.realName', 'Real name')}
               </label>
               <input
                 id="profile-full-name"
@@ -275,13 +280,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
                 className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
                 value={profile.fullName || ''}
                 onChange={(event) => updateField('fullName', event.target.value)}
-                placeholder="Your full name"
+                placeholder={text('core.profile.realNamePlaceholder', 'Your full name')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-foreground" htmlFor="profile-bio">
-                Bio
+                {text('core.profile.bio', 'Bio')}
               </label>
               <textarea
                 id="profile-bio"
@@ -289,14 +294,14 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
                 className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
                 value={profile.bio || ''}
                 onChange={(event) => updateField('bio', event.target.value)}
-                placeholder="Tell readers about yourself"
+                placeholder={text('core.profile.bioPlaceholder', 'Tell readers about yourself')}
               />
             </div>
 
             {profile.avatarSource === 'custom' && (
               <div>
                 <label className="block text-sm font-medium text-foreground" htmlFor="profile-avatar-url">
-                  Avatar URL
+                  {text('core.profile.avatarUrl', 'Avatar URL')}
                 </label>
                 <input
                   id="profile-avatar-url"
@@ -304,7 +309,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
                   className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
                   value={profile.avatarUrl || ''}
                   onChange={(event) => updateField('avatarUrl', event.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
+                  placeholder={text('core.profile.avatarUrlPlaceholder', 'https://example.com/avatar.jpg')}
                 />
               </div>
             )}
@@ -314,13 +319,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
 
       <div className="card p-6 space-y-4">
         <div>
-          <h2 className="text-xl font-semibold">Security</h2>
-          <p className="text-sm text-muted-foreground">Update your account password.</p>
+          <h2 className="text-xl font-semibold">{text('core.profile.securityTitle', 'Security')}</h2>
+          <p className="text-sm text-muted-foreground">{text('core.profile.securityBody', 'Update your account password.')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-foreground" htmlFor="profile-password">
-              New password
+              {text('core.profile.newPassword', 'New password')}
             </label>
             <input
               id="profile-password"
@@ -328,13 +333,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
               className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 8 characters"
+              placeholder={text('core.profile.newPasswordPlaceholder', 'At least 8 characters')}
               autoComplete="new-password"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground" htmlFor="profile-password-confirm">
-              Confirm password
+              {text('core.profile.confirmPassword', 'Confirm password')}
             </label>
             <input
               id="profile-password-confirm"
@@ -342,7 +347,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
               className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
               value={passwordConfirm}
               onChange={(event) => setPasswordConfirm(event.target.value)}
-              placeholder="Repeat password"
+              placeholder={text('core.profile.confirmPasswordPlaceholder', 'Repeat password')}
               autoComplete="new-password"
             />
           </div>
@@ -354,7 +359,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
             onClick={handlePasswordUpdate}
             disabled={passwordSaving}
           >
-            {passwordSaving ? 'Updating…' : 'Update password'}
+            {passwordSaving
+              ? text('core.profile.updatingPassword', 'Updating...')
+              : text('core.profile.updatePassword', 'Update password')}
           </button>
         </div>
       </div>
@@ -377,7 +384,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
 
       <div className="flex justify-end">
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Profile'}
+          {saving
+            ? text('core.profile.savingProfile', 'Saving...')
+            : text('core.profile.saveProfile', 'Save profile')}
         </button>
       </div>
     </div>

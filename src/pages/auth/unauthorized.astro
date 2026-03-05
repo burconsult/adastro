@@ -1,28 +1,33 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import ErrorMascot from "@/components/motion/ErrorMascot";
-import { getSiteIdentity } from "@/lib/site-config";
+import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 const siteIdentity = await getSiteIdentity();
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const localeMessages = getLocaleMessages(locale);
 ---
 <BaseLayout
-  title={`Unauthorized — ${siteIdentity.title}`}
-  description="You do not have access to this area of Adastro."
+  title={`${t(localeMessages, 'core.auth.unauthorized.title', 'Unauthorized')} - ${siteIdentity.title}`}
+  description={t(localeMessages, 'core.auth.unauthorized.description', 'You do not have access to this area of AdAstro.')}
 >
   <section class="mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center sm:px-8 sm:py-24">
-    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Access denied</span>
+    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">{t(localeMessages, 'core.auth.unauthorized.badge', 'Access denied')}</span>
     <h1 class="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-      This hatch is sealed
+      {t(localeMessages, 'core.auth.unauthorized.heading', 'This hatch is sealed')}
     </h1>
     <p class="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
-      Looks like your account does not have clearance for this route. Log in or head back to the public decks.
+      {t(localeMessages, 'core.auth.unauthorized.body', 'Looks like your account does not have clearance for this route. Sign in or head back to the public site.')}
     </p>
 
     <ErrorMascot client:load accentClass="text-primary" forceMotion={true} />
 
     <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-      <a href="/auth/login" class="btn">Sign in</a>
-      <a href="/" class="btn btn-outline">Return home</a>
+      <a href="/auth/login" class="btn">{t(localeMessages, 'core.auth.signIn', 'Sign in')}</a>
+      <a href={buildLocalizedPath('/', locale)} class="btn btn-outline">{t(localeMessages, 'core.auth.unauthorized.returnHome', 'Return home')}</a>
     </div>
   </section>
 </BaseLayout>

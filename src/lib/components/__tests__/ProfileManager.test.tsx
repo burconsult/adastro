@@ -23,4 +23,12 @@ describe('ProfileManager', () => {
       expect(screen.getByText('Redirecting to sign in...')).toBeInTheDocument();
     });
   });
+
+  it('renders localized redirect notice when translations are provided', async () => {
+    render(<ProfileManager messages={{ 'core.profile.redirecting': 'Videresender til innlogging...' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Videresender til innlogging...')).toBeInTheDocument();
+    });
+  });
 });

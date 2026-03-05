@@ -2,23 +2,39 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 import { Loader2 } from "lucide-react";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
+import { getSiteLocaleConfig } from "@/lib/site-config";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
 import authCallbackScriptUrl from "@/lib/client/auth/auth-callback.js?url";
 
 const redirectTarget = sanitizeRedirectPath(Astro.url.searchParams.get('redirect'), '/profile');
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const localeMessages = getLocaleMessages(locale);
+const callbackClientMessages = {
+  authFailedPrefix: t(localeMessages, 'core.auth.callback.errorPrefix', 'Authentication failed:'),
+  missingToken: t(localeMessages, 'core.auth.callback.missingToken', 'Missing authentication token. Please try signing in again.'),
+  finalizeFailed: t(localeMessages, 'core.auth.callback.finalizeFailed', 'Failed to finalize session.'),
+  unexpectedError: t(localeMessages, 'core.auth.callback.unexpectedError', 'Unable to finish sign in. Please try again.')
+};
 ---
 
-<BaseLayout title="Signing you in" description="Completing authentication">
+<BaseLayout
+  title={t(localeMessages, 'core.auth.callback.title', 'Signing you in')}
+  description={t(localeMessages, 'core.auth.callback.description', 'Completing authentication')}
+>
   <div class="min-h-[calc(100vh-8rem)] flex items-center justify-center p-6" id="auth-callback-root" data-redirect-target={redirectTarget}>
     <div class="card p-8 max-w-md text-center space-y-4">
       <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-        <span>Loading</span>
+        <span>{t(localeMessages, 'core.auth.callback.loading', 'Loading')}</span>
       </div>
-      <h1 class="text-2xl font-semibold">Finishing sign in</h1>
-      <p class="text-sm text-muted-foreground">We’re syncing your session. You’ll be redirected shortly.</p>
+      <h1 class="text-2xl font-semibold">{t(localeMessages, 'core.auth.callback.heading', 'Finishing sign in')}</h1>
+      <p class="text-sm text-muted-foreground">{t(localeMessages, 'core.auth.callback.body', 'We are syncing your session. You will be redirected shortly.')}</p>
       <p id="callback-message" class="text-sm text-muted-foreground"></p>
     </div>
   </div>
 
+  <script type="application/json" id="auth-callback-messages" set:html={JSON.stringify(callbackClientMessages)}></script>
   <script type="module" src={authCallbackScriptUrl}></script>
 </BaseLayout>
