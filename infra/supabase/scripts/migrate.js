@@ -169,6 +169,49 @@ const norwegianBokmalLocaleBootstrapReflected = async () => {
   throw new Error(`Failed to validate norwegian bokmal locale bootstrap reflection: ${error.message}`)
 }
 
+const noLocaleCleanupReflected = async () => {
+  const { error } = await supabase.rpc('exec_sql', {
+    sql: `
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM public.site_settings
+          WHERE key = 'content.defaultLocale'
+            AND value = to_jsonb('no'::text)
+        ) THEN
+          RAISE EXCEPTION 'locale_cleanup_not_reflected';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1
+          FROM public.site_settings settings,
+               jsonb_array_elements_text(settings.value) AS entry(locale)
+          WHERE settings.key = 'content.locales'
+            AND jsonb_typeof(settings.value) = 'array'
+            AND btrim(entry.locale) = 'no'
+        ) THEN
+          RAISE EXCEPTION 'locale_cleanup_not_reflected';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM public.posts WHERE locale = 'no')
+           OR EXISTS (SELECT 1 FROM public.pages WHERE locale = 'no') THEN
+          RAISE EXCEPTION 'locale_cleanup_not_reflected';
+        END IF;
+      END
+      $$;
+    `
+  })
+
+  if (!error) return true
+  const message = String(error.message || '').toLowerCase()
+  if (message.includes('locale_cleanup_not_reflected')) return false
+  if (message.includes('relation') && message.includes('does not exist')) return false
+  if (message.includes('column') && message.includes('does not exist')) return false
+
+  throw new Error(`Failed to validate no->nb locale cleanup reflection: ${error.message}`)
+}
+
 async function ensureMigrationsTable() {
   const createSql = `
     CREATE TABLE IF NOT EXISTS public.${MIGRATIONS_TABLE} (
@@ -218,6 +261,8 @@ async function migrationAlreadyReflected(version) {
       return (await columnExists('posts', 'locale')) && (await columnExists('pages', 'locale'))
     case '002_locale_nb_bootstrap.sql':
       return await norwegianBokmalLocaleBootstrapReflected()
+    case '003_locale_no_to_nb_cleanup.sql':
+      return await noLocaleCleanupReflected()
     default:
       return false
   }

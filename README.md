@@ -90,6 +90,7 @@ Locale settings (configured in admin settings):
 - `content.defaultLocale`: default locale used for redirects/fallback.
 - `content.locales`: enabled locale codes used for public route prefixes.
 - Recommended for Norwegian Bokmal: use `nb` in URLs (`/nb/...`).
+- Legacy installs that used `no` can run `infra/supabase/migrations/003_locale_no_to_nb_cleanup.sql` to normalize settings/content rows to `nb`.
 
 ### Additional Scripts
 | Command | Description |

@@ -281,6 +281,7 @@ Exit criteria:
     - clone pages/posts from `en` to `nb` when missing,
     - preserve post category/tag relations,
     - translate deterministic seeded content + page sections.
+  - Added cleanup migration (`infra/supabase/migrations/003_locale_no_to_nb_cleanup.sql`) to convert any legacy `no` settings/content rows to `nb` and resolve slug duplicates safely.
 
 ### 2026-02-19
 
