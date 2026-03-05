@@ -22,6 +22,9 @@ type RecaptchaConfig = {
 
 interface CommentsSectionProps {
   slug: string;
+  postId?: string;
+  locale?: string;
+  messages?: Record<string, string>;
 }
 
 type GrecaptchaApi = {
@@ -36,7 +39,7 @@ declare global {
   }
 }
 
-const loadRecaptchaScript = (siteKey: string): Promise<void> => {
+const loadRecaptchaScript = (siteKey: string, loadFailedMessage: string): Promise<void> => {
   if (typeof window === 'undefined') {
     return Promise.resolve();
   }
@@ -53,7 +56,7 @@ const loadRecaptchaScript = (siteKey: string): Promise<void> => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-adastro-recaptcha="true"]');
     if (existing) {
       existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('Failed to load anti-spam script.')), { once: true });
+      existing.addEventListener('error', () => reject(new Error(loadFailedMessage)), { once: true });
       return;
     }
 
@@ -63,17 +66,17 @@ const loadRecaptchaScript = (siteKey: string): Promise<void> => {
     script.defer = true;
     script.dataset.adastroRecaptcha = 'true';
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load anti-spam script.'));
+    script.onerror = () => reject(new Error(loadFailedMessage));
     document.head.appendChild(script);
   });
 
   return window.__adastroRecaptchaLoadPromise;
 };
 
-const formatDate = (value: string) => {
+const formatDate = (value: string, locale?: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -91,7 +94,34 @@ const fallbackAuthorNameFromEmail = (email: string) => {
     .join(' ');
 };
 
-export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
+const DEFAULT_MESSAGES: Record<string, string> = {
+  heading: 'Comments',
+  countSingular: 'comment',
+  countPlural: 'comments',
+  loadFailed: 'Failed to load comments',
+  submitFailed: 'Failed to submit comment',
+  antiSpamLoadFailed: 'Failed to load anti-spam script.',
+  antiSpamServiceFailed: 'Anti-spam service failed to load. Please refresh and try again.',
+  signInToComment: 'Sign in to comment.',
+  commentsTemporarilyUnavailable: 'Comments are temporarily unavailable while anti-spam settings are being configured.',
+  posted: 'Comment posted.',
+  pending: 'Comment submitted and pending moderation.',
+  loading: 'Loading comments…',
+  empty: 'No comments yet. Be the first to respond.',
+  loginCta: 'Open login',
+  checkingSignIn: 'Checking sign-in status...',
+  commentingAs: 'Commenting as',
+  name: 'Name',
+  email: 'Email',
+  comment: 'Comment',
+  website: 'Website',
+  postComment: 'Post comment',
+  posting: 'Posting…'
+};
+
+export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug, postId, locale, messages = {} }) => {
+  const msg = (key: keyof typeof DEFAULT_MESSAGES) => messages[key] || DEFAULT_MESSAGES[key];
+  const antiSpamLoadFailedMessage = msg('antiSpamLoadFailed');
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,15 +138,27 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
 
   const hasComments = comments.length > 0;
   const isAuthenticated = Boolean(viewer?.email);
-  const commentCountLabel = useMemo(() => `${comments.length} comment${comments.length === 1 ? '' : 's'}`, [comments.length]);
+  const commentCountLabel = useMemo(
+    () => `${comments.length} ${comments.length === 1 ? msg('countSingular') : msg('countPlural')}`,
+    [comments.length, messages]
+  );
 
   const loadComments = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/features/comments/list?slug=${encodeURIComponent(slug)}`);
+      const params = new URLSearchParams();
+      if (postId) {
+        params.set('postId', postId);
+      } else {
+        params.set('slug', slug);
+      }
+      if (locale) {
+        params.set('locale', locale);
+      }
+      const response = await fetch(`/api/features/comments/list?${params.toString()}`);
       if (!response.ok) {
-        throw new Error('Failed to load comments');
+        throw new Error(msg('loadFailed'));
       }
       const payload = await response.json();
       setEnabled(normalizeFeatureFlag(payload.enabled, false));
@@ -130,7 +172,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
       setComments(Array.isArray(payload.comments) ? payload.comments : []);
     } catch (loadError) {
       setEnabled(false);
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load comments');
+      setError(loadError instanceof Error ? loadError.message : msg('loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -138,7 +180,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
 
   useEffect(() => {
     void loadComments();
-  }, [slug]);
+  }, [slug, postId, locale]);
 
   useEffect(() => {
     const loadViewer = async () => {
@@ -186,8 +228,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
 
   useEffect(() => {
     if (!recaptcha.enabled || !recaptcha.siteKey) return;
-    void loadRecaptchaScript(recaptcha.siteKey);
-  }, [recaptcha.enabled, recaptcha.siteKey]);
+    void loadRecaptchaScript(recaptcha.siteKey, antiSpamLoadFailedMessage);
+  }, [antiSpamLoadFailedMessage, recaptcha.enabled, recaptcha.siteKey]);
 
   const commentsTemporarilyClosed = recaptcha.required === true && recaptcha.configured === false;
   const guestCommentsBlocked = authenticatedOnly && viewerLoaded && !isAuthenticated;
@@ -197,10 +239,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
       return undefined;
     }
 
-    await loadRecaptchaScript(recaptcha.siteKey);
+    await loadRecaptchaScript(recaptcha.siteKey, antiSpamLoadFailedMessage);
     const grecaptcha = window.grecaptcha;
     if (!grecaptcha) {
-      throw new Error('Anti-spam service failed to load. Please refresh and try again.');
+      throw new Error(msg('antiSpamServiceFailed'));
     }
 
     await new Promise<void>((resolve) => grecaptcha.ready(resolve));
@@ -211,11 +253,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
     event.preventDefault();
     if (submitting) return;
     if (guestCommentsBlocked) {
-      setError('Sign in to comment.');
+      setError(msg('signInToComment'));
       return;
     }
     if (commentsTemporarilyClosed) {
-      setError('Comments are temporarily unavailable while anti-spam settings are being configured.');
+      setError(msg('commentsTemporarilyUnavailable'));
       return;
     }
 
@@ -230,6 +272,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug,
+          postId,
+          locale,
           authorName: viewer?.name ?? form.authorName,
           authorEmail: viewer?.email ?? form.authorEmail,
           content: form.content,
@@ -241,7 +285,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || 'Failed to submit comment');
+        throw new Error(payload.error || msg('submitFailed'));
       }
 
       setForm(() => ({
@@ -250,13 +294,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
         content: ''
       }));
       if (payload.status === 'approved') {
-        setMessage('Comment posted.');
+        setMessage(msg('posted'));
         await loadComments();
       } else {
-        setMessage('Comment submitted and pending moderation.');
+        setMessage(msg('pending'));
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Failed to submit comment');
+      setError(submitError instanceof Error ? submitError.message : msg('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -270,7 +314,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
     <section className="mt-12 border-t border-border pt-8" aria-labelledby="comments-heading">
       <div className="mb-6 flex items-baseline justify-between gap-3">
         <h2 id="comments-heading" className="text-2xl font-semibold text-foreground">
-          Comments
+          {msg('heading')}
         </h2>
         {!loading && <span className="text-sm text-muted-foreground">{commentCountLabel}</span>}
       </div>
@@ -287,7 +331,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading comments…</p>
+        <p className="text-sm text-muted-foreground">{msg('loading')}</p>
       ) : hasComments ? (
         <ol className="mb-8 space-y-4">
           {comments.map((comment) => (
@@ -295,19 +339,19 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
               <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-semibold text-foreground">{comment.authorName}</span>
                 <span className="text-muted-foreground">·</span>
-                <time className="text-muted-foreground">{formatDate(comment.createdAt)}</time>
+                <time className="text-muted-foreground">{formatDate(comment.createdAt, locale)}</time>
               </div>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{comment.content}</p>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="mb-8 text-sm text-muted-foreground">No comments yet. Be the first to respond.</p>
+        <p className="mb-8 text-sm text-muted-foreground">{msg('empty')}</p>
       )}
 
       {commentsTemporarilyClosed && (
         <div className="mb-4 rounded-md border border-amber-300/50 bg-amber-100/60 px-4 py-3 text-sm text-amber-900">
-          Comments are temporarily unavailable while anti-spam checks are being configured.
+          {msg('commentsTemporarilyUnavailable')}
         </div>
       )}
 
@@ -315,16 +359,16 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
         <div className="mb-4 rounded-md border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           {viewerLoaded ? (
             <>
-              Sign in to comment.{' '}
+              {msg('signInToComment')}{' '}
               <a
                 href={`/auth/login?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`}
                 className="font-medium text-foreground underline underline-offset-2"
               >
-                Open login
+                {msg('loginCta')}
               </a>
             </>
           ) : (
-            'Checking sign-in status...'
+            msg('checkingSignIn')
           )}
         </div>
       )}
@@ -335,12 +379,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
       >
         {isAuthenticated ? (
           <p className="text-sm text-muted-foreground">
-            Commenting as <span className="font-medium text-foreground">{viewer?.name}</span> ({viewer?.email})
+            {msg('commentingAs')} <span className="font-medium text-foreground">{viewer?.name}</span> ({viewer?.email})
           </p>
         ) : (
           <>
             <div>
-              <label htmlFor="comment-name" className="mb-1 block text-sm font-medium text-foreground">Name</label>
+              <label htmlFor="comment-name" className="mb-1 block text-sm font-medium text-foreground">{msg('name')}</label>
               <input
                 id="comment-name"
                 value={form.authorName}
@@ -352,7 +396,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
               />
             </div>
             <div>
-              <label htmlFor="comment-email" className="mb-1 block text-sm font-medium text-foreground">Email</label>
+              <label htmlFor="comment-email" className="mb-1 block text-sm font-medium text-foreground">{msg('email')}</label>
               <input
                 id="comment-email"
                 type="email"
@@ -367,7 +411,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
           </>
         )}
         <div className={isAuthenticated ? '' : 'sm:col-span-2'}>
-          <label htmlFor="comment-content" className="mb-1 block text-sm font-medium text-foreground">Comment</label>
+          <label htmlFor="comment-content" className="mb-1 block text-sm font-medium text-foreground">{msg('comment')}</label>
           <textarea
             id="comment-content"
             value={form.content}
@@ -379,7 +423,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
           />
         </div>
         <div className="hidden">
-          <label htmlFor="comment-website">Website</label>
+          <label htmlFor="comment-website">{msg('website')}</label>
           <input
             id="comment-website"
             value={honeypot}
@@ -394,7 +438,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug }) => {
             className="btn bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
             disabled={submitting || commentsTemporarilyClosed || guestCommentsBlocked}
           >
-            {submitting ? 'Posting…' : 'Post comment'}
+            {submitting ? msg('posting') : msg('postComment')}
           </button>
         </div>
       </form>

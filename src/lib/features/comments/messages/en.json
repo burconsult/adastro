@@ -1,4 +1,26 @@
 {
   "settings.features.comments.title": "Comments",
-  "settings.features.comments.description": "Enable and moderate reader feedback."
+  "settings.features.comments.description": "Enable and moderate reader feedback.",
+  "comments.heading": "Comments",
+  "comments.count.singular": "comment",
+  "comments.count.plural": "comments",
+  "comments.loadFailed": "Failed to load comments",
+  "comments.submitFailed": "Failed to submit comment",
+  "comments.antiSpamLoadFailed": "Failed to load anti-spam script.",
+  "comments.signInToComment": "Sign in to comment.",
+  "comments.temporarilyUnavailable": "Comments are temporarily unavailable while anti-spam settings are being configured.",
+  "comments.posted": "Comment posted.",
+  "comments.pending": "Comment submitted and pending moderation.",
+  "comments.loading": "Loading comments…",
+  "comments.empty": "No comments yet. Be the first to respond.",
+  "comments.loginCta": "Open login",
+  "comments.checkingSignIn": "Checking sign-in status...",
+  "comments.commentingAs": "Commenting as",
+  "comments.name": "Name",
+  "comments.email": "Email",
+  "comments.comment": "Comment",
+  "comments.website": "Website",
+  "comments.postComment": "Post comment",
+  "comments.posting": "Posting…",
+  "comments.antiSpamServiceFailed": "Anti-spam service failed to load. Please refresh and try again."
 }

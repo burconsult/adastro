@@ -6,6 +6,7 @@ import { normalizeFeatureFlag } from '@/lib/features/flags';
 import { SettingsService } from '@/lib/services/settings-service';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { FeatureApiHandler, FeatureApiModule } from '../types.js';
+import { DEFAULT_LOCALE, normalizeLocaleCode } from '@/lib/i18n/locales';
 
 const settingsService = new SettingsService();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -69,9 +70,10 @@ const resolveAuthenticatedAuthorName = async (authUserId: string, email: string)
   return fallbackAuthorNameFromEmail(email);
 };
 
-const resolvePublishedPostId = async (input: { slug?: string; postId?: string }) => {
+const resolvePublishedPostId = async (input: { slug?: string; postId?: string; locale?: string }) => {
   const slug = sanitizeText(input.slug, 255);
   const postId = sanitizeText(input.postId, 64);
+  const locale = normalizeLocaleCode(input.locale, DEFAULT_LOCALE);
 
   if (!slug && !postId) {
     return null;
@@ -87,6 +89,9 @@ const resolvePublishedPostId = async (input: { slug?: string; postId?: string })
     query = query.eq('id', postId);
   } else {
     query = query.eq('slug', slug);
+    if (locale) {
+      query = query.eq('locale', locale);
+    }
   }
 
   const { data, error } = await query.maybeSingle();
@@ -151,11 +156,12 @@ const listHandler: FeatureApiHandler = async ({ request }) => {
     const url = new URL(request.url);
     const slug = sanitizeText(url.searchParams.get('slug'), 255);
     const postIdInput = sanitizeText(url.searchParams.get('postId'), 64);
+    const locale = sanitizeText(url.searchParams.get('locale'), 12);
 
     if (!slug && !postIdInput) {
       return json({ error: 'postId or slug is required' }, 400);
     }
-    const postId = await resolvePublishedPostId({ slug, postId: postIdInput });
+    const postId = await resolvePublishedPostId({ slug, postId: postIdInput, locale });
     if (!postId) {
       return json({
         enabled: true,
@@ -217,6 +223,7 @@ const submitHandler: FeatureApiHandler = async ({ request }) => {
     const payload = await request.json().catch(() => ({}));
     const slug = sanitizeText(payload.slug, 255);
     const postIdInput = sanitizeText(payload.postId, 64);
+    const locale = sanitizeText(payload.locale, 12);
     const providedAuthorName = sanitizeText(payload.authorName, MAX_NAME_LENGTH);
     const providedAuthorEmail = sanitizeText(payload.authorEmail, MAX_EMAIL_LENGTH).toLowerCase();
     const content = sanitizeText(payload.content, MAX_CONTENT_LENGTH);
@@ -250,7 +257,7 @@ const submitHandler: FeatureApiHandler = async ({ request }) => {
     if (authenticatedOnly && !authenticatedUser) {
       return json({ error: 'Sign in to comment.' }, 401);
     }
-    const postId = await resolvePublishedPostId({ slug, postId: postIdInput });
+    const postId = await resolvePublishedPostId({ slug, postId: postIdInput, locale });
     if (!postId) {
       return json({ error: 'Post not found' }, 404);
     }

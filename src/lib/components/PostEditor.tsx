@@ -48,6 +48,12 @@ interface PostEditorProps {
   articlePermalinkStyle?: 'segment' | 'wordpress';
   defaultLocale?: string;
   supportedLocales?: string[];
+  localizedVersions?: Array<{
+    id: string;
+    locale: string;
+    slug: string;
+    title: string;
+  }>;
 }
 
 interface PostFormData {
@@ -90,6 +96,41 @@ const serializePostFormData = (data: PostFormData) => {
   });
 };
 
+type AlternateLocaleEntry = {
+  locale: string;
+  slug: string;
+};
+
+const normalizeAlternateLocales = (value: unknown): AlternateLocaleEntry[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const record = entry as { locale?: unknown; slug?: unknown };
+      const locale = typeof record.locale === 'string' ? record.locale.trim().toLowerCase() : '';
+      const slug = typeof record.slug === 'string' ? record.slug.trim() : '';
+      if (!locale) return null;
+      return { locale, slug };
+    })
+    .filter((entry): entry is AlternateLocaleEntry => Boolean(entry));
+};
+
+const sanitizeAlternateLocalesForSave = (
+  value: unknown,
+  currentLocale: string
+): AlternateLocaleEntry[] => {
+  const normalizedCurrentLocale = currentLocale.trim().toLowerCase();
+  const deduped = new Map<string, AlternateLocaleEntry>();
+  for (const entry of normalizeAlternateLocales(value)) {
+    if (!entry.slug) continue;
+    if (entry.locale === normalizedCurrentLocale) continue;
+    if (!deduped.has(entry.locale)) {
+      deduped.set(entry.locale, entry);
+    }
+  }
+  return [...deduped.values()];
+};
+
 export const PostEditor: React.FC<PostEditorProps> = (props) => (
   <ToastProvider>
     <PostEditorInner {...props} />
@@ -107,7 +148,8 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   articleBasePath = 'articles',
   articlePermalinkStyle = 'segment',
   defaultLocale = 'en',
-  supportedLocales = ['en']
+  supportedLocales = ['en'],
+  localizedVersions = []
 }) => {
   const { toast } = useToast();
   const normalizedPost = useMemo(() => {
@@ -194,6 +236,10 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     const deduped = Array.from(new Set(normalized));
     return deduped.length > 0 ? deduped : [defaultLocale];
   }, [defaultLocale, supportedLocales]);
+  const alternateLocales = useMemo(
+    () => normalizeAlternateLocales((formData.seoMetadata as any)?.alternateLocales),
+    [formData.seoMetadata]
+  );
 
   const updateField = useCallback((field: keyof typeof formData, value: any) => {
     setFormData((prev) => ({
@@ -509,12 +555,21 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
       const normalizedBlocks = normalizeEditorJsData(rest.blocks ?? {});
       const contentFromBlocks = normalizedBlocks.blocks.length > 0 ? editorJsToHtml(normalizedBlocks) : '';
       const contentToPersist = rest.content && rest.content.trim().length > 0 ? rest.content : contentFromBlocks;
+      const normalizedAlternateLocales = sanitizeAlternateLocalesForSave(
+        (rest.seoMetadata as any)?.alternateLocales,
+        rest.locale || defaultLocale
+      );
+      const seoMetadataToPersist = {
+        ...(rest.seoMetadata || {}),
+        alternateLocales: normalizedAlternateLocales.length > 0 ? normalizedAlternateLocales : undefined
+      };
       const payload: Record<string, any> = {
         ...rest,
         content: contentToPersist,
         blocks: normalizedBlocks,
         status,
-        audioAssetId: rest.audioAssetId
+        audioAssetId: rest.audioAssetId,
+        seoMetadata: seoMetadataToPersist
       };
       if (nextPublishedAt) {
         payload.publishedAt = nextPublishedAt;
@@ -749,6 +804,109 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
                 </select>
                 {errors.locale && <p className="text-destructive text-sm mt-1">{errors.locale}</p>}
               </div>
+
+              {(localizedVersions.length > 0 || localeOptions.length > 1) && (
+                <div className="rounded-md border border-border bg-muted/30 p-3">
+                  <h4 className="text-sm font-semibold text-foreground">Localized Versions</h4>
+                  {localizedVersions.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      This post also has version{localizedVersions.length === 1 ? '' : 's'} in{' '}
+                      {localizedVersions.map((version, index) => (
+                        <React.Fragment key={version.id}>
+                          {index > 0 ? ', ' : ''}
+                          <a
+                            className="font-medium text-foreground underline underline-offset-2"
+                            href={`/admin/posts/edit/${version.id}`}
+                          >
+                            {version.locale}
+                          </a>
+                        </React.Fragment>
+                      ))}
+                      .
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      No linked localized versions found yet.
+                    </p>
+                  )}
+
+                  <div className="mt-3 space-y-2">
+                    {alternateLocales.map((entry, index) => (
+                      <div key={`${entry.locale}-${index}`} className="grid gap-2 sm:grid-cols-[140px_1fr_auto]">
+                        <select
+                          value={entry.locale}
+                          onChange={(event) => {
+                            const next = [...alternateLocales];
+                            next[index] = { ...next[index], locale: event.target.value };
+                            handleFieldChange('seoMetadata', {
+                              ...formData.seoMetadata,
+                              alternateLocales: next
+                            });
+                          }}
+                          className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                        >
+                          {localeOptions
+                            .filter((locale) => locale !== formData.locale)
+                            .map((locale) => (
+                              <option key={locale} value={locale}>
+                                {locale}
+                              </option>
+                            ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={entry.slug}
+                          onChange={(event) => {
+                            const next = [...alternateLocales];
+                            next[index] = { ...next[index], slug: event.target.value };
+                            handleFieldChange('seoMetadata', {
+                              ...formData.seoMetadata,
+                              alternateLocales: next
+                            });
+                          }}
+                          placeholder="localized-slug"
+                          className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm text-destructive"
+                          onClick={() => {
+                            const next = alternateLocales.filter((_, itemIndex) => itemIndex !== index);
+                            handleFieldChange('seoMetadata', {
+                              ...formData.seoMetadata,
+                              alternateLocales: next.length > 0 ? next : undefined
+                            });
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {localeOptions.filter((locale) => locale !== formData.locale).length > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => {
+                          const preferredLocale = localeOptions.find((locale) => (
+                            locale !== formData.locale
+                            && !alternateLocales.some((entry) => entry.locale === locale)
+                          )) || localeOptions.find((locale) => locale !== formData.locale) || '';
+                          if (!preferredLocale) return;
+                          handleFieldChange('seoMetadata', {
+                            ...formData.seoMetadata,
+                            alternateLocales: [...alternateLocales, { locale: preferredLocale, slug: '' }]
+                          });
+                        }}
+                      >
+                        Add localized version metadata
+                      </button>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Add locale + slug pairs when translated posts use different slugs. These power `hreflang` links and locale switching metadata.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="excerpt" className="block text-sm font-medium mb-2">

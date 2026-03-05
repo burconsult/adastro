@@ -1,4 +1,26 @@
 {
   "settings.features.comments.title": "Kommentarer",
-  "settings.features.comments.description": "Aktiver og moderer tilbakemeldinger fra lesere."
+  "settings.features.comments.description": "Aktiver og moderer tilbakemeldinger fra lesere.",
+  "comments.heading": "Kommentarer",
+  "comments.count.singular": "kommentar",
+  "comments.count.plural": "kommentarer",
+  "comments.loadFailed": "Kunne ikke laste kommentarer",
+  "comments.submitFailed": "Kunne ikke sende kommentar",
+  "comments.antiSpamLoadFailed": "Kunne ikke laste anti-spam-skriptet.",
+  "comments.signInToComment": "Logg inn for å kommentere.",
+  "comments.temporarilyUnavailable": "Kommentarer er midlertidig utilgjengelige mens anti-spam konfigureres.",
+  "comments.posted": "Kommentar publisert.",
+  "comments.pending": "Kommentar sendt og venter på moderering.",
+  "comments.loading": "Laster kommentarer…",
+  "comments.empty": "Ingen kommentarer ennå. Bli den første som svarer.",
+  "comments.loginCta": "Åpne innlogging",
+  "comments.checkingSignIn": "Sjekker innloggingsstatus...",
+  "comments.commentingAs": "Kommenterer som",
+  "comments.name": "Navn",
+  "comments.email": "E-post",
+  "comments.comment": "Kommentar",
+  "comments.website": "Nettside",
+  "comments.postComment": "Publiser kommentar",
+  "comments.posting": "Publiserer…",
+  "comments.antiSpamServiceFailed": "Anti-spam-tjenesten kunne ikke lastes. Oppdater siden og prøv igjen."
 }

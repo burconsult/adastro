@@ -4,17 +4,20 @@ import ResponsiveImage from "@/components/ResponsiveImage.astro"
 import AudioPlayer from "@/components/AudioPlayer"
 import BlogCommentsSlot from "@/lib/components/BlogCommentsSlot"
 import { getPostStaticPaths, getPublishedPostBySlug } from "@/lib/database/index.js"
-import { getSiteContentRouting, getSiteIdentity, getSiteSeoDefaults } from "@/lib/site-config"
+import { getSiteContentRouting, getSiteIdentity, getSiteLocaleConfig, getSiteSeoDefaults } from "@/lib/site-config"
 import { sanitizeHtml } from "@/lib/utils/data-transform"
 import { buildArticlePostPath, buildArticlesIndexPath } from "@/lib/routing/articles"
-import type { BlogPost } from "@/lib/types/index.js"
+import { getLocaleMessages, t } from "@/lib/i18n/runtime"
+import { findPublishedPostLocaleVariants } from "@/lib/i18n/post-localizations"
 
 export async function getStaticPaths() {
   return await getPostStaticPaths()
 }
 
 const { slug } = Astro.params
-const post = await getPublishedPostBySlug(slug!)
+const localeConfig = await getSiteLocaleConfig()
+const localeMessages = getLocaleMessages(localeConfig.defaultLocale)
+const post = await getPublishedPostBySlug(slug!, { locale: localeConfig.defaultLocale, includeFallback: false })
 
 if (!post) {
   return Astro.redirect('/404')
@@ -35,6 +38,25 @@ const updatedAt = post.updatedAt || publishedAt
 const pagePath = buildArticlePostPath(post.slug, publishedAt, articleRouting)
 const pageUrl = new URL(pagePath, origin).toString()
 const articlesIndexPath = buildArticlesIndexPath(articleRouting)
+const localeVariants = await findPublishedPostLocaleVariants(post, localeConfig.locales)
+const localizedAlternateLinks = [
+  { locale: localeConfig.defaultLocale, href: pageUrl },
+  ...localeVariants.map((variant) => {
+    const variantPublishedAt = variant.publishedAt || variant.createdAt
+    return {
+      locale: variant.locale || localeConfig.defaultLocale,
+      href: new URL(
+        buildArticlePostPath(variant.slug, variantPublishedAt, {
+          basePath: contentRouting.articleBasePath,
+          permalinkStyle: contentRouting.articlePermalinkStyle,
+          localePrefix: variant.locale || localeConfig.defaultLocale
+        }),
+        origin
+      ).toString()
+    }
+  })
+]
+const xDefaultHref = localizedAlternateLinks.find((link) => link.locale === localeConfig.defaultLocale)?.href ?? pageUrl
 const authorSlug = post.author.slug || post.author.id
 const authorHref = `/author/${authorSlug}/`
 const imageUrl = post.featuredImage?.url
@@ -72,6 +94,7 @@ const structuredData = {
     '@type': 'WebPage',
     '@id': pageUrl
   },
+  inLanguage: post.locale || localeConfig.defaultLocale,
   keywords: post.tags?.map((tag) => tag.name).join(', ')
 }
 const breadcrumbStructuredData = {
@@ -113,6 +136,8 @@ const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedA
   ogType="article" 
   ogImage={imageUrl}
   canonicalUrl={pageUrl}
+  alternateLinks={localizedAlternateLinks}
+  xDefaultHref={xDefaultHref}
 >
   <script
     type="application/ld+json"
@@ -227,7 +252,36 @@ const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedA
         </nav>
 
         <div class="pt-8">
-          <BlogCommentsSlot client:load slug={post.slug} />
+          <BlogCommentsSlot
+            client:load
+            slug={post.slug}
+            postId={post.id}
+            locale={localeConfig.defaultLocale}
+            messages={{
+              heading: t(localeMessages, 'comments.heading', 'Comments'),
+              countSingular: t(localeMessages, 'comments.count.singular', 'comment'),
+              countPlural: t(localeMessages, 'comments.count.plural', 'comments'),
+              loadFailed: t(localeMessages, 'comments.loadFailed', 'Failed to load comments'),
+              submitFailed: t(localeMessages, 'comments.submitFailed', 'Failed to submit comment'),
+              signInToComment: t(localeMessages, 'comments.signInToComment', 'Sign in to comment.'),
+              commentsTemporarilyUnavailable: t(localeMessages, 'comments.temporarilyUnavailable', 'Comments are temporarily unavailable while anti-spam settings are being configured.'),
+              posted: t(localeMessages, 'comments.posted', 'Comment posted.'),
+              pending: t(localeMessages, 'comments.pending', 'Comment submitted and pending moderation.'),
+              loading: t(localeMessages, 'comments.loading', 'Loading comments…'),
+              empty: t(localeMessages, 'comments.empty', 'No comments yet. Be the first to respond.'),
+              loginCta: t(localeMessages, 'comments.loginCta', 'Open login'),
+              checkingSignIn: t(localeMessages, 'comments.checkingSignIn', 'Checking sign-in status...'),
+              commentingAs: t(localeMessages, 'comments.commentingAs', 'Commenting as'),
+              name: t(localeMessages, 'comments.name', 'Name'),
+              email: t(localeMessages, 'comments.email', 'Email'),
+              comment: t(localeMessages, 'comments.comment', 'Comment'),
+              website: t(localeMessages, 'comments.website', 'Website'),
+              postComment: t(localeMessages, 'comments.postComment', 'Post comment'),
+              posting: t(localeMessages, 'comments.posting', 'Posting…'),
+              antiSpamLoadFailed: t(localeMessages, 'comments.antiSpamLoadFailed', 'Failed to load anti-spam script.'),
+              antiSpamServiceFailed: t(localeMessages, 'comments.antiSpamServiceFailed', 'Anti-spam service failed to load. Please refresh and try again.')
+            }}
+          />
         </div>
       </section>
     </div>

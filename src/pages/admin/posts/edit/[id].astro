@@ -11,6 +11,7 @@ import { getSiteContentRouting } from "@/lib/site-config";
 import { buildArticlePostPath, buildArticlesIndexPath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles";
 import { loadFeatureModules } from "@/lib/features/loader";
 import { isFeatureActive } from "@/lib/features/state";
+import { findPostLocaleVariants } from "@/lib/i18n/post-localizations";
 
 const { id } = Astro.params;
 const user = Astro.locals.user;
@@ -31,6 +32,7 @@ let blockEditorEnabled = false;
 let activeFeatureIds: string[] = [];
 let defaultLocale = 'en';
 let supportedLocales: string[] = ['en'];
+let localizedVersions: Array<{ id: string; locale: string; slug: string; title: string }> = [];
 let viewPostHref = buildArticlesIndexPath(DEFAULT_ARTICLE_ROUTING);
 
 try {
@@ -82,6 +84,16 @@ try {
     permalinkStyle: contentRouting.articlePermalinkStyle,
     localePrefix: post.locale || defaultLocale
   });
+  localizedVersions = (await findPostLocaleVariants(post, supportedLocales, {
+    publishedOnly: false,
+    useAdmin: true
+  }))
+    .map((version) => ({
+      id: version.id,
+      locale: version.locale || defaultLocale,
+      slug: version.slug,
+      title: version.title
+    }));
 } catch (error) {
   console.error('Error loading post:', error);
   return Astro.redirect('/admin/posts');
@@ -119,6 +131,7 @@ try {
       articlePermalinkStyle={contentRouting.articlePermalinkStyle}
       defaultLocale={defaultLocale}
       supportedLocales={supportedLocales}
+      localizedVersions={localizedVersions}
     />
   </div>
 </AdminLayout>

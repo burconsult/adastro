@@ -106,6 +106,9 @@ export interface FooterSignupProps {
 
 export interface BlogCommentsProps {
   slug: string;
+  postId?: string;
+  locale?: string;
+  messages?: Record<string, string>;
 }
 
 export interface FeaturePublicExtension {

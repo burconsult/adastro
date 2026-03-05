@@ -22,6 +22,8 @@ type Props = {
   ogImage?: string;
   ogType?: string;
   canonicalUrl?: string;
+  alternateLinks?: Array<{ locale: string; href: string }>;
+  xDefaultHref?: string;
   hideFooterNewsletter?: boolean;
 }
 
@@ -43,6 +45,8 @@ const {
   ogImage,
   ogType = 'website',
   canonicalUrl,
+  alternateLinks,
+  xDefaultHref,
   hideFooterNewsletter = false
 } = Astro.props as Props;
 const showFooterNewsletter = !hideFooterNewsletter && await isFeatureActive('newsletter');
@@ -249,8 +253,41 @@ const authState = currentUser ? 'authenticated' : 'guest';
 const adminLink = currentUser?.role === 'admin'
   ? { label: t(localeMessages, 'core.auth.admin', 'Admin'), href: '/admin' }
   : null;
+const fontImports = activeTheme?.fontImports ?? [];
+const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
+const resolvedAlternateLinks = Array.isArray(alternateLinks) && alternateLinks.length > 0
+  ? alternateLinks
+      .map((link) => ({
+        locale: normalizeLocaleCode(link.locale, siteLocaleConfig.defaultLocale),
+        href: new URL(link.href, siteBaseUrl).toString()
+      }))
+      .filter((link, index, links) => (
+        links.findIndex((candidate) => candidate.locale === link.locale) === index
+      ))
+  : siteLocaleConfig.locales.map((locale) => ({
+      locale,
+      href: new URL(buildLocalizedPath(localizedPathname, locale), siteBaseUrl).toString()
+    }));
+const resolvedXDefaultHref = typeof xDefaultHref === 'string' && xDefaultHref.trim().length > 0
+  ? new URL(xDefaultHref.trim(), siteBaseUrl).toString()
+  : new URL(buildLocalizedPath(localizedPathname, siteLocaleConfig.defaultLocale), siteBaseUrl).toString();
+const alternateLocalePathMap = new Map(
+  resolvedAlternateLinks.map((link) => {
+    const parsed = new URL(link.href, siteBaseUrl);
+    const pathWithSearch = `${parsed.pathname}${parsed.search}`;
+    return [normalizeLocaleCode(link.locale, siteLocaleConfig.defaultLocale), pathWithSearch] as const;
+  })
+);
 const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
   const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
+  const alternateHref = alternateLocalePathMap.get(normalized);
+  if (alternateHref) {
+    return {
+      code: normalized,
+      label: getLocaleDisplayLabel(normalized),
+      href: alternateHref
+    };
+  }
   const baseHref = buildLocalizedPath(localizedPathname, normalized);
   const href = Astro.url.search.length > 0 ? `${baseHref}${Astro.url.search}` : baseHref;
   return {
@@ -259,13 +296,6 @@ const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
     href
   };
 });
-const fontImports = activeTheme?.fontImports ?? [];
-const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
-const alternateLocalizedLinks = siteLocaleConfig.locales.map((locale) => ({
-  locale,
-  href: new URL(buildLocalizedPath(localizedPathname, locale), siteBaseUrl).toString()
-}));
-const xDefaultHref = new URL(buildLocalizedPath(localizedPathname, siteLocaleConfig.defaultLocale), siteBaseUrl).toString();
 ---
 <!doctype html>
 <html
@@ -301,10 +331,10 @@ const xDefaultHref = new URL(buildLocalizedPath(localizedPathname, siteLocaleCon
     {dedupedSocialLinks.map((link) => (
       <link rel="me" href={link.href} />
     ))}
-    {alternateLocalizedLinks.map((link) => (
+    {resolvedAlternateLinks.map((link) => (
       <link rel="alternate" hreflang={link.locale} href={link.href} />
     ))}
-    <link rel="alternate" hreflang="x-default" href={xDefaultHref} />
+    <link rel="alternate" hreflang="x-default" href={resolvedXDefaultHref} />
     <link rel="alternate" type="application/rss+xml" title={`${siteIdentity.title} RSS`} href="/rss.xml" />
     {needsGoogleFonts && (
       <>

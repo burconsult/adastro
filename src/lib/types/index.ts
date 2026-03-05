@@ -67,6 +67,10 @@ export interface SEOMetadata {
   noFollow?: boolean;
   openGraph?: OpenGraphData;
   twitterCard?: TwitterCardData;
+  alternateLocales?: Array<{
+    locale: string;
+    slug: string;
+  }>;
 }
 
 export interface OpenGraphData {
