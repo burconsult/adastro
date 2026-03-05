@@ -54,6 +54,20 @@ const requestPathname = typeof Astro.locals.requestPathname === 'string'
 const localeMessages = getLocaleMessages(currentLocale);
 const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
 const localizeSiteHref = (href: string) => localizeHref(href, currentLocale, { skipPrefixes: LOCALIZED_HREF_SKIP_PREFIXES });
+const localizeDefaultLabel = (label: string): string => {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === 'home') return t(localeMessages, 'core.nav.home', 'Home');
+  if (normalized === 'articles') return t(localeMessages, 'core.nav.articles', 'Articles');
+  if (normalized === 'about') return t(localeMessages, 'core.nav.about', 'About');
+  if (normalized === 'contact') return t(localeMessages, 'core.nav.contact', 'Contact');
+  return label;
+};
+const getLocaleDisplayLabel = (locale: string): string => {
+  const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
+  if (normalized === 'nb') return t(localeMessages, 'core.locale.nb', 'Norwegian Bokmal');
+  if (normalized === 'en') return t(localeMessages, 'core.locale.en', 'English');
+  return normalized.toUpperCase();
+};
 const localizedHomeHref = buildLocalizedPath('/', currentLocale);
 
 const site = Astro.site?.toString() ?? '';
@@ -118,7 +132,12 @@ const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
   links.findIndex((candidate) => candidate.href.toLowerCase() === link.href.toLowerCase()) === index
 ));
 const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
-const navLinks = siteNavigation.topLinks.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
+const navLinks = siteNavigation.topLinks.map((link) => ({
+  ...link,
+  label: localizeDefaultLabel(link.label),
+  href: localizeSiteHref(link.href)
+}));
+const localizedSearchPath = buildLocalizedPath('/search', currentLocale);
 const websiteStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -127,7 +146,7 @@ const websiteStructuredData = JSON.stringify({
   description: siteIdentity.description,
   potentialAction: {
     '@type': 'SearchAction',
-    target: `${siteBaseUrl}search?q={search_term_string}`,
+    target: `${siteBaseUrl.replace(/\/$/, '')}${localizedSearchPath}?q={search_term_string}`,
     'query-input': 'required name=search_term_string'
   }
 });
@@ -155,8 +174,16 @@ const navigationStructuredData = navLinks.length > 0
 
 const footerLinks = siteNavigation.bottomLinks;
 const footerItems = siteNavigation.footerLinks;
-const localizedFooterLinks = footerLinks.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
-const localizedFooterItems = footerItems.map((link) => ({ ...link, href: localizeSiteHref(link.href) }));
+const localizedFooterLinks = footerLinks.map((link) => ({
+  ...link,
+  label: localizeDefaultLabel(link.label),
+  href: localizeSiteHref(link.href)
+}));
+const localizedFooterItems = footerItems.map((link) => ({
+  ...link,
+  label: localizeDefaultLabel(link.label),
+  href: localizeSiteHref(link.href)
+}));
 const usedFooterHrefs = new Set(
   [...localizedFooterLinks, ...localizedFooterItems]
     .map((item) => item?.href)
@@ -177,6 +204,16 @@ const authState = currentUser ? 'authenticated' : 'guest';
 const adminLink = currentUser?.role === 'admin'
   ? { label: t(localeMessages, 'core.auth.admin', 'Admin'), href: '/admin' }
   : null;
+const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
+  const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
+  const baseHref = buildLocalizedPath(localizedPathname, normalized);
+  const href = Astro.url.search.length > 0 ? `${baseHref}${Astro.url.search}` : baseHref;
+  return {
+    code: normalized,
+    label: getLocaleDisplayLabel(normalized),
+    href
+  };
+});
 const fontImports = activeTheme?.fontImports ?? [];
 const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googleapis.com'));
 const alternateLocalizedLinks = siteLocaleConfig.locales.map((locale) => ({
@@ -264,6 +301,14 @@ const xDefaultHref = new URL(buildLocalizedPath(localizedPathname, siteLocaleCon
           siteTitle={siteIdentity.title}
           siteLogoUrl={siteIdentity.logoUrl}
           homeHref={localizedHomeHref}
+          homeLabel={t(localeMessages, 'core.nav.home', 'Home')}
+          openMenuLabel={t(localeMessages, 'core.mobile.openMenu', 'Open menu')}
+          closeMenuLabel={t(localeMessages, 'core.mobile.closeMenu', 'Close mobile menu')}
+          toggleThemeLabel={t(localeMessages, 'core.mobile.toggleTheme', 'Toggle theme')}
+          signInLabel={t(localeMessages, 'core.auth.signIn', 'Sign in')}
+          localeOptions={localeSwitcherOptions}
+          currentLocale={currentLocale}
+          localeSwitcherLabel={t(localeMessages, 'core.locale.switcher', 'Language')}
           navLinks={navLinks}
           authLink={authLink}
           adminLink={adminLink}

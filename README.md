@@ -89,6 +89,7 @@ This helps preserve imported URL structures while keeping article slugs unchange
 Locale settings (configured in admin settings):
 - `content.defaultLocale`: default locale used for redirects/fallback.
 - `content.locales`: enabled locale codes used for public route prefixes.
+- Recommended for Norwegian Bokmal: use `nb` in URLs (`/nb/...`).
 
 ### Additional Scripts
 | Command | Description |

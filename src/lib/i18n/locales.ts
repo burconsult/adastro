@@ -110,9 +110,25 @@ export const toHtmlLang = (locale: string): string => normalizeLocaleCode(locale
 
 export const toOpenGraphLocale = (locale: string): string => {
   const normalized = normalizeLocaleCode(locale, DEFAULT_LOCALE);
+  if (normalized === 'nb') return 'nb_NO';
   const [language, region] = normalized.split('-');
   if (region) {
     return `${language}_${region.toUpperCase()}`;
   }
   return `${language}_${language.toUpperCase()}`;
+};
+
+export const toIntlLocale = (locale: string): string => {
+  const normalized = normalizeLocaleCode(locale, DEFAULT_LOCALE);
+  if (normalized === 'nb') return 'nb-NO';
+  const [language, region] = normalized.split('-');
+  return region ? `${language}-${region.toUpperCase()}` : language;
+};
+
+export const toRssLanguageCode = (locale: string): string => {
+  const normalized = normalizeLocaleCode(locale, DEFAULT_LOCALE);
+  if (normalized === 'en') return 'en-us';
+  if (normalized === 'nb') return 'nb-no';
+  if (normalized.includes('-')) return normalized.toLowerCase();
+  return `${normalized.toLowerCase()}-${normalized.toLowerCase()}`;
 };

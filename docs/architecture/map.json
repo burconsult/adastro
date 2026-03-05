@@ -54,6 +54,11 @@
       "src/lib/services/settings-service.ts"
     ],
     "siteConfig": "src/lib/site-config.ts",
+    "coreMigrations": [
+      "infra/supabase/migrations/000_core.sql",
+      "infra/supabase/migrations/001_content_locales.sql",
+      "infra/supabase/migrations/002_locale_nb_bootstrap.sql"
+    ],
     "setupRuntime": "src/lib/setup/runtime.ts",
     "dataAccess": "src/lib/database/repositories",
     "services": "src/lib/services",

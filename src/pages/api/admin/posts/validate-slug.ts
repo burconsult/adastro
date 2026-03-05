@@ -1,13 +1,19 @@
 import type { APIRoute } from 'astro';
 import { PostRepository } from '@/lib/database/repositories/post-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
+import { getSiteLocaleConfig } from '@/lib/site-config';
+import { normalizeLocaleCode } from '@/lib/i18n/locales';
 
 export const GET: APIRoute = async ({ request }) => {
   try {
     await requireAuthor(request);
     const url = new URL(request.url);
     const slug = url.searchParams.get('slug');
-    const locale = url.searchParams.get('locale') || 'en';
+    const localeConfig = await getSiteLocaleConfig();
+    const locale = normalizeLocaleCode(
+      url.searchParams.get('locale'),
+      localeConfig.defaultLocale
+    );
     const excludeId = url.searchParams.get('excludeId');
 
     if (!slug) {

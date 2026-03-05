@@ -7,6 +7,7 @@ import { getPublishedPosts, calculatePagination, getPublishedPageBySlug } from "
 import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlesPagePath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -14,6 +15,7 @@ const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
 if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
   return new Response(null, { status: 404 });
 }
+const localeMessages = getLocaleMessages(locale);
 
 const contentPreferences = await getSiteContentPreferences();
 const postsPerPage = contentPreferences.postsPerPage;
@@ -36,8 +38,8 @@ for (const slug of pageSlugCandidates) {
   if (blogPage) break;
 }
 
-const pageTitle = blogPage?.seoMetadata?.metaTitle ?? 'Articles';
-const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published articles.';
+const pageTitle = blogPage?.seoMetadata?.metaTitle ?? t(localeMessages, 'core.blog.title', 'Articles');
+const pageDescription = blogPage?.seoMetadata?.metaDescription ?? t(localeMessages, 'core.blog.description', 'Published articles.');
 ---
 <BaseLayout title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl}>
   {blogPage ? (
@@ -45,7 +47,7 @@ const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published art
   ) : (
     <section class="mx-auto max-w-6xl px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
       <header class="mx-auto max-w-3xl text-center">
-        <h1 id="blog-title" class="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">Articles</h1>
+        <h1 id="blog-title" class="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">{t(localeMessages, 'core.blog.title', 'Articles')}</h1>
       </header>
     </section>
   )}
@@ -78,7 +80,7 @@ const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published art
         </div>
         {pagination.hasNextPage && pagination.nextPage && (
           <a href={toArticlesPagePath(pagination.nextPage)} data-astro-prefetch="hover" class="btn btn-outline">
-            Next →
+            {t(localeMessages, 'core.blog.pagination.next', 'Next')} →
           </a>
         )}
       </div>
@@ -87,9 +89,9 @@ const pageDescription = blogPage?.seoMetadata?.metaDescription ?? 'Published art
     <CtaSection
       embedded={true}
       content={{
-        heading: 'Need help with your build?',
-        body: 'If you are migrating content or tuning for PageSpeed, the contact page is the fastest way to reach support.',
-        ctaLabel: 'Contact',
+        heading: t(localeMessages, 'core.blog.cta.heading', 'Need help with your build?'),
+        body: t(localeMessages, 'core.blog.cta.body', 'If you are migrating content or tuning for PageSpeed, the contact page is the fastest way to reach support.'),
+        ctaLabel: t(localeMessages, 'core.blog.cta.label', 'Contact'),
         ctaHref: '/contact'
       }}
       articleBasePath={contentRouting.articleBasePath}

@@ -5,6 +5,7 @@ import { getPublishedPosts } from "@/lib/database";
 import { getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlePostPath } from "@/lib/routing/articles";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -12,6 +13,7 @@ const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
 if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
   return new Response(null, { status: 404 });
 }
+const localeMessages = getLocaleMessages(locale);
 
 const rawQuery = Astro.url.searchParams.get('q') || '';
 const query = rawQuery.trim();
@@ -31,10 +33,12 @@ const canonicalPath = query.length > 0
   ? `/${locale}/search?q=${encodeURIComponent(query)}`
   : `/${locale}/search`;
 const canonicalUrl = new URL(canonicalPath, Astro.url.origin).toString();
-const pageTitle = query ? `Search: ${query}` : 'Search';
+const pageTitle = query
+  ? `${t(localeMessages, 'core.search.pageTitlePrefix', 'Search')}: ${query}`
+  : t(localeMessages, 'core.search.title', 'Search');
 const pageDescription = query
-  ? `Search results for "${query}" on ${allPosts.length.toLocaleString()} published articles.`
-  : 'Search published articles.';
+  ? `${t(localeMessages, 'core.search.pageDescriptionPrefix', 'Search results for')} "${query}" (${allPosts.length.toLocaleString()} ${t(localeMessages, 'core.search.results', 'results')}).`
+  : t(localeMessages, 'core.search.pageDescriptionNoQuery', 'Search published articles.');
 
 const searchStructuredData = query
   ? {
@@ -70,26 +74,30 @@ const searchStructuredData = query
 
   <section class="mx-auto max-w-6xl px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
     <header class="mb-8 space-y-3">
-      <h1 class="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Search</h1>
+      <h1 class="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{t(localeMessages, 'core.search.title', 'Search')}</h1>
       {query ? (
         <p class="text-sm text-muted-foreground">
-          {results.length.toLocaleString()} result{results.length === 1 ? '' : 's'} for
+          {results.length.toLocaleString()} {results.length === 1
+            ? t(localeMessages, 'core.search.result', 'result')
+            : t(localeMessages, 'core.search.results', 'results')} for
           <span class="font-medium text-foreground"> "{query}"</span>
         </p>
       ) : (
         <p class="text-sm text-muted-foreground">
-          Add a query parameter like <code class="rounded-md bg-muted px-2 py-1 text-xs">?q=editor</code> to search posts.
+          {t(localeMessages, 'core.search.addQueryHint', 'Add a query parameter like')} <code class="rounded-md bg-muted px-2 py-1 text-xs">?q=editor</code>
+          {' '}
+          {t(localeMessages, 'core.search.searchPostsSuffix', 'to search posts.')}
         </p>
       )}
     </header>
 
     {query.length < 2 ? (
       <div class="card p-6 text-sm text-muted-foreground">
-        Enter at least 2 characters to run a search.
+        {t(localeMessages, 'core.search.minChars', 'Enter at least 2 characters to run a search.')}
       </div>
     ) : results.length === 0 ? (
       <div class="card p-6 text-sm text-muted-foreground">
-        No published posts matched your search.
+        {t(localeMessages, 'core.search.noResults', 'No published posts matched your search.')}
       </div>
     ) : (
       <BlogPostGrid

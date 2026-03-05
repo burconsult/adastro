@@ -134,6 +134,41 @@ const columnExists = async (tableName, columnName) => {
   throw new Error(`Failed to check column "${table}.${column}": ${error.message}`)
 }
 
+const norwegianBokmalLocaleBootstrapReflected = async () => {
+  const { error } = await supabase.rpc('exec_sql', {
+    sql: `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM public.site_settings
+          WHERE key = 'content.defaultLocale'
+            AND value = to_jsonb('nb'::text)
+        ) THEN
+          RAISE EXCEPTION 'locale_bootstrap_not_reflected';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM public.posts WHERE locale = 'en')
+           OR EXISTS (SELECT 1 FROM public.pages WHERE locale = 'en') THEN
+          IF NOT EXISTS (SELECT 1 FROM public.posts WHERE locale = 'nb')
+             AND NOT EXISTS (SELECT 1 FROM public.pages WHERE locale = 'nb') THEN
+            RAISE EXCEPTION 'locale_bootstrap_not_reflected';
+          END IF;
+        END IF;
+      END
+      $$;
+    `
+  })
+
+  if (!error) return true
+  const message = String(error.message || '').toLowerCase()
+  if (message.includes('locale_bootstrap_not_reflected')) return false
+  if (message.includes('relation') && message.includes('does not exist')) return false
+  if (message.includes('column') && message.includes('does not exist')) return false
+
+  throw new Error(`Failed to validate norwegian bokmal locale bootstrap reflection: ${error.message}`)
+}
+
 async function ensureMigrationsTable() {
   const createSql = `
     CREATE TABLE IF NOT EXISTS public.${MIGRATIONS_TABLE} (
@@ -181,6 +216,8 @@ async function migrationAlreadyReflected(version) {
       return (await tableExists('site_settings')) && (await columnExists('media_assets', 'original_filename'))
     case '001_content_locales.sql':
       return (await columnExists('posts', 'locale')) && (await columnExists('pages', 'locale'))
+    case '002_locale_nb_bootstrap.sql':
+      return await norwegianBokmalLocaleBootstrapReflected()
     default:
       return false
   }

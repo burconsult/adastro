@@ -272,6 +272,16 @@ Exit criteria:
     - `npm run ci:check-release-hygiene` -> PASS
     - `npm run verify:quick` -> PASS
 
+- Norwegian locale rollout (`nb`) for existing content stacks:
+  - Added Norwegian locale catalog (`src/lib/i18n/messages/nb.json`) with standards-compliant metadata output (`og:locale=nb_NO`, RSS language `nb-no`).
+  - Localized public route UI strings and shared public card/grid/navigation components for locale-aware rendering on `/nb/*`.
+  - Added public header locale switcher in the top-right nav controls so users can switch between active locales without leaving the current page path.
+  - Added locale bootstrap migration (`infra/supabase/migrations/002_locale_nb_bootstrap.sql`) to:
+    - set `content.defaultLocale=nb` + `content.locales=[\"nb\",\"en\"]` for existing English content stacks,
+    - clone pages/posts from `en` to `nb` when missing,
+    - preserve post category/tag relations,
+    - translate deterministic seeded content + page sections.
+
 ### 2026-02-19
 
 - Demo-content + settings coverage polish:

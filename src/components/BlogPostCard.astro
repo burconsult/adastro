@@ -3,7 +3,8 @@ import ResponsiveImage from './ResponsiveImage.astro';
 import type { BlogPost } from '@/lib/types/index.js';
 import { getSiteContentPreferences, getSiteContentRouting } from '@/lib/site-config';
 import { buildArticlePostPath } from '@/lib/routing/articles';
-import { buildLocalizedPath } from '@/lib/i18n/locales';
+import { buildLocalizedPath, normalizeLocaleCode, toIntlLocale } from '@/lib/i18n/locales';
+import { getLocaleMessages, t } from '@/lib/i18n/runtime';
 
 export interface Props {
   post: BlogPost;
@@ -22,10 +23,13 @@ const {
 } = Astro.props;
 const contentRouting = await getSiteContentRouting();
 const contentPreferences = await getSiteContentPreferences();
+const cardLocale = normalizeLocaleCode(post.locale ?? Astro.locals.locale, 'en');
+const localeMessages = getLocaleMessages(cardLocale);
+const intlLocale = toIntlLocale(cardLocale);
 const postHref = buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, {
   basePath: contentRouting.articleBasePath,
   permalinkStyle: contentRouting.articlePermalinkStyle,
-  localePrefix: post.locale
+  localePrefix: cardLocale
 });
 const excerptLimit = contentPreferences.excerptLength;
 const excerptText = typeof post.excerpt === 'string' ? post.excerpt.trim() : '';
@@ -73,9 +77,9 @@ const cardClasses = {
         <!-- Mobile-optimized overlay content -->
         <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
           <div class="flex flex-wrap items-center gap-2 text-xs text-white/80 mb-2">
-            <span>By {post.author.name}</span>
+            <span>{t(localeMessages, 'core.blog.by', 'By')} {post.author.name}</span>
             <span>•</span>
-            <span>{(post.publishedAt || post.createdAt).toLocaleDateString()}</span>
+            <span>{(post.publishedAt || post.createdAt).toLocaleDateString(intlLocale)}</span>
           </div>
           <h2 class={`font-semibold leading-tight break-words ${titleClampClass} ${variant === 'featured' ? 'text-2xl md:text-3xl' : variant === 'compact' ? 'text-lg' : 'text-xl'}`}>
             <a href={postHref} data-astro-prefetch="hover" class="hover:underline focus:underline focus:outline-none">
@@ -95,7 +99,7 @@ const cardClasses = {
         {showCategories && post.categories && post.categories.length > 0 && (
           <div class="flex flex-wrap gap-2">
             {post.categories.map((category) => (
-              <a href={buildLocalizedPath(`/category/${category.slug}/`, post.locale)} data-astro-prefetch="hover" class="badge badge-secondary hover:bg-secondary/80 transition-colors">
+              <a href={buildLocalizedPath(`/category/${category.slug}/`, cardLocale)} data-astro-prefetch="hover" class="badge badge-secondary hover:bg-secondary/80 transition-colors">
                 {category.name}
               </a>
             ))}
@@ -106,7 +110,7 @@ const cardClasses = {
         {showTags && post.tags && post.tags.length > 0 && (
           <div class="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <a href={buildLocalizedPath(`/tag/${tag.slug}/`, post.locale)} data-astro-prefetch="hover" class="badge hover:bg-accent hover:text-accent-foreground transition-colors">
+              <a href={buildLocalizedPath(`/tag/${tag.slug}/`, cardLocale)} data-astro-prefetch="hover" class="badge hover:bg-accent hover:text-accent-foreground transition-colors">
                 #{tag.name}
               </a>
             ))}
@@ -116,8 +120,8 @@ const cardClasses = {
         <!-- Read More Button -->
         <div class="blog-post-card-read-more-wrap mt-auto pt-2">
           <a href={postHref} data-astro-prefetch="hover" class="blog-post-card-read-more inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto w-full">
-            Read more
-            <span class="sr-only">about {post.title}</span>
+            {t(localeMessages, 'core.blog.readMore', 'Read more')}
+            <span class="sr-only">{t(localeMessages, 'core.blog.aboutSuffix', 'about')} {post.title}</span>
           </a>
         </div>
       </div>

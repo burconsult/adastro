@@ -3,6 +3,7 @@ import { RSSGenerator } from '../lib/seo/rss-generator.js';
 import { PostRepository } from '../lib/database/repositories/post-repository.js';
 import { AuthorRepository } from '../lib/database/repositories/author-repository.js';
 import { getSiteContentRouting, getSiteIdentity, getSiteLocaleConfig } from '../lib/site-config.js';
+import { toRssLanguageCode } from '../lib/i18n/locales.js';
 import { resolveSiteUrl } from '../lib/url/site-url.js';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -34,11 +35,7 @@ export const GET: APIRoute = async ({ request }) => {
     const siteUrl = resolveSiteUrl(request, import.meta.env.SITE);
     const siteName = identity.title || 'Adastro';
     const siteDescription = identity.description || 'A practical, speed-first CMS built with Astro and Supabase.';
-    const feedLanguage = defaultLocale.includes('-')
-      ? defaultLocale.toLowerCase()
-      : defaultLocale === 'en'
-        ? 'en-us'
-        : `${defaultLocale.toLowerCase()}-${defaultLocale.toLowerCase()}`;
+    const feedLanguage = toRssLanguageCode(defaultLocale);
     
     const rssGenerator = new RSSGenerator({
       siteUrl,

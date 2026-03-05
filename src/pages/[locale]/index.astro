@@ -5,6 +5,7 @@ import { getPublishedPageBySlug } from "@/lib/astro-helpers";
 import { getSiteContentRouting, getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlesIndexPath } from "@/lib/routing/articles";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 const localeConfig = await getSiteLocaleConfig();
 const rawLocale = Astro.params.locale || '';
@@ -12,6 +13,7 @@ const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
 if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
   return new Response(null, { status: 404 });
 }
+const localeMessages = getLocaleMessages(locale);
 
 const siteIdentity = await getSiteIdentity();
 const contentRouting = await getSiteContentRouting();
@@ -32,13 +34,13 @@ const pageDescription = homePage?.seoMetadata?.metaDescription ?? homePage?.exce
     <section class="mx-auto max-w-5xl px-6 py-20">
       <div class="card space-y-4 p-8">
         <p class="text-xs uppercase tracking-[0.18em] text-primary">AdAstro</p>
-        <h1 class="text-4xl font-semibold tracking-tight">Fast publishing with practical defaults</h1>
+        <h1 class="text-4xl font-semibold tracking-tight">{t(localeMessages, 'core.page.fallback.heading', 'Fast publishing with practical defaults')}</h1>
         <p class="text-base text-muted-foreground">
-          The homepage system page is missing right now. Create or restore it from the page editor.
+          {t(localeMessages, 'core.page.fallback.description', 'The homepage system page is missing right now. Create or restore it from the page editor.')}
         </p>
         <div class="flex flex-wrap gap-3">
-          <a class="btn btn-primary" href="/admin/pages">Open page editor</a>
-          <a class="btn btn-outline" href={articlesIndexPath}>View articles</a>
+          <a class="btn btn-primary" href="/admin/pages">{t(localeMessages, 'core.page.fallback.openEditor', 'Open page editor')}</a>
+          <a class="btn btn-outline" href={articlesIndexPath}>{t(localeMessages, 'core.page.fallback.viewArticles', 'View articles')}</a>
         </div>
       </div>
     </section>

@@ -14,5 +14,19 @@ export const AI_I18N: FeatureI18nMessages = {
     'settings.features.ai.models.description': 'Pin the exact model for each provider.',
     'settings.features.ai.registry.title': 'Model Registry',
     'settings.features.ai.registry.description': 'Live list pulled from the registry endpoint.'
+  },
+  nb: {
+    'settings.features.ai.title': 'AI-suite',
+    'settings.features.ai.description': 'Aktiver eller pause alle AI-funksjoner i appen.',
+    'settings.features.ai.capabilities.title': 'Muligheter',
+    'settings.features.ai.capabilities.description': 'Skru på AI-flater du vil gjøre tilgjengelige.',
+    'settings.features.ai.providers.title': 'Leverandører',
+    'settings.features.ai.providers.description': 'Velg standarder for tekst-, bilde- og lydgenerering.',
+    'settings.features.ai.images.title': 'Bildegenerering',
+    'settings.features.ai.images.description': 'Velg utdata-dimensjoner for hver leverandørfamilie.',
+    'settings.features.ai.models.title': 'Modeller',
+    'settings.features.ai.models.description': 'Fest eksakt modell for hver leverandør.',
+    'settings.features.ai.registry.title': 'Modellregister',
+    'settings.features.ai.registry.description': 'Direkte liste hentet fra register-endepunktet.'
   }
 };

@@ -1,4 +1,4 @@
-# Database SQL Layout (v1.0.0)
+# Database SQL Layout (v1.1.x)
 
 This document defines the canonical SQL files shipped with AdAstro and what each one is for.
 
@@ -8,11 +8,14 @@ This document defines the canonical SQL files shipped with AdAstro and what each
 
 Path:
 - `infra/supabase/migrations/000_core.sql`
+- `infra/supabase/migrations/001_content_locales.sql`
+- `infra/supabase/migrations/002_locale_nb_bootstrap.sql`
 
 What it contains:
 - Core CMS tables (`authors`, `posts`, `pages`, `media_assets`, settings, taxonomy, etc.)
 - Core helper functions/triggers used by the app
 - Core RLS policies
+- Core upgrade migrations for locale-aware content records and locale bootstrap flows
 
 What it does **not** contain:
 - Comments tables
@@ -20,6 +23,10 @@ What it does **not** contain:
 - AI usage tables
 
 This is the baseline SQL the setup flow requires before wizard automation can proceed.
+
+Migration notes:
+- `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
+- `002_locale_nb_bootstrap.sql` is idempotent and intended for existing `en` content stacks that want Norwegian (`nb`) as active primary locale; it clones/bootstraps localized records where missing.
 
 ### 2) Demo Data (optional)
 

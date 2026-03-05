@@ -8,14 +8,28 @@ type NavLink = {
   href: string;
 };
 
+type LocaleOption = {
+  code: string;
+  label: string;
+  href: string;
+};
+
 type Props = {
   siteTitle?: string;
   siteLogoUrl?: string;
   homeHref?: string;
+  homeLabel?: string;
+  openMenuLabel?: string;
+  closeMenuLabel?: string;
+  toggleThemeLabel?: string;
+  signInLabel?: string;
   navLinks?: NavLink[];
   authLink?: NavLink;
   adminLink?: NavLink | null;
   authState?: 'authenticated' | 'guest';
+  localeOptions?: LocaleOption[];
+  currentLocale?: string;
+  localeSwitcherLabel?: string;
   primaryCta?: {
     label: string;
     href: string;
@@ -26,10 +40,18 @@ export default function MobileNavigation({
   siteTitle = 'AdAstro',
   siteLogoUrl = '/logo.svg',
   homeHref = '/',
+  homeLabel = 'Home',
+  openMenuLabel = 'Open menu',
+  closeMenuLabel = 'Close mobile menu',
+  toggleThemeLabel = 'Toggle theme',
+  signInLabel = 'Sign in',
   navLinks = [],
   authLink,
   adminLink = null,
   authState = 'guest',
+  localeOptions = [],
+  currentLocale = 'en',
+  localeSwitcherLabel = 'Language',
   primaryCta = null
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -38,22 +60,24 @@ export default function MobileNavigation({
   const secondaryLinks = useMemo(() => navLinks.filter((link) => Boolean(link)), [navLinks]);
   const links = secondaryLinks.length > 0
     ? secondaryLinks
-    : [{ label: 'Home', href: homeHref }];
+    : [{ label: homeLabel, href: homeHref }];
   const menuLinks = [...links, ...(adminLink ? [adminLink] : []), ...(authLink ? [authLink] : [])];
   const isAuthenticated = authState === 'authenticated';
   const isAdmin = Boolean(adminLink);
+  const hasLocaleSwitcher = localeOptions.length > 1;
+  const activeLocale = currentLocale.trim().toLowerCase();
 
   return (
     <nav className="flex items-center gap-3">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden"
-            aria-label="Toggle mobile menu"
-            aria-expanded={open}
-          >
-            <span className="sr-only">Open menu</span>
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden"
+              aria-label={openMenuLabel}
+              aria-expanded={open}
+            >
+            <span className="sr-only">{openMenuLabel}</span>
             <div className="flex flex-col gap-1">
               <span className={`h-0.5 w-5 bg-current transition ${open ? 'translate-y-1.5 rotate-45' : ''}`}></span>
               <span className={`h-0.5 w-5 bg-current transition ${open ? 'opacity-0' : ''}`}></span>
@@ -74,7 +98,7 @@ export default function MobileNavigation({
               <button
                 type="button"
                 className="h-10 w-10 rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
-                aria-label="Close mobile menu"
+                aria-label={closeMenuLabel}
               >
                 <X className="mx-auto h-5 w-5" aria-hidden="true" />
               </button>
@@ -107,13 +131,39 @@ export default function MobileNavigation({
                 </a>
               </DialogClose>
             )}
-            <ModeToggle variant="list" label="Toggle theme" />
+            <ModeToggle variant="list" label={toggleThemeLabel} />
           </div>
         </DialogContent>
       </Dialog>
 
-      {authLink && (
+      {(hasLocaleSwitcher || isAdmin || authLink) && (
         <div className="flex items-center gap-2 sm:hidden">
+          {hasLocaleSwitcher && (
+            <div
+              className="inline-flex items-center rounded-md border border-border bg-background p-0.5"
+              aria-label={localeSwitcherLabel}
+              role="group"
+            >
+              {localeOptions.map((option) => {
+                const isCurrent = option.code.trim().toLowerCase() === activeLocale;
+                return (
+                  <a
+                    key={option.code}
+                    href={option.href}
+                    {...prefetchProps(option.href)}
+                    className={`inline-flex min-w-8 items-center justify-center rounded-sm px-2 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                      isCurrent ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                    aria-label={option.label}
+                    title={option.label}
+                    aria-current={isCurrent ? 'true' : undefined}
+                  >
+                    {option.code}
+                  </a>
+                );
+              })}
+            </div>
+          )}
           {isAdmin && adminLink && (
             <a
               href={adminLink.href}
@@ -124,20 +174,22 @@ export default function MobileNavigation({
               <Settings className="h-5 w-5" aria-hidden="true" />
             </a>
           )}
-          <a
-            href={authLink.href}
-            {...prefetchProps(authLink.href)}
-            aria-label={authLink.label}
-            className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent ${
-              isAuthenticated ? 'w-10 rounded-md' : 'rounded-md px-3 text-xs font-semibold'
-            }`}
-          >
-            {isAuthenticated ? (
-              <UserRound className="h-5 w-5" aria-hidden="true" />
-            ) : (
-              <span>Sign in</span>
-            )}
-          </a>
+          {authLink && (
+            <a
+              href={authLink.href}
+              {...prefetchProps(authLink.href)}
+              aria-label={authLink.label}
+              className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent ${
+                isAuthenticated ? 'w-10 rounded-md' : 'rounded-md px-3 text-xs font-semibold'
+              }`}
+            >
+              {isAuthenticated ? (
+                <UserRound className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <span>{signInLabel}</span>
+              )}
+            </a>
+          )}
         </div>
       )}
 
@@ -160,6 +212,32 @@ export default function MobileNavigation({
           >
             {primaryCta.label}
           </a>
+        )}
+        {hasLocaleSwitcher && (
+          <div
+            className="inline-flex items-center rounded-md border border-border bg-background p-0.5"
+            aria-label={localeSwitcherLabel}
+            role="group"
+          >
+            {localeOptions.map((option) => {
+              const isCurrent = option.code.trim().toLowerCase() === activeLocale;
+              return (
+                <a
+                  key={option.code}
+                  href={option.href}
+                  {...prefetchProps(option.href)}
+                  className={`inline-flex min-w-8 items-center justify-center rounded-sm px-2 py-1 text-xs font-semibold uppercase tracking-wide transition-colors ${
+                    isCurrent ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  }`}
+                  aria-label={option.label}
+                  title={option.label}
+                  aria-current={isCurrent ? 'true' : undefined}
+                >
+                  {option.code}
+                </a>
+              );
+            })}
+          </div>
         )}
         <ModeToggle />
         {isAdmin && adminLink && (

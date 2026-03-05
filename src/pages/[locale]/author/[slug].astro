@@ -6,6 +6,7 @@ import { AuthorRepository } from "@/lib/database/repositories/author-repository.
 import { PostRepository } from "@/lib/database/repositories/post-repository.js";
 import { getSiteContentPreferences, getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -13,6 +14,7 @@ const locale = normalizeLocaleCode(rawLocale, localeConfig.defaultLocale);
 if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
   return new Response(null, { status: 404 });
 }
+const localeMessages = getLocaleMessages(locale);
 
 const { slug } = Astro.params;
 const authorRepo = new AuthorRepository();
@@ -43,7 +45,7 @@ posts.sort((a, b) => {
 });
 
 const siteIdentity = await getSiteIdentity();
-const description = author.bio || `Posts written by ${author.name}.`;
+const description = author.bio || `${t(localeMessages, 'core.author.descriptionPrefix', 'Posts written by')} ${author.name}.`;
 ---
 <BaseLayout title={`${author.name} — ${siteIdentity.title}`} description={description}>
   <section class="relative overflow-hidden">
@@ -69,7 +71,7 @@ const description = author.bio || `Posts written by ${author.name}.`;
           </div>
         )}
         <div>
-          <p class="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Author</p>
+          <p class="text-sm font-semibold uppercase tracking-[0.25em] text-primary">{t(localeMessages, 'core.author.label', 'Author')}</p>
           <h1 class="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {author.name}
           </h1>
