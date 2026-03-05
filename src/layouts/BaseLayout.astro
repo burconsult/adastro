@@ -101,12 +101,18 @@ const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
   links.findIndex((candidate) => candidate.href.toLowerCase() === link.href.toLowerCase()) === index
 ));
 const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
+const navLinks = siteNavigation.topLinks;
 const websiteStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: siteIdentity.title,
   url: siteBaseUrl,
-  description: siteIdentity.description
+  description: siteIdentity.description,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${siteBaseUrl}search?q={search_term_string}`,
+    'query-input': 'required name=search_term_string'
+  }
 });
 const organizationStructuredData = sameAsProfiles.length > 0
   ? JSON.stringify({
@@ -117,8 +123,19 @@ const organizationStructuredData = sameAsProfiles.length > 0
       sameAs: sameAsProfiles
     })
   : null;
+const navigationStructuredData = navLinks.length > 0
+  ? JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      itemListElement: navLinks.map((link, index) => ({
+        '@type': 'SiteNavigationElement',
+        position: index + 1,
+        name: link.label,
+        url: new URL(link.href, siteBaseUrl).toString()
+      }))
+    })
+  : null;
 
-const navLinks = siteNavigation.topLinks;
 const footerLinks = siteNavigation.bottomLinks;
 const footerItems = siteNavigation.footerLinks;
 const usedFooterHrefs = new Set(
@@ -195,6 +212,9 @@ const needsGoogleFonts = fontImports.some((href) => href.includes('fonts.googlea
     <script type="application/ld+json" set:html={websiteStructuredData}></script>
     {organizationStructuredData && (
       <script type="application/ld+json" set:html={organizationStructuredData}></script>
+    )}
+    {navigationStructuredData && (
+      <script type="application/ld+json" set:html={navigationStructuredData}></script>
     )}
     <ThemeInitScript />
     <AuthHashRecoveryScript />

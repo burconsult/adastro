@@ -117,7 +117,7 @@ export default function MobileNavigation({
               href={adminLink.href}
               {...prefetchProps(adminLink.href)}
               aria-label={adminLink.label}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
             >
               <Settings className="h-5 w-5" aria-hidden="true" />
             </a>
@@ -127,7 +127,7 @@ export default function MobileNavigation({
             {...prefetchProps(authLink.href)}
             aria-label={authLink.label}
             className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent ${
-              isAuthenticated ? 'w-10 rounded-full' : 'rounded-md px-3 text-xs font-semibold'
+              isAuthenticated ? 'w-10 rounded-md' : 'rounded-md px-3 text-xs font-semibold'
             }`}
           >
             {isAuthenticated ? (
@@ -165,7 +165,7 @@ export default function MobileNavigation({
             href={adminLink.href}
             {...prefetchProps(adminLink.href)}
             aria-label={adminLink.label}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
           >
             <Settings className="h-5 w-5" aria-hidden="true" />
           </a>
@@ -176,7 +176,7 @@ export default function MobileNavigation({
               href={authLink.href}
               {...prefetchProps(authLink.href)}
               aria-label={authLink.label}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
             >
               <UserRound className="h-5 w-5" aria-hidden="true" />
             </a>

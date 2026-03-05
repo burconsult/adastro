@@ -48,9 +48,9 @@ const cardClasses = {
 };
 ---
 
-<article class={`group relative block h-full overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none motion-reduce:hover:transform-none ${variant === 'featured' ? 'md:col-span-2' : ''} ${variant === 'compact' ? 'sm:flex' : ''}`}>
+<article class={`group blog-post-card-shell relative block h-full overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none motion-reduce:hover:transform-none ${variant === 'featured' ? 'md:col-span-2' : ''} ${variant === 'compact' ? 'sm:flex' : ''}`}>
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-  <div class="relative h-full overflow-hidden rounded-2xl bg-card">
+  <div class="blog-post-card-inner relative h-full overflow-hidden rounded-2xl bg-card">
     <div class={`flex h-full ${variant === 'compact' ? 'sm:flex-row' : 'flex-col'}`}>
       <!-- Featured Image -->
         <div class={`relative overflow-hidden ${variant === 'compact' ? 'sm:w-1/3 sm:aspect-square' : variant === 'featured' ? 'aspect-[21/9]' : 'aspect-video'}`}>
@@ -84,7 +84,7 @@ const cardClasses = {
       </div>
 
       <!-- Post Content -->
-      <div class={`flex h-full flex-1 flex-col gap-3 p-4 sm:p-5 lg:p-6 ${variant === 'compact' ? 'sm:w-2/3' : ''}`}>
+      <div class={`blog-post-card-content flex h-full flex-1 flex-col gap-3 p-4 sm:p-5 lg:p-6 ${variant === 'compact' ? 'sm:w-2/3' : ''}`}>
         {showExcerpt && excerpt && (
           <p class={`line-clamp-3 text-muted-foreground leading-relaxed ${variant === 'featured' ? 'text-base' : 'text-sm'}`}>{excerpt}</p>
         )}
@@ -112,8 +112,8 @@ const cardClasses = {
         )}
 
         <!-- Read More Button -->
-        <div class="mt-auto pt-2">
-          <a href={postHref} data-astro-prefetch="hover" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto w-full">
+        <div class="blog-post-card-read-more-wrap mt-auto pt-2">
+          <a href={postHref} data-astro-prefetch="hover" class="blog-post-card-read-more inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto w-full">
             Read more
             <span class="sr-only">about {post.title}</span>
           </a>

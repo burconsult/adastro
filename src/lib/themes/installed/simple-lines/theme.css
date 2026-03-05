@@ -24,7 +24,7 @@
   --border: 0 0% 9%;
   --input: 0 0% 9%;
   --ring: 40 62% 53%;
-  --radius: 0.2rem;
+  --radius: 0rem;
   --surface-border-width: 1px;
   --elevation-sm: 0 1px 2px hsl(var(--foreground) / 0.06);
   --elevation-md: 0 6px 14px hsl(var(--foreground) / 0.08);
@@ -76,7 +76,7 @@
   --border: 0 0% 84%;
   --input: 0 0% 84%;
   --ring: 40 56% 58%;
-  --radius: 0.2rem;
+  --radius: 0rem;
   --surface-border-width: 1px;
   --elevation-sm: 0 1px 2px hsl(var(--foreground) / 0.08);
   --elevation-md: 0 6px 14px hsl(var(--foreground) / 0.1);
@@ -100,4 +100,66 @@
   --font-heading: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
   --font-sans: var(--font-body);
   --font-serif: var(--font-heading);
+}
+
+:root[data-theme="simple-lines"] :where(
+  .card,
+  .btn,
+  .btn-outline,
+  .btn-ghost,
+  .badge,
+  .surface-card,
+  .surface-cta,
+  .rounded-sm,
+  .rounded,
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-3xl,
+  .rounded-full,
+  input,
+  textarea,
+  select,
+  button
+) {
+  border-radius: 0 !important;
+}
+
+:root[data-theme="simple-lines"] .blog-post-card-read-more-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  margin-right: -1rem;
+  margin-bottom: -1rem;
+  padding-top: 0;
+}
+
+:root[data-theme="simple-lines"] .blog-post-card-read-more {
+  width: auto !important;
+  min-height: 2.5rem;
+  border-radius: 0 !important;
+  border-left: 1px solid hsl(var(--border));
+  border-top: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+
+:root[data-theme="simple-lines"] .blog-post-card-read-more:hover {
+  background: hsl(var(--accent) / 0.18);
+  color: hsl(var(--foreground));
+}
+
+@media (min-width: 640px) {
+  :root[data-theme="simple-lines"] .blog-post-card-read-more-wrap {
+    margin-right: -1.25rem;
+    margin-bottom: -1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root[data-theme="simple-lines"] .blog-post-card-read-more-wrap {
+    margin-right: -1.5rem;
+    margin-bottom: -1.5rem;
+  }
 }

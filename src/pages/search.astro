@@ -1,0 +1,96 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import BlogPostGrid from "@/components/BlogPostGrid.astro";
+import { getPublishedPosts } from "@/lib/database";
+import { getSiteContentRouting } from "@/lib/site-config";
+import { buildArticlePostPath } from "@/lib/routing/articles";
+
+const rawQuery = Astro.url.searchParams.get('q') || '';
+const query = rawQuery.trim();
+const normalizedQuery = query.toLowerCase();
+const contentRouting = await getSiteContentRouting();
+const allPosts = await getPublishedPosts();
+const results = normalizedQuery.length >= 2
+  ? allPosts.filter((post) => {
+      const haystack = `${post.title} ${post.excerpt || ''} ${post.content || ''}`
+        .replace(/<[^>]*>/g, ' ')
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    })
+  : [];
+
+const canonicalPath = query.length > 0
+  ? `/search?q=${encodeURIComponent(query)}`
+  : '/search';
+const canonicalUrl = new URL(canonicalPath, Astro.url.origin).toString();
+const pageTitle = query ? `Search: ${query}` : 'Search';
+const pageDescription = query
+  ? `Search results for "${query}" on ${allPosts.length.toLocaleString()} published articles.`
+  : 'Search published articles.';
+
+const searchStructuredData = query
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'SearchResultsPage',
+      name: pageTitle,
+      url: canonicalUrl,
+      mainEntity: {
+        '@type': 'ItemList',
+        numberOfItems: results.length,
+        itemListElement: results.slice(0, 10).map((post, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: post.title,
+          url: new URL(
+            buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, {
+              basePath: contentRouting.articleBasePath,
+              permalinkStyle: contentRouting.articlePermalinkStyle
+            }),
+            Astro.url.origin
+          ).toString()
+        }))
+      }
+    }
+  : null;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} canonicalUrl={canonicalUrl}>
+  {searchStructuredData && (
+    <script type="application/ld+json" set:html={JSON.stringify(searchStructuredData)}></script>
+  )}
+
+  <section class="mx-auto max-w-6xl px-5 py-12 sm:px-7 sm:py-16 lg:px-8">
+    <header class="mb-8 space-y-3">
+      <h1 class="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Search</h1>
+      {query ? (
+        <p class="text-sm text-muted-foreground">
+          {results.length.toLocaleString()} result{results.length === 1 ? '' : 's'} for
+          <span class="font-medium text-foreground"> "{query}"</span>
+        </p>
+      ) : (
+        <p class="text-sm text-muted-foreground">
+          Add a query parameter like <code class="rounded-md bg-muted px-2 py-1 text-xs">?q=editor</code> to search posts.
+        </p>
+      )}
+    </header>
+
+    {query.length < 2 ? (
+      <div class="card p-6 text-sm text-muted-foreground">
+        Enter at least 2 characters to run a search.
+      </div>
+    ) : results.length === 0 ? (
+      <div class="card p-6 text-sm text-muted-foreground">
+        No published posts matched your search.
+      </div>
+    ) : (
+      <BlogPostGrid
+        posts={results}
+        variant="default"
+        showExcerpts={true}
+        showTags={true}
+        showCategories={true}
+      />
+    )}
+  </section>
+</BaseLayout>
+
