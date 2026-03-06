@@ -3,7 +3,6 @@ import { defineConfig } from 'astro/config';
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@astrojs/react';
-import sitemap from '@astrojs/sitemap';
 import vercel from '@astrojs/vercel';
 import netlify from '@astrojs/netlify';
 
@@ -44,7 +43,6 @@ const normalizeSiteUrl = (value) => {
 };
 
 const resolvedSiteUrl = normalizeSiteUrl(process.env.SITE_URL) || 'https://example.com';
-const NON_PUBLIC_SITEMAP_PREFIXES = ['/admin', '/auth', '/setup', '/profile', '/test'];
 
 // https://astro.build/config
 export default defineConfig({
@@ -67,16 +65,6 @@ export default defineConfig({
   integrations: [
     react({
       include: ['**/react/*', '**/components/**/*.tsx', '**/components/**/*.jsx']
-    }), 
-    sitemap({
-      filter: (page) => {
-        try {
-          const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
-          return !NON_PUBLIC_SITEMAP_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-        } catch {
-          return true;
-        }
-      }
     })
   ],
   image: {

@@ -246,9 +246,10 @@ const prefetchStrategy = (href?: string) =>
   typeof href === 'string' && href.startsWith('/') ? 'hover' : undefined;
 const themeClass = siteTheme.mode === 'dark' ? 'min-h-full dark' : 'min-h-full';
 const currentUser = await authService.getUserFromRequest(Astro.request);
-const authRedirectPath = Astro.url.pathname.startsWith('/auth')
+const authRedirectBasePath = localizedPathname || requestPathname || Astro.url.pathname;
+const authRedirectPath = authRedirectBasePath.startsWith('/auth')
   ? '/'
-  : `${Astro.url.pathname}${Astro.url.search || ''}`;
+  : `${authRedirectBasePath}${Astro.url.search || ''}`;
 const authLink = currentUser
   ? { label: t(localeMessages, 'core.auth.profile', 'Profile'), href: '/profile' }
   : { label: t(localeMessages, 'core.auth.signIn', 'Sign in'), href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
