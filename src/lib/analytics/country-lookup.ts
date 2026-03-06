@@ -1,12 +1,19 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Reader, type CountryResponse, validate as validateIp } from 'maxmind';
+import { Reader, validate as validateIp } from 'maxmind';
 
 const COUNTRY_DB_RELATIVE_PATH = path.join('public', 'data', 'geo', 'ip-to-country.mmdb');
 const COUNTRY_DB_PUBLIC_PATH = '/data/geo/ip-to-country.mmdb';
 
-let readerPromise: Promise<Reader<CountryResponse> | null> | null = null;
+let readerPromise: Promise<Reader<CountryRecord> | null> | null = null;
 let loadWarningShown = false;
+
+type CountryRecord = {
+  country?: { iso_code?: string | null } | null;
+  registered_country?: { iso_code?: string | null } | null;
+  country_code?: string | null;
+  countryCode?: string | null;
+};
 
 const showLoadWarning = (message: string, error?: unknown) => {
   if (loadWarningShown) return;
@@ -18,18 +25,18 @@ const showLoadWarning = (message: string, error?: unknown) => {
   console.warn(message);
 };
 
-const loadFromDisk = async (): Promise<Reader<CountryResponse> | null> => {
+const loadFromDisk = async (): Promise<Reader<CountryRecord> | null> => {
   try {
     const dbPath = path.resolve(process.cwd(), COUNTRY_DB_RELATIVE_PATH);
     const buffer = await fs.readFile(dbPath);
-    return new Reader<CountryResponse>(buffer);
+    return new Reader<CountryRecord>(buffer);
   } catch (error) {
     showLoadWarning('Analytics country lookup database not found on disk. Country analytics will be limited.', error);
     return null;
   }
 };
 
-const loadFromHttp = async (origin: string): Promise<Reader<CountryResponse> | null> => {
+const loadFromHttp = async (origin: string): Promise<Reader<CountryRecord> | null> => {
   try {
     const url = new URL(COUNTRY_DB_PUBLIC_PATH, origin).toString();
     const response = await fetch(url, { method: 'GET', redirect: 'follow' });
@@ -37,7 +44,7 @@ const loadFromHttp = async (origin: string): Promise<Reader<CountryResponse> | n
       throw new Error(`HTTP ${response.status}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    return new Reader<CountryResponse>(Buffer.from(arrayBuffer));
+    return new Reader<CountryRecord>(Buffer.from(arrayBuffer));
   } catch (error) {
     showLoadWarning('Analytics country lookup database could not be fetched from static assets. Country analytics will be limited.', error);
     return null;
@@ -81,7 +88,17 @@ const normalizeCountryCode = (value: unknown): string | null => {
   return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
 };
 
-const getReader = async (requestUrl: string): Promise<Reader<CountryResponse> | null> => {
+const getCountryCodeFromRecord = (record: CountryRecord | null | undefined): string | null => {
+  if (!record) return null;
+  return (
+    normalizeCountryCode(record.country_code)
+    ?? normalizeCountryCode(record.countryCode)
+    ?? normalizeCountryCode(record.country?.iso_code)
+    ?? normalizeCountryCode(record.registered_country?.iso_code)
+  );
+};
+
+const getReader = async (requestUrl: string): Promise<Reader<CountryRecord> | null> => {
   if (!readerPromise) {
     readerPromise = (async () => {
       const diskReader = await loadFromDisk();
@@ -98,7 +115,12 @@ const getReader = async (requestUrl: string): Promise<Reader<CountryResponse> | 
       return loadFromHttp(origin);
     })();
   }
-  return readerPromise;
+  const reader = await readerPromise;
+  if (!reader) {
+    // Allow retries on subsequent requests if initial load failed.
+    readerPromise = null;
+  }
+  return reader;
 };
 
 export const lookupCountryCode = async (ip: string, requestUrl: string): Promise<string | null> => {
@@ -108,9 +130,8 @@ export const lookupCountryCode = async (ip: string, requestUrl: string): Promise
 
   try {
     const response = reader.get(ip);
-    return normalizeCountryCode(response?.country?.iso_code) ?? normalizeCountryCode(response?.registered_country?.iso_code);
+    return getCountryCodeFromRecord(response);
   } catch {
     return null;
   }
 };
-
