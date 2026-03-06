@@ -159,7 +159,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.supportedLocales = localeConfig.locales;
   context.locals.hasLocalePrefix = localePath.hasLocalePrefix;
   context.locals.localizedPath = localePath.pathnameWithoutLocale;
-  context.locals.requestPathname = url.pathname;
+  if (typeof context.locals.requestPathname !== 'string' || context.locals.requestPathname.length === 0) {
+    context.locals.requestPathname = url.pathname;
+  }
 
   const isSetupRoute = url.pathname === '/setup' || url.pathname.startsWith('/setup/');
   const isAdminRoute = url.pathname.startsWith('/admin');
