@@ -37,7 +37,7 @@ export const ALL: APIRoute = async ({ request }) => {
     return createMcpUnauthorizedResponse();
   }
 
-  const server = createAdAstroMcpServer();
+  const server = await createAdAstroMcpServer();
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true
@@ -63,4 +63,3 @@ export const ALL: APIRoute = async ({ request }) => {
     }
   }
 };
-

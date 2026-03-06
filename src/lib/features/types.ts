@@ -147,8 +147,27 @@ export interface FeatureProfileApiExtension {
   afterProfileUpdate?: (context: FeatureProfileApiContext) => Promise<void>;
 }
 
+export interface FeatureMcpToolRegistration {
+  name: string;
+  title: string;
+  description: string;
+  inputSchema?: Record<string, unknown>;
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
+  handler: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+export interface FeatureMcpExtension {
+  getTools: () => Promise<FeatureMcpToolRegistration[]> | FeatureMcpToolRegistration[];
+}
+
 export interface FeatureServerExtension {
   profileApi?: FeatureProfileApiExtension;
+  mcp?: FeatureMcpExtension;
 }
 
 export interface FeatureModule {

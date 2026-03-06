@@ -131,8 +131,10 @@ AdAstro is currently maintained by a single developer. The codebase has automate
 AdAstro includes a built-in **remote MCP server** at `/mcp` for AI tools that support MCP over HTTP.
 
 - Enable it by setting `MCP_SERVER_TOKEN` and redeploying.
-- It exposes core publishing/admin tools (posts, pages, media, settings, analytics summary).
-- It does not expose arbitrary SQL or feature-specific tool APIs in v1.
+- It always exposes core publishing/admin tools (posts, pages, media, settings, analytics summary).
+- Active modular features can register additional MCP tools (for example AI post image/audio generation and comments moderation).
+- Inactive features do not expose MCP tools.
+- It does not expose arbitrary SQL.
 
 See `docs/mcp-server.md` for the endpoint details, auth, tool list, and security notes.
 

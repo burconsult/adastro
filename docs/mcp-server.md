@@ -1,14 +1,12 @@
-# AdAstro Remote MCP Server (v1)
+# AdAstro Remote MCP Server
 
 AdAstro ships a built-in **remote MCP server** at `/mcp` for AI tools that support MCP over HTTP.
 
-The v1 scope is intentionally **core-only** and focused on safe publishing/admin workflows:
-- content discovery (`posts/pages/media/categories/tags/authors`)
-- post/page create/update/publish actions
-- settings read/update
-- first-party analytics summary (page views + top pages + country/device/browser split)
+The MCP surface is split into:
+- **core tools** (always available)
+- **feature tools** (registered only when the feature is active)
 
-It does **not** expose arbitrary SQL, Supabase admin APIs, or feature-specific tools in v1.
+This keeps MCP modular: inactive features do not leak tools.
 
 ## Enable It
 
@@ -33,7 +31,7 @@ If `MCP_SERVER_TOKEN` is not set, `/mcp` returns `503`.
 
 The endpoint is available after install/setup is complete (the normal setup gate still applies).
 
-## Supported Tool Groups (v1)
+## Core Tool Groups
 
 ### Status / Config
 - `adastro_status`
@@ -60,6 +58,21 @@ The endpoint is available after install/setup is complete (the normal setup gate
 - `page_create`
 - `page_update`
 
+## Feature Tool Groups (Active Features Only)
+
+### AI Feature (`ai`)
+- `ai_post_image_generate`
+- `ai_post_audio_generate`
+
+### Comments Feature (`comments`)
+- `comments_queue_list`
+- `comments_moderate`
+
+Notes:
+- Feature tool names are required to start with `<featureId>_`.
+- Duplicate tool names are skipped fail-closed.
+- If feature tool registration fails, core tools remain available.
+
 ## Notes for Agents
 
 - Prefer `*_list` / `*_get` tools before mutating tools.
@@ -67,14 +80,15 @@ The endpoint is available after install/setup is complete (the normal setup gate
 - `post_create` / `page_create` auto-generate slugs from titles when omitted.
 - `post_create` / `post_update` accept plain `content` or EditorJS `blocks`.
 - `page_create` / `page_update` accept section arrays for the page builder.
-- Mutating tools return MCP tool results; some clients normalize server tool errors into generic “MCP error …” messages.
+- Mutating tools return MCP tool results; some clients normalize server tool errors into generic "MCP error ..." messages.
 
-## Security Model (v1)
+## Security Model
 
 - Single bearer token (`MCP_SERVER_TOKEN`) for server-to-server use.
 - No browser auth/session cookies required.
 - No arbitrary database query execution.
 - Reuses existing AdAstro repositories/services (same validation and business rules as the admin API).
+- Feature tools are availability-gated by feature state (`features.<id>.enabled`) before registration.
 
 Recommended hardening for production:
 - Keep the token secret and rotate if shared with a new tool/user.
@@ -93,5 +107,7 @@ If your client supports custom headers, add the bearer token there.
 
 - Transport: MCP Streamable HTTP (official TypeScript SDK), stateless mode
 - Route: `/src/pages/mcp.ts`
-- Tool registration: `/src/lib/mcp/server.ts`
+- Core tool registration: `/src/lib/mcp/server.ts`
+- Feature MCP extension discovery: `/src/lib/features/runtime.ts`
+- Feature MCP extension contracts: `/src/lib/features/types.ts`
 - Auth guard: `/src/lib/mcp/auth.ts`

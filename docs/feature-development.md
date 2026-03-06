@@ -42,6 +42,7 @@ Implement a `FeatureModule` in `index.ts`:
 Implement a `FeatureServerModule` in `server.ts`:
 - `id`
 - optional `server` profile extension hooks
+- optional `server.mcp` extension hooks (`getTools`) for MCP tool registration
 - optional `loadApi` for SSR handlers
 
 Export:
@@ -67,6 +68,13 @@ Export:
 - Apply rate limits for public submission endpoints.
 - Sanitize and validate all user input before DB writes.
 - If external providers are involved, keep a single provider/capability catalog file (AI uses `lib/provider-catalog.ts`) to avoid scattered hardcoded provider logic.
+
+## MCP Tool Conventions
+- Put feature MCP tool definitions in `mcp.ts` under the feature folder.
+- Tool names must start with `<featureId>_` (example: `comments_queue_list`).
+- Feature MCP handlers must fail closed when feature settings disable the capability.
+- Never reuse core MCP tool names; collisions are skipped during registration.
+- Keep MCP tool behavior aligned with feature ownership boundaries (no cross-feature side effects).
 
 ## Install/Uninstall Integration
 - Register bundled modules in `src/lib/features/manifest.ts`.

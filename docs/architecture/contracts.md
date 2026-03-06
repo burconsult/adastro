@@ -75,7 +75,8 @@ Invariants:
 Invariants:
 - `MCP_SERVER_TOKEN` is server-only and must never be exposed in client bundles.
 - Error responses must stay sanitized and protocol-safe.
-- Tool registration is owned by `src/lib/mcp/server.ts`; route only handles auth + transport lifecycle.
+- Core tool registration is owned by `src/lib/mcp/server.ts`; route only handles auth + transport lifecycle.
+- Feature tool registration is delegated through feature server extensions (`server.mcp`) and must remain gated by feature activation.
 
 ## 4. Routing Contract
 

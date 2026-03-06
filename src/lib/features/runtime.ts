@@ -1,4 +1,4 @@
-import type { FeatureApiHandler, FeatureProfileApiExtension } from './types.js';
+import type { FeatureApiHandler, FeatureMcpExtension, FeatureProfileApiExtension } from './types.js';
 import { loadFeatureServerModules } from './server-loader.js';
 
 const MODULES = loadFeatureServerModules();
@@ -21,4 +21,17 @@ export function getProfileApiExtensions(): FeatureProfileApiExtension[] {
   return MODULES
     .map((module) => module.server?.profileApi)
     .filter((extension): extension is FeatureProfileApiExtension => Boolean(extension));
+}
+
+export function getFeatureMcpExtensions(): Array<{ featureId: string; extension: FeatureMcpExtension }> {
+  return MODULES
+    .map((module) => {
+      const extension = module.server?.mcp;
+      if (!extension) return null;
+      return {
+        featureId: module.id,
+        extension
+      };
+    })
+    .filter((entry): entry is { featureId: string; extension: FeatureMcpExtension } => Boolean(entry));
 }

@@ -14,7 +14,10 @@ import { generateExcerpt, generateSlug, sanitizeHtml } from '@/lib/utils/data-tr
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
 import { supabaseAdmin } from '@/lib/supabase';
 import { normalizeBooleanSetting } from '@/lib/setup/runtime';
+import { isFeatureActive } from '@/lib/features/state';
+import { getFeatureMcpExtensions } from '@/lib/features/runtime';
 import type { PageSectionInput } from '@/lib/database/repositories/page-section-repository';
+import type { FeatureMcpToolRegistration } from '@/lib/features/types';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -527,13 +530,102 @@ export function createDefaultAdAstroMcpToolDeps(): AdAstroMcpToolDeps {
   return new DefaultAdAstroMcpToolDeps();
 }
 
+type FeatureMcpToolSet = {
+  featureId: string;
+  tools: FeatureMcpToolRegistration[];
+};
+
+type FeatureToolResolver = () => Promise<FeatureMcpToolSet[]>;
+
+export interface AdAstroMcpServerOptions {
+  resolveFeatureToolSets?: FeatureToolResolver;
+}
+
+const CORE_MCP_TOOL_NAMES = new Set<string>([
+  'adastro_status',
+  'authors_list',
+  'categories_list',
+  'tags_list',
+  'media_list',
+  'media_get',
+  'posts_list',
+  'post_get',
+  'post_create',
+  'post_update',
+  'post_publish',
+  'post_unpublish',
+  'pages_list',
+  'page_get',
+  'page_create',
+  'page_update',
+  'settings_get',
+  'settings_update',
+  'analytics_summary'
+]);
+
+async function resolveDefaultFeatureToolSets(): Promise<FeatureMcpToolSet[]> {
+  const extensions = getFeatureMcpExtensions();
+  const resolved: FeatureMcpToolSet[] = [];
+
+  for (const { featureId, extension } of extensions) {
+    try {
+      const active = await isFeatureActive(featureId);
+      if (!active) continue;
+
+      const tools = await extension.getTools();
+      if (!Array.isArray(tools) || tools.length === 0) continue;
+
+      resolved.push({ featureId, tools });
+    } catch (error) {
+      console.warn(`Feature MCP tool registration skipped for "${featureId}".`, error);
+    }
+  }
+
+  return resolved;
+}
+
+function registerFeatureTools(
+  server: McpServer,
+  featureToolSets: FeatureMcpToolSet[],
+  reservedToolNames: Set<string>
+) {
+  for (const { featureId, tools } of featureToolSets) {
+    for (const tool of tools) {
+      const expectedPrefix = `${featureId}_`;
+      if (!tool.name.startsWith(expectedPrefix)) {
+        console.warn(
+          `Skipping feature MCP tool "${tool.name}" from "${featureId}". Tool names must start with "${expectedPrefix}".`
+        );
+        continue;
+      }
+
+      if (reservedToolNames.has(tool.name)) {
+        console.warn(`Skipping duplicate MCP tool registration for "${tool.name}".`);
+        continue;
+      }
+
+      reservedToolNames.add(tool.name);
+
+      server.registerTool(tool.name, {
+        title: tool.title,
+        description: tool.description,
+        ...(tool.inputSchema ? { inputSchema: tool.inputSchema } : {}),
+        ...(tool.annotations ? { annotations: tool.annotations } : {})
+      }, async (args) => runTool(() => tool.handler(args as Record<string, unknown>)));
+    }
+  }
+}
+
 const listSchema = {
   limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
   search: z.string().trim().min(1).max(200).optional()
 };
 
-export function createAdAstroMcpServer(deps: AdAstroMcpToolDeps = createDefaultAdAstroMcpToolDeps()) {
+export async function createAdAstroMcpServer(
+  deps: AdAstroMcpToolDeps = createDefaultAdAstroMcpToolDeps(),
+  options: AdAstroMcpServerOptions = {}
+) {
   const server = new McpServer(
     { name: 'adastro-mcp', version: '1.0.0' },
     {
@@ -800,6 +892,16 @@ export function createAdAstroMcpServer(deps: AdAstroMcpToolDeps = createDefaultA
     },
     annotations: { readOnlyHint: true, idempotentHint: true }
   }, async (args) => runTool(() => deps.getAnalyticsSummary({ days: args.days ?? 7 })));
+
+  const featureToolResolver = options.resolveFeatureToolSets ?? resolveDefaultFeatureToolSets;
+  try {
+    const featureToolSets = await featureToolResolver();
+    if (featureToolSets.length > 0) {
+      registerFeatureTools(server, featureToolSets, new Set(CORE_MCP_TOOL_NAMES));
+    }
+  } catch (error) {
+    console.warn('Feature MCP tool resolution failed. Only core MCP tools are available.', error);
+  }
 
   return server;
 }
