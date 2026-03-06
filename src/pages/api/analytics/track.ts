@@ -3,6 +3,8 @@ import { SettingsService } from '@/lib/services/settings-service';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 import { getClientIp } from '@/lib/security/request-guards';
 import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabase';
+import { parseUserAgent } from '@/lib/analytics/user-agent';
+import { lookupCountryCode } from '@/lib/analytics/country-lookup';
 
 const settingsService = new SettingsService();
 
@@ -21,6 +23,12 @@ const getReferrerHost = (value: string) => {
   } catch {
     return '';
   }
+};
+
+const normalizeLanguage = (value: string) => {
+  const raw = text(value, 80);
+  if (!raw) return '';
+  return raw.split(',')[0]?.trim().slice(0, 16) || '';
 };
 
 export const POST: APIRoute = async ({ request }) => {
@@ -60,6 +68,9 @@ export const POST: APIRoute = async ({ request }) => {
     const referrerHost = getReferrerHost(text(payload.referrer, 1000));
     const viewport = text(payload.viewport, 64);
     const userAgent = text(request.headers.get('user-agent') || '', 500);
+    const language = normalizeLanguage(request.headers.get('accept-language') || '');
+    const ua = parseUserAgent(userAgent);
+    const countryCode = await lookupCountryCode(ip, request.url);
 
     await supabaseAdmin.from('analytics_events').insert({
       event_type: 'page_view',
@@ -69,7 +80,13 @@ export const POST: APIRoute = async ({ request }) => {
         query,
         title,
         referrerHost,
-        viewport
+        viewport,
+        countryCode: countryCode || null,
+        browser: ua.browser,
+        os: ua.os,
+        deviceType: ua.deviceType,
+        isBot: ua.isBot,
+        language: language || null
       },
       user_agent: userAgent || null
     });
@@ -82,4 +99,3 @@ export const POST: APIRoute = async ({ request }) => {
 };
 
 export const prerender = false;
-

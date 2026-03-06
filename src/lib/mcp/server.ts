@@ -463,6 +463,9 @@ class DefaultAdAstroMcpToolDeps implements AdAstroMcpToolDeps {
     const rows = Array.isArray(currentRows) ? currentRows : [];
     const previousCount = Array.isArray(previousRows) ? previousRows.length : 0;
     const topPathMap = new Map<string, number>();
+    const countryMap = new Map<string, number>();
+    const deviceMap = new Map<string, number>();
+    const browserMap = new Map<string, number>();
     const dailyMap = new Map<string, number>();
 
     for (const row of rows) {
@@ -472,6 +475,18 @@ class DefaultAdAstroMcpToolDeps implements AdAstroMcpToolDeps {
 
       const path = typeof (row as any)?.data?.path === 'string' ? String((row as any).data.path) : '/';
       topPathMap.set(path, (topPathMap.get(path) || 0) + 1);
+      const countryCode = typeof (row as any)?.data?.countryCode === 'string'
+        ? String((row as any).data.countryCode).trim().toUpperCase()
+        : 'ZZ';
+      const deviceType = typeof (row as any)?.data?.deviceType === 'string'
+        ? String((row as any).data.deviceType).trim().toLowerCase()
+        : 'unknown';
+      const browser = typeof (row as any)?.data?.browser === 'string'
+        ? String((row as any).data.browser).trim()
+        : 'Unknown';
+      countryMap.set(countryCode || 'ZZ', (countryMap.get(countryCode || 'ZZ') || 0) + 1);
+      deviceMap.set(deviceType || 'unknown', (deviceMap.get(deviceType || 'unknown') || 0) + 1);
+      browserMap.set(browser || 'Unknown', (browserMap.get(browser || 'Unknown') || 0) + 1);
     }
 
     const topPaths = [...topPathMap.entries()]
@@ -482,13 +497,28 @@ class DefaultAdAstroMcpToolDeps implements AdAstroMcpToolDeps {
     const dailyViews = [...dailyMap.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, count]) => ({ date, count }));
+    const countryBreakdown = [...countryMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([countryCode, count]) => ({ countryCode, count }));
+    const deviceBreakdown = [...deviceMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([deviceType, count]) => ({ deviceType, count }));
+    const browserBreakdown = [...browserMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([browser, count]) => ({ browser, count }));
 
     return {
       windowDays: days,
       totalPageViews: rows.length,
       previousWindowPageViews: previousCount,
       topPaths,
-      dailyViews
+      dailyViews,
+      countryBreakdown,
+      deviceBreakdown,
+      browserBreakdown
     };
   }
 }

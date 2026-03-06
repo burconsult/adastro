@@ -4,11 +4,11 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import AnalyticsDashboard from "@/lib/components/AnalyticsDashboard";
 ---
 
-<AdminLayout title="Analytics" description="Basic pageview analytics for your site">
+<AdminLayout title="Analytics" description="Pageview analytics with locale, country, device, and browser dimensions.">
   <div class="space-y-6">
     <AdminPageHeader
       title="Analytics"
-      description="Built-in first-party pageview analytics for public pages."
+      description="Built-in first-party pageview analytics for public pages, including locale, country, device, browser, OS, and referrer breakdowns."
     />
     <noscript>
       <div class="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
@@ -18,4 +18,3 @@ import AnalyticsDashboard from "@/lib/components/AnalyticsDashboard";
     <AnalyticsDashboard client:load />
   </div>
 </AdminLayout>
-

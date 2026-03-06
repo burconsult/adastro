@@ -2,18 +2,36 @@ import React from 'react';
 import { AdminLoadingState } from '@/lib/components/admin/ListingPrimitives';
 
 type TopPath = { path: string; count: number };
+type TopReferrer = { referrerHost: string; count: number };
 type DailyPoint = { date: string; count: number };
 type LocalePoint = { locale: string; count: number };
+type CountryPoint = { countryCode: string; count: number };
+type DevicePoint = { deviceType: string; count: number };
+type BrowserPoint = { browser: string; count: number };
+type OsPoint = { os: string; count: number };
 type Payload = {
   windowDays: number;
   selectedLocale: string;
+  selectedCountryCode: string;
+  selectedDeviceType: string;
+  selectedBrowser: string;
   availableLocales: string[];
+  availableCountries: string[];
+  availableDeviceTypes: string[];
+  availableBrowsers: string[];
   localeBreakdown: LocalePoint[];
+  countryBreakdown: CountryPoint[];
+  deviceBreakdown: DevicePoint[];
+  browserBreakdown: BrowserPoint[];
+  osBreakdown: OsPoint[];
+  botViews: number;
+  humanViews: number;
   totalPageViews: number;
   previousWindowPageViews: number;
   uniquePaths: number;
   todayPageViews: number;
   topPaths: TopPath[];
+  topReferrers: TopReferrer[];
   dailyViews: DailyPoint[];
 };
 
@@ -28,6 +46,9 @@ function deltaText(current: number, previous: number) {
 export default function AnalyticsDashboard() {
   const [days, setDays] = React.useState<7 | 30>(30);
   const [locale, setLocale] = React.useState<string>('all');
+  const [country, setCountry] = React.useState<string>('all');
+  const [device, setDevice] = React.useState<string>('all');
+  const [browser, setBrowser] = React.useState<string>('all');
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [data, setData] = React.useState<Payload | null>(null);
@@ -41,6 +62,15 @@ export default function AnalyticsDashboard() {
         const params = new URLSearchParams({ days: String(days) });
         if (locale !== 'all') {
           params.set('locale', locale);
+        }
+        if (country !== 'all') {
+          params.set('country', country);
+        }
+        if (device !== 'all') {
+          params.set('device', device);
+        }
+        if (browser !== 'all') {
+          params.set('browser', browser);
         }
         const res = await fetch(`/api/admin/analytics?${params.toString()}`);
         const payload = await res.json().catch(() => ({}));
@@ -56,7 +86,7 @@ export default function AnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [days, locale]);
+  }, [days, locale, country, device, browser]);
 
   React.useEffect(() => {
     if (!data) return;
@@ -64,6 +94,27 @@ export default function AnalyticsDashboard() {
     if (data.availableLocales.includes(locale)) return;
     setLocale('all');
   }, [data, locale]);
+
+  React.useEffect(() => {
+    if (!data) return;
+    if (country === 'all') return;
+    if (data.availableCountries.includes(country)) return;
+    setCountry('all');
+  }, [country, data]);
+
+  React.useEffect(() => {
+    if (!data) return;
+    if (device === 'all') return;
+    if (data.availableDeviceTypes.includes(device)) return;
+    setDevice('all');
+  }, [data, device]);
+
+  React.useEffect(() => {
+    if (!data) return;
+    if (browser === 'all') return;
+    if (data.availableBrowsers.includes(browser)) return;
+    setBrowser('all');
+  }, [browser, data]);
 
   if (loading) {
     return <AdminLoadingState label="Loading analytics..." className="p-8" />;
@@ -81,6 +132,18 @@ export default function AnalyticsDashboard() {
 
   const maxDaily = Math.max(1, ...data.dailyViews.map((p) => p.count));
   const localeLabel = data.selectedLocale === 'all' ? 'All locales' : data.selectedLocale.toUpperCase();
+  const countryLabel = data.selectedCountryCode === 'all' ? 'All countries' : data.selectedCountryCode.toUpperCase();
+  const browserLabel = data.selectedBrowser === 'all' ? 'All browsers' : data.selectedBrowser;
+  const deviceLabel = data.selectedDeviceType === 'all' ? 'All devices' : data.selectedDeviceType;
+  const countryName = (countryCode: string) => {
+    if (countryCode === 'ZZ') return 'Unknown';
+    try {
+      const display = new Intl.DisplayNames(['en'], { type: 'region' });
+      return display.of(countryCode) || countryCode;
+    } catch {
+      return countryCode;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -114,11 +177,50 @@ export default function AnalyticsDashboard() {
               </option>
             ))}
           </select>
+          <select
+            aria-label="Country filter"
+            value={country}
+            onChange={(event) => setCountry(event.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="all">All countries</option>
+            {(data.availableCountries || []).map((option) => (
+              <option key={option} value={option}>
+                {countryName(option)}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Device filter"
+            value={device}
+            onChange={(event) => setDevice(event.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="all">All devices</option>
+            {(data.availableDeviceTypes || []).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Browser filter"
+            value={browser}
+            onChange={(event) => setBrowser(event.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="all">All browsers</option>
+            {(data.availableBrowsers || []).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={`Page Views (${data.windowDays}d)`} value={numberFmt.format(data.totalPageViews)} hint={`${localeLabel} • vs previous ${data.windowDays}d: ${deltaText(data.totalPageViews, data.previousWindowPageViews)}`} />
+        <StatCard label={`Page Views (${data.windowDays}d)`} value={numberFmt.format(data.totalPageViews)} hint={`${localeLabel} • ${countryLabel} • ${deviceLabel} • ${browserLabel}`} />
         <StatCard label="Today" value={numberFmt.format(data.todayPageViews)} />
         <StatCard label="Unique Pages" value={numberFmt.format(data.uniquePaths)} />
         <StatCard label="Previous Window" value={numberFmt.format(data.previousWindowPageViews)} />
@@ -127,6 +229,26 @@ export default function AnalyticsDashboard() {
       {data.localeBreakdown.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Locale split ({data.windowDays}d): {data.localeBreakdown.map((item) => `${item.locale.toUpperCase()} ${numberFmt.format(item.count)}`).join(' • ')}
+        </p>
+      )}
+      {data.countryBreakdown.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Country split ({data.windowDays}d): {data.countryBreakdown.slice(0, 8).map((item) => `${countryName(item.countryCode)} ${numberFmt.format(item.count)}`).join(' • ')}
+        </p>
+      )}
+      {data.deviceBreakdown.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Device split: {data.deviceBreakdown.map((item) => `${item.deviceType} ${numberFmt.format(item.count)}`).join(' • ')}
+        </p>
+      )}
+      {data.browserBreakdown.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Browser split: {data.browserBreakdown.slice(0, 6).map((item) => `${item.browser} ${numberFmt.format(item.count)}`).join(' • ')}
+        </p>
+      )}
+      {(data.botViews > 0 || data.humanViews > 0) && (
+        <p className="text-xs text-muted-foreground">
+          Traffic type: Human {numberFmt.format(data.humanViews)} • Bot {numberFmt.format(data.botViews)}
         </p>
       )}
 
@@ -169,6 +291,53 @@ export default function AnalyticsDashboard() {
           )}
         </section>
       </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <section className="card p-4 space-y-3">
+          <h3 className="text-base font-semibold">Top Referrers</h3>
+          {data.topReferrers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.topReferrers.map((item) => (
+                <div key={item.referrerHost} className="flex items-center justify-between gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-foreground" title={item.referrerHost}>{item.referrerHost}</span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">{numberFmt.format(item.count)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card p-4 space-y-3">
+          <h3 className="text-base font-semibold">Top Operating Systems</h3>
+          {data.osBreakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No operating system data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.osBreakdown.slice(0, 8).map((item) => (
+                <div key={item.os} className="flex items-center justify-between gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-foreground">{item.os}</span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">{numberFmt.format(item.count)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Country data source: IPLocate IP address databases (
+        <a
+          href="https://github.com/iplocate/ip-address-databases"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2"
+        >
+          github.com/iplocate/ip-address-databases
+        </a>
+        ).
+      </p>
     </div>
   );
 }

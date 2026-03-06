@@ -6,7 +6,7 @@ The v1 scope is intentionally **core-only** and focused on safe publishing/admin
 - content discovery (`posts/pages/media/categories/tags/authors`)
 - post/page create/update/publish actions
 - settings read/update
-- basic analytics summary
+- first-party analytics summary (page views + top pages + country/device/browser split)
 
 It does **not** expose arbitrary SQL, Supabase admin APIs, or feature-specific tools in v1.
 
