@@ -5,6 +5,7 @@ import { getPublishedPageBySlug } from "@/lib/database/index.js";
 import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import type { Page } from "@/lib/types/index.js";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { findPublishedPageLocaleVariants } from "@/lib/i18n/page-localizations";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -27,8 +28,32 @@ if (!page) {
 const siteIdentity = await getSiteIdentity();
 const pageTitle = page.seoMetadata?.metaTitle || page.title;
 const pageDescription = page.seoMetadata?.metaDescription || page.excerpt || siteIdentity.description;
+const origin = Astro.url.origin;
+const pagePath = page.slug === 'home' ? `/${locale}` : `/${locale}/${page.slug}`;
+const pageUrl = new URL(pagePath, origin).toString();
+const localeVariants = await findPublishedPageLocaleVariants(page, localeConfig.locales);
+const localizedAlternateLinks = [
+  { locale: page.locale || locale, href: pageUrl },
+  ...localeVariants.map((variant) => {
+    const variantLocale = variant.locale || localeConfig.defaultLocale;
+    const variantPath = variant.slug === 'home' ? `/${variantLocale}` : `/${variantLocale}/${variant.slug}`;
+    return {
+      locale: variantLocale,
+      href: new URL(variantPath, origin).toString()
+    };
+  })
+];
+const xDefaultHref = localizedAlternateLinks.find((link) => (
+  normalizeLocaleCode(link.locale, localeConfig.defaultLocale) === localeConfig.defaultLocale
+))?.href ?? pageUrl;
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl={pageUrl}
+  alternateLinks={localizedAlternateLinks}
+  xDefaultHref={xDefaultHref}
+>
   <PageRenderer page={page as Page} />
 </BaseLayout>

@@ -39,6 +39,25 @@ interface PageFormData {
   sections: SectionDefinition[];
 }
 
+type AlternateLocaleRef = {
+  locale: string;
+  slug: string;
+};
+
+const normalizeAlternateLocales = (value: unknown): AlternateLocaleRef[] => {
+  if (!Array.isArray(value)) return [];
+  const deduped = new Map<string, AlternateLocaleRef>();
+  value.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') return;
+    const record = entry as { locale?: unknown; slug?: unknown };
+    const locale = typeof record.locale === 'string' ? record.locale.trim().toLowerCase() : '';
+    const slug = typeof record.slug === 'string' ? generateSlug(record.slug) : '';
+    if (!locale || !slug) return;
+    deduped.set(locale, { locale, slug });
+  });
+  return [...deduped.values()];
+};
+
 const TEMPLATE_OPTIONS: { value: PageTemplate; label: string; description: string }[] = [
   { value: 'default', label: 'Default', description: 'Rich content blocks and simple layout.' },
   { value: 'home', label: 'Home', description: 'Hero-led layout with reusable sections.' },
@@ -198,6 +217,10 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
     const deduped = Array.from(new Set(normalized));
     return deduped.length > 0 ? deduped : [defaultLocale];
   }, [defaultLocale, supportedLocales]);
+  const alternateLocales = useMemo(
+    () => normalizeAlternateLocales((formData.seoMetadata as any)?.alternateLocales),
+    [formData.seoMetadata]
+  );
 
   const updateField = useCallback((key: keyof PageFormData, value: any) => {
     setFormData((prev) => ({
@@ -205,6 +228,14 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
       [key]: value
     }));
   }, []);
+
+  const setAlternateLocales = useCallback((next: AlternateLocaleRef[]) => {
+    const normalized = normalizeAlternateLocales(next);
+    updateField('seoMetadata', {
+      ...(formData.seoMetadata || {}),
+      alternateLocales: normalized.length > 0 ? normalized : undefined
+    });
+  }, [formData.seoMetadata, updateField]);
 
   const updateSection = useCallback((index: number, content: Record<string, any>) => {
     setFormData((prev) => {
@@ -267,6 +298,13 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
         throw new Error('Title, slug, and locale are required.');
       }
 
+      const normalizedAlternateLocales = normalizeAlternateLocales((formData.seoMetadata as any)?.alternateLocales)
+        .filter((entry) => entry.locale !== formData.locale.trim().toLowerCase());
+      const seoMetadataToPersist: SEOMetadata = {
+        ...(formData.seoMetadata || {}),
+        alternateLocales: normalizedAlternateLocales.length > 0 ? normalizedAlternateLocales : undefined
+      };
+
       const payload = {
         title: formData.title.trim(),
         slug: formData.slug.trim(),
@@ -276,7 +314,7 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
         blocks: formData.blocks,
         excerpt: formData.excerpt,
         authorId: formData.authorId,
-        seoMetadata: formData.seoMetadata,
+        seoMetadata: seoMetadataToPersist,
         sections: formData.sections.map((section, index) => ({
           id: section.id,
           type: section.type,
@@ -377,6 +415,80 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
               ))}
             </select>
           </div>
+
+          {(alternateLocales.length > 0 || localeOptions.length > 1) && (
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Localized URL variants</p>
+              <div className="mt-2 space-y-2">
+                {alternateLocales.length > 0 ? alternateLocales.map((entry, index) => (
+                  <div key={`${entry.locale}-${index}`} className="grid gap-2 sm:grid-cols-[140px_1fr_auto]">
+                    <select
+                      className="rounded-md border border-input px-3 py-2 text-sm"
+                      value={entry.locale}
+                      onChange={(event) => {
+                        const next = [...alternateLocales];
+                        next[index] = { ...next[index], locale: event.target.value };
+                        setAlternateLocales(next);
+                      }}
+                    >
+                      {localeOptions
+                        .filter((locale) => locale !== formData.locale || locale === entry.locale)
+                        .map((locale) => (
+                          <option key={locale} value={locale}>
+                            {locale}
+                          </option>
+                        ))}
+                    </select>
+                    <input
+                      type="text"
+                      className="rounded-md border border-input px-3 py-2 text-sm"
+                      placeholder="localized-slug"
+                      value={entry.slug}
+                      onChange={(event) => {
+                        const next = [...alternateLocales];
+                        next[index] = { ...next[index], slug: event.target.value };
+                        setAlternateLocales(next);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm text-destructive"
+                      onClick={() => {
+                        const next = alternateLocales.filter((_, itemIndex) => itemIndex !== index);
+                        setAlternateLocales(next);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )) : (
+                  <p className="text-xs text-muted-foreground">No localized slug variants configured yet.</p>
+                )}
+              </div>
+              {localeOptions.filter((locale) => locale !== formData.locale).length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm mt-3"
+                  onClick={() => {
+                    const preferredLocale = localeOptions.find((locale) => (
+                      locale !== formData.locale
+                      && !alternateLocales.some((entry) => entry.locale === locale)
+                    )) || localeOptions.find((locale) => locale !== formData.locale) || '';
+                    if (!preferredLocale) return;
+                    setAlternateLocales([
+                      ...alternateLocales,
+                      { locale: preferredLocale, slug: '' }
+                    ]);
+                  }}
+                >
+                  Add locale variant
+                </button>
+              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Use this when a translated page has a different slug, so canonical and hreflang links stay correct.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-foreground" htmlFor="page-template">

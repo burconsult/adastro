@@ -92,6 +92,7 @@ Consumers:
 - `src/lib/i18n/locales.ts`
 - `src/lib/i18n/runtime.ts`
 - `src/middleware.ts` (default-locale redirect + legacy rewrite behavior)
+- Navigation locale overrides: `labelByLocale` and `hrefByLocale` on `navigation.topLinks`/`navigation.bottomLinks`
 
 Invariants:
 - Public GET/HEAD requests must resolve to locale-prefixed URLs (`/{locale}/...`) unless on explicit bypass surfaces (`/admin`, `/api`, `/auth`, `/setup`, `/mcp`, static assets, protected profile route).

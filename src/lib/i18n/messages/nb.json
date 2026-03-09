@@ -184,5 +184,7 @@
   "core.search.addQueryHint": "Legg til en spørringsparameter som",
   "core.search.searchPostsSuffix": "for å søke i innlegg.",
   "core.search.minChars": "Skriv minst 2 tegn for å søke.",
-  "core.search.noResults": "Ingen publiserte innlegg matchet søket ditt."
+  "core.search.noResults": "Ingen publiserte innlegg matchet søket ditt.",
+  "core.locale.es": "Spansk",
+  "core.locale.zh": "Kinesisk"
 }

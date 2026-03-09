@@ -185,6 +185,6 @@
   "core.search.searchPostsSuffix": "to search posts.",
   "core.search.minChars": "Enter at least 2 characters to run a search.",
   "core.search.noResults": "No published posts matched your search.",
-  "core.locale.es": "Spanish",
-  "core.locale.zh": "Chinese"
+  "core.locale.es": "西班牙语",
+  "core.locale.zh": "中文"
 }

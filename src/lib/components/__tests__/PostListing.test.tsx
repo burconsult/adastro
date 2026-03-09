@@ -175,6 +175,27 @@ describe('PostListing', () => {
     });
   });
 
+  it('defaults locale filter to all locales', async () => {
+    await renderPostListing({ supportedLocales: ['en', 'nb'] });
+
+    const localeFilter = screen.getByLabelText('Locale') as HTMLSelectElement;
+    expect(localeFilter.value).toBe('');
+    expect(screen.getByRole('option', { name: 'All locales' })).toBeInTheDocument();
+  });
+
+  it('filters posts by locale', async () => {
+    await renderPostListing({ supportedLocales: ['en', 'nb'] });
+
+    const localeFilter = screen.getByLabelText('Locale');
+    fireEvent.change(localeFilter, { target: { value: 'nb' } });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('locale=nb')
+      );
+    });
+  });
+
   it('searches posts by title', async () => {
     await renderPostListing();
     

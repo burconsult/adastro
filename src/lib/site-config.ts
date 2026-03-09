@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_LOCALE,
   ensureDefaultLocaleInList,
+  isValidLocaleCode,
   normalizeLocaleCode,
   normalizeLocaleList
 } from './i18n/locales.js';
@@ -26,6 +27,8 @@ export interface NavLink {
   href: string;
   type?: 'page' | 'custom';
   pageSlug?: string;
+  labelByLocale?: Record<string, string>;
+  hrefByLocale?: Record<string, string>;
 }
 
 export interface SiteNavigation {
@@ -193,16 +196,40 @@ const normalizePageSlug = (value: string): string | null => {
 
 const pageSlugToHref = (slug: string): string => (slug === 'home' ? '/' : `/${slug}`);
 
+const normalizeLocalizedStringMap = (value: unknown): Record<string, string> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([locale, rawValue]) => {
+      const normalizedLocale = isValidLocaleCode(locale) ? normalizeLocaleCode(locale, '') : '';
+      const normalizedValue = typeof rawValue === 'string' ? rawValue.trim() : '';
+      if (!normalizedLocale || !normalizedValue) return null;
+      return [normalizedLocale, normalizedValue] as const;
+    })
+    .filter((entry): entry is readonly [string, string] => Boolean(entry));
+
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries);
+};
+
 const normalizeLinks = (value: unknown, fallback: NavLink[]): NavLink[] => {
   if (!Array.isArray(value)) return fallback;
   const normalized = value
     .map((entry) => {
       if (!entry || typeof entry !== 'object') return null;
-      const record = entry as { label?: unknown; href?: unknown; type?: unknown; pageSlug?: unknown };
+      const record = entry as {
+        label?: unknown;
+        href?: unknown;
+        type?: unknown;
+        pageSlug?: unknown;
+        labelByLocale?: unknown;
+        hrefByLocale?: unknown;
+      };
       const label = typeof record.label === 'string' ? record.label.trim() : '';
       const href = typeof record.href === 'string' ? record.href.trim() : '';
       const type = record.type === 'page' ? 'page' : 'custom';
       const pageSlug = typeof record.pageSlug === 'string' ? normalizePageSlug(record.pageSlug) : null;
+      const labelByLocale = normalizeLocalizedStringMap(record.labelByLocale);
+      const hrefByLocale = normalizeLocalizedStringMap(record.hrefByLocale);
 
       if (type === 'page' || pageSlug) {
         const resolvedSlug = pageSlug ?? normalizePageSlug(href);
@@ -211,15 +238,39 @@ const normalizeLinks = (value: unknown, fallback: NavLink[]): NavLink[] => {
           type: 'page' as const,
           pageSlug: resolvedSlug,
           label,
-          href: pageSlugToHref(resolvedSlug)
+          href: pageSlugToHref(resolvedSlug),
+          ...(labelByLocale ? { labelByLocale } : {}),
+          ...(hrefByLocale ? { hrefByLocale } : {})
         };
       }
 
-      if (!label || !href) return null;
-      return { type: 'custom' as const, label, href };
+      const hasLocalizedHref = Boolean(hrefByLocale && Object.keys(hrefByLocale).length > 0);
+      if (!label || (!href && !hasLocalizedHref)) return null;
+      return {
+        type: 'custom' as const,
+        label,
+        href,
+        ...(labelByLocale ? { labelByLocale } : {}),
+        ...(hrefByLocale ? { hrefByLocale } : {})
+      };
     })
     .filter((entry): entry is NavLink => Boolean(entry));
   return normalized.length > 0 ? normalized : fallback;
+};
+
+const applyArticleBasePathToLocalizedMap = (
+  value: Record<string, string> | undefined,
+  basePath: string
+): Record<string, string> | undefined => {
+  if (!value) return undefined;
+  const entries = Object.entries(value)
+    .map(([locale, href]) => {
+      const normalizedHref = applyArticleBasePathToHref(href, { basePath });
+      return [locale, normalizedHref] as const;
+    })
+    .filter(([, href]) => typeof href === 'string' && href.trim().length > 0);
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries);
 };
 
 const ensureCoreNavLink = (links: NavLink[], required: NavLink): NavLink[] => {
@@ -254,12 +305,22 @@ async function fetchSiteNavigation(): Promise<SiteNavigation> {
     .map((link) => ({
       ...link,
       href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }),
+      ...(link.hrefByLocale
+        ? {
+            hrefByLocale: applyArticleBasePathToLocalizedMap(link.hrefByLocale, contentRouting.articleBasePath)
+          }
+        : {}),
       ...(link.pageSlug === DEFAULT_ARTICLE_ROUTING.basePath ? { pageSlug: contentRouting.articleBasePath } : {})
     }));
   const bottomLinks = normalizeLinks(settings['navigation.bottomLinks'], DEFAULT_NAVIGATION.bottomLinks)
     .map((link) => ({
       ...link,
       href: applyArticleBasePathToHref(link.href, { basePath: contentRouting.articleBasePath }),
+      ...(link.hrefByLocale
+        ? {
+            hrefByLocale: applyArticleBasePathToLocalizedMap(link.hrefByLocale, contentRouting.articleBasePath)
+          }
+        : {}),
       ...(link.pageSlug === DEFAULT_ARTICLE_ROUTING.basePath ? { pageSlug: contentRouting.articleBasePath } : {})
     }));
   const footerPoweredByLabel = normalizedFooterAttribution || DEFAULT_NAVIGATION.footerAttribution;

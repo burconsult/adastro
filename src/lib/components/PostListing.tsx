@@ -82,7 +82,7 @@ function PostListingInner({
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<PostFilters>({
     status: '',
-    locale: defaultLocale,
+    locale: '',
     search: '',
     category: '',
     tag: ''
@@ -117,8 +117,9 @@ function PostListingInner({
   }, []);
 
   useEffect(() => {
+    if (!filters.locale) return;
     if (localeOptions.includes(filters.locale)) return;
-    setFilters((prev) => ({ ...prev, locale: localeOptions[0] }));
+    setFilters((prev) => ({ ...prev, locale: '' }));
   }, [filters.locale, localeOptions]);
 
   // Load categories and tags for filters
@@ -200,7 +201,7 @@ function PostListingInner({
       || filters.search
       || filters.category
       || filters.tag
-      || (filters.locale && filters.locale !== defaultLocale)
+      || filters.locale
       || pagination.page > 1
     ) {
       loadPosts();
@@ -485,6 +486,7 @@ function PostListingInner({
               onChange={(e) => handleFilterChange('locale', e.target.value)}
               className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
+              <option value="">All locales</option>
               {localeOptions.map((locale) => (
                 <option key={locale} value={locale}>
                   {locale}

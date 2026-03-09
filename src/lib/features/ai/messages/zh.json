@@ -1,0 +1,14 @@
+{
+  "settings.features.ai.title": "AI Suite",
+  "settings.features.ai.description": "Enable or pause every AI feature in the app.",
+  "settings.features.ai.capabilities.title": "Capabilities",
+  "settings.features.ai.capabilities.description": "Turn on the AI surfaces you want available.",
+  "settings.features.ai.providers.title": "Providers",
+  "settings.features.ai.providers.description": "Select defaults for text, image, and audio generation.",
+  "settings.features.ai.images.title": "Image Generation",
+  "settings.features.ai.images.description": "Choose output dimensions for each provider family.",
+  "settings.features.ai.models.title": "Models",
+  "settings.features.ai.models.description": "Pin the exact model for each provider.",
+  "settings.features.ai.registry.title": "Model Registry",
+  "settings.features.ai.registry.description": "Live list pulled from the registry endpoint."
+}

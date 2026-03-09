@@ -27,6 +27,8 @@ type NavLink = {
   pageSlug?: string;
   label: string;
   href: string;
+  labelByLocale?: Record<string, string>;
+  hrefByLocale?: Record<string, string>;
 };
 
 type PageOption = {
@@ -335,25 +337,43 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
 
   const pageSlugToHref = (slug: string): string => (slug === 'home' ? '/' : `/${slug}`);
 
+  const normalizeLocalizedStringMap = (value: unknown): Record<string, string> | undefined => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([locale, rawValue]) => {
+        const normalizedLocale = locale.trim().toLowerCase();
+        const normalizedValue = typeof rawValue === 'string' ? rawValue.trim() : '';
+        if (!/^[a-z]{2}(?:-[a-z]{2})?$/.test(normalizedLocale) || !normalizedValue) return null;
+        return [normalizedLocale, normalizedValue] as const;
+      })
+      .filter((entry): entry is readonly [string, string] => Boolean(entry));
+
+    if (entries.length === 0) return undefined;
+    return Object.fromEntries(entries);
+  };
+
   const normalizeNavLinks = (value: unknown): NavLink[] => {
-    if (Array.isArray(value)) {
-      return value.map((entry) => ({
+    const normalizeEntries = (entries: any[]): NavLink[] => entries.map((entry) => {
+      const labelByLocale = normalizeLocalizedStringMap(entry?.labelByLocale);
+      const hrefByLocale = normalizeLocalizedStringMap(entry?.hrefByLocale);
+      return {
         type: entry?.type === 'page' ? 'page' : 'custom',
         pageSlug: typeof entry?.pageSlug === 'string' ? entry.pageSlug : '',
         label: typeof entry?.label === 'string' ? entry.label : '',
-        href: typeof entry?.href === 'string' ? entry.href : ''
-      }));
+        href: typeof entry?.href === 'string' ? entry.href : '',
+        ...(labelByLocale ? { labelByLocale } : {}),
+        ...(hrefByLocale ? { hrefByLocale } : {})
+      };
+    });
+
+    if (Array.isArray(value)) {
+      return normalizeEntries(value);
     }
     if (typeof value === 'string' && value.trim()) {
       try {
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) {
-          return parsed.map((entry) => ({
-            type: entry?.type === 'page' ? 'page' : 'custom',
-            pageSlug: typeof entry?.pageSlug === 'string' ? entry.pageSlug : '',
-            label: typeof entry?.label === 'string' ? entry.label : '',
-            href: typeof entry?.href === 'string' ? entry.href : ''
-          }));
+          return normalizeEntries(parsed);
         }
       } catch {
         return [];
@@ -369,6 +389,8 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
         const label = link.label.trim();
         const href = link.href.trim();
         const pageSlug = typeof link.pageSlug === 'string' ? normalizePageSlug(link.pageSlug) : null;
+        const labelByLocale = normalizeLocalizedStringMap(link.labelByLocale);
+        const hrefByLocale = normalizeLocalizedStringMap(link.hrefByLocale);
 
         if (type === 'page') {
           const resolvedSlug = pageSlug ?? normalizePageSlug(href);
@@ -377,15 +399,20 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
             type: 'page',
             pageSlug: resolvedSlug,
             label,
-            href: pageSlugToHref(resolvedSlug)
+            href: pageSlugToHref(resolvedSlug),
+            ...(labelByLocale ? { labelByLocale } : {}),
+            ...(hrefByLocale ? { hrefByLocale } : {})
           };
         }
 
-        if (!label || !href) return null;
+        const hasLocalizedHref = Boolean(hrefByLocale && Object.keys(hrefByLocale).length > 0);
+        if (!label || (!href && !hasLocalizedHref)) return null;
         return {
           type: 'custom',
           label,
-          href
+          href,
+          ...(labelByLocale ? { labelByLocale } : {}),
+          ...(hrefByLocale ? { hrefByLocale } : {})
         };
       })
       .filter((link): link is NavLink => Boolean(link))
@@ -595,12 +622,44 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
   const getSettingByKey = (key: string): SiteSetting | undefined =>
     activeSettings?.settings.find((setting) => setting.key === key);
 
+  const getSettingByKeyGlobal = (key: string): SiteSetting | undefined => {
+    for (const category of categories) {
+      const match = category.settings.find((setting) => setting.key === key);
+      if (match) return match;
+    }
+    return undefined;
+  };
+
   const getSettingValue = (key: string): any => {
     if (Object.prototype.hasOwnProperty.call(pendingChanges, key)) {
       return pendingChanges[key];
     }
     return getSettingByKey(key)?.value;
   };
+
+  const getSettingValueGlobal = (key: string): any => {
+    if (Object.prototype.hasOwnProperty.call(pendingChanges, key)) {
+      return pendingChanges[key];
+    }
+    return getSettingByKeyGlobal(key)?.value;
+  };
+
+  const localeOptionsForMenus = useMemo(() => {
+    const configuredLocales = getSettingValueGlobal('content.locales');
+    const configuredDefaultLocale = typeof getSettingValueGlobal('content.defaultLocale') === 'string'
+      ? String(getSettingValueGlobal('content.defaultLocale')).trim().toLowerCase()
+      : '';
+    const locales = Array.isArray(configuredLocales)
+      ? configuredLocales
+          .map((entry) => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
+          .filter((entry) => /^[a-z]{2}(?:-[a-z]{2})?$/.test(entry))
+      : [];
+    const withDefault = configuredDefaultLocale && /^[a-z]{2}(?:-[a-z]{2})?$/.test(configuredDefaultLocale)
+      ? [configuredDefaultLocale, ...locales]
+      : locales;
+    const deduped = Array.from(new Set(withDefault));
+    return deduped.length > 0 ? deduped : ['en'];
+  }, [categories, pendingChanges]);
 
   const renderLinkEditor = (options: {
     title: string;
@@ -631,6 +690,50 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
         ? { type: 'page', pageSlug: 'home', label: '', href: '/' }
         : { label: '', href: '' }
     );
+
+    const updateLinkAt = (linkIndex: number, nextLink: NavLink) => {
+      const next = [...links];
+      next[linkIndex] = nextLink;
+      handleSettingChange(settingKey, next);
+    };
+
+    const updateLocaleOverride = (
+      linkIndex: number,
+      field: 'labelByLocale' | 'hrefByLocale',
+      locale: string,
+      value: string
+    ) => {
+      const current = links[linkIndex];
+      if (!current) return;
+      const normalizedLocale = locale.trim().toLowerCase();
+      if (!normalizedLocale) return;
+
+      const existingMap = normalizeLocalizedStringMap(current[field]) ?? {};
+      const normalizedValue = value.trim();
+      const nextMap = { ...existingMap };
+      if (!normalizedValue) {
+        delete nextMap[normalizedLocale];
+      } else {
+        nextMap[normalizedLocale] = normalizedValue;
+      }
+
+      const nextLink: NavLink = { ...current };
+      if (field === 'labelByLocale') {
+        if (Object.keys(nextMap).length > 0) {
+          nextLink.labelByLocale = nextMap;
+        } else {
+          delete nextLink.labelByLocale;
+        }
+      } else {
+        if (Object.keys(nextMap).length > 0) {
+          nextLink.hrefByLocale = nextMap;
+        } else {
+          delete nextLink.hrefByLocale;
+        }
+      }
+
+      updateLinkAt(linkIndex, nextLink);
+    };
 
     return (
       <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
@@ -668,10 +771,14 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                       value={link.type === 'page' ? 'page' : 'custom'}
                       onChange={(event) => {
                         const next = [...links];
+                        const localeOverrides = {
+                          ...(next[index]?.labelByLocale ? { labelByLocale: next[index].labelByLocale } : {}),
+                          ...(next[index]?.hrefByLocale ? { hrefByLocale: next[index].hrefByLocale } : {})
+                        };
                         if (event.target.value === 'page') {
-                          next[index] = { type: 'page', pageSlug: 'home', label: '', href: '/' };
+                          next[index] = { type: 'page', pageSlug: 'home', label: '', href: '/', ...localeOverrides };
                         } else {
-                          next[index] = { type: 'custom', label: '', href: '' };
+                          next[index] = { type: 'custom', label: '', href: '', ...localeOverrides };
                         }
                         handleSettingChange(settingKey, next);
                       }}
@@ -685,15 +792,13 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={link.pageSlug || 'home'}
                           onChange={(event) => {
-                            const next = [...links];
                             const nextSlug = normalizePageSlug(event.target.value) || 'home';
-                            next[index] = {
-                              ...next[index],
+                            updateLinkAt(index, {
+                              ...links[index],
                               type: 'page',
                               pageSlug: nextSlug,
                               href: pageSlugToHref(nextSlug)
-                            };
-                            handleSettingChange(settingKey, next);
+                            });
                           }}
                         >
                           <option value="home">home</option>
@@ -709,9 +814,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                           placeholder="Label override (optional)"
                           value={link.label}
                           onChange={(event) => {
-                            const next = [...links];
-                            next[index] = { ...next[index], label: event.target.value };
-                            handleSettingChange(settingKey, next);
+                            updateLinkAt(index, { ...links[index], label: event.target.value });
                           }}
                         />
                       </>
@@ -723,9 +826,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                           placeholder={placeholderLabel || 'Label'}
                           value={link.label}
                           onChange={(event) => {
-                            const next = [...links];
-                            next[index] = { ...next[index], label: event.target.value };
-                            handleSettingChange(settingKey, next);
+                            updateLinkAt(index, { ...links[index], label: event.target.value });
                           }}
                         />
                         <input
@@ -734,9 +835,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                           placeholder={placeholderHref || '/path or https://'}
                           value={link.href}
                           onChange={(event) => {
-                            const next = [...links];
-                            next[index] = { ...next[index], href: event.target.value };
-                            handleSettingChange(settingKey, next);
+                            updateLinkAt(index, { ...links[index], href: event.target.value });
                           }}
                         />
                       </>
@@ -758,6 +857,44 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                       Leave label override empty to use the localized page title.
                     </p>
                   )}
+                  <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                    <p className="text-xs font-medium text-foreground">Locale-specific overrides</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Optional per-locale label and href/path overrides. Leave empty to use automatic localization.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {localeOptionsForMenus.map((localeCode) => (
+                        <div
+                          key={`${settingKey}-${index}-${localeCode}`}
+                          className="grid gap-2 sm:grid-cols-[72px_1fr_1fr]"
+                        >
+                          <div className="flex items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {localeCode}
+                          </div>
+                          <input
+                            type="text"
+                            className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                            placeholder={`Label (${localeCode})`}
+                            value={link.labelByLocale?.[localeCode] ?? ''}
+                            onChange={(event) => {
+                              updateLocaleOverride(index, 'labelByLocale', localeCode, event.target.value);
+                            }}
+                          />
+                          <input
+                            type="text"
+                            className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                            placeholder={link.type === 'page'
+                              ? `Path (${localeCode}) e.g. /about`
+                              : `Href (${localeCode}) e.g. /contact or https://`}
+                            value={link.hrefByLocale?.[localeCode] ?? ''}
+                            onChange={(event) => {
+                              updateLocaleOverride(index, 'hrefByLocale', localeCode, event.target.value);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -767,9 +904,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                     placeholder={placeholderLabel || 'Label'}
                     value={link.label}
                     onChange={(event) => {
-                      const next = [...links];
-                      next[index] = { ...next[index], label: event.target.value };
-                      handleSettingChange(settingKey, next);
+                      updateLinkAt(index, { ...links[index], label: event.target.value });
                     }}
                   />
                   <input
@@ -778,9 +913,7 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
                     placeholder={placeholderHref || '/path or https://'}
                     value={link.href}
                     onChange={(event) => {
-                      const next = [...links];
-                      next[index] = { ...next[index], href: event.target.value };
-                      handleSettingChange(settingKey, next);
+                      updateLinkAt(index, { ...links[index], href: event.target.value });
                     }}
                   />
                   <button

@@ -81,7 +81,7 @@ function PageListingInner({
   const [hydrated, setHydrated] = useState(false);
   const [pages, setPages] = useState<PageRow[]>(initialPages);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ status: '', locale: defaultLocale, search: '', searchField: 'all' });
+  const [filters, setFilters] = useState({ status: '', locale: '', search: '', searchField: 'all' });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: initialPages.length });
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -103,8 +103,9 @@ function PageListingInner({
   };
 
   useEffect(() => {
+    if (!filters.locale) return;
     if (localeOptions.includes(filters.locale)) return;
-    setFilters((prev) => ({ ...prev, locale: localeOptions[0] }));
+    setFilters((prev) => ({ ...prev, locale: '' }));
   }, [filters.locale, localeOptions]);
 
   const loadPages = useCallback(async () => {
@@ -146,7 +147,7 @@ function PageListingInner({
       initialPages.length === 0
       || filters.status
       || filters.search
-      || (filters.locale && filters.locale !== defaultLocale)
+      || filters.locale
       || pagination.page > 1
     ) {
       loadPages();
@@ -247,6 +248,7 @@ function PageListingInner({
               onChange={(e) => handleFilterChange('locale', e.target.value)}
               className="mt-2 w-full rounded-md border border-input px-3 py-2 text-sm"
             >
+              <option value="">All locales</option>
               {localeOptions.map((locale) => (
                 <option key={locale} value={locale}>
                   {locale}

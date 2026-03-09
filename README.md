@@ -90,7 +90,9 @@ Locale settings (configured in admin settings):
 - `content.defaultLocale`: default locale used for redirects/fallback.
 - `content.locales`: enabled locale codes used for public route prefixes.
 - Recommended for Norwegian Bokmal: use `nb` in URLs (`/nb/...`).
+- Shipped locale packs include `en`, `nb`, `es`, and `zh`; only locales listed in `content.locales` are active.
 - Add a new locale by adding `src/lib/i18n/messages/<locale>.json` and optional feature files under `src/lib/features/*/messages/<locale>.json`, then include the code in `content.locales`.
+- Navigation links support optional per-locale overrides via `labelByLocale` and `hrefByLocale` for translated labels and locale-specific slugs.
 
 ### Additional Scripts
 | Command | Description |

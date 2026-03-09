@@ -58,24 +58,64 @@ const requestPathname = typeof Astro.locals.requestPathname === 'string'
   ? Astro.locals.requestPathname
   : Astro.url.pathname;
 const localeMessages = getLocaleMessages(currentLocale);
+const defaultLocaleMessages = currentLocale === siteLocaleConfig.defaultLocale
+  ? localeMessages
+  : getLocaleMessages(siteLocaleConfig.defaultLocale);
 const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
 const localizeSiteHref = (href: string) => localizeHref(href, currentLocale, { skipPrefixes: LOCALIZED_HREF_SKIP_PREFIXES });
 const localizedPages = await getPublishedPages(currentLocale);
-const fallbackPages = currentLocale === siteLocaleConfig.defaultLocale ? [] : await getPublishedPages(siteLocaleConfig.defaultLocale);
+const defaultLocalePages = currentLocale === siteLocaleConfig.defaultLocale
+  ? localizedPages
+  : await getPublishedPages(siteLocaleConfig.defaultLocale);
 const localizedPageTitlesBySlug = new Map<string, string>();
-fallbackPages.forEach((page) => {
-  localizedPageTitlesBySlug.set(page.slug.toLowerCase(), page.title);
+const defaultLocalePageTitlesBySlug = new Map<string, string>();
+defaultLocalePages.forEach((page) => {
+  const normalizedSlug = page.slug.toLowerCase();
+  defaultLocalePageTitlesBySlug.set(normalizedSlug, page.title);
+  localizedPageTitlesBySlug.set(normalizedSlug, page.title);
 });
 localizedPages.forEach((page) => {
   localizedPageTitlesBySlug.set(page.slug.toLowerCase(), page.title);
 });
 const coreArticleHref = `/${siteContentRouting.articleBasePath}`;
+const defaultLocaleCoreNavTokens = new Set([
+  t(defaultLocaleMessages, 'core.nav.home', 'Home').trim().toLowerCase(),
+  t(defaultLocaleMessages, 'core.nav.articles', 'Articles').trim().toLowerCase(),
+  t(defaultLocaleMessages, 'core.nav.about', 'About').trim().toLowerCase(),
+  t(defaultLocaleMessages, 'core.nav.contact', 'Contact').trim().toLowerCase(),
+  'home',
+  'hjem',
+  'articles',
+  'artikler',
+  'about',
+  'om',
+  'contact',
+  'kontakt'
+]);
 const normalizeNavPath = (href: string): string | null => {
   if (!href || href.startsWith('#')) return null;
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith('/')) return null;
   const normalizedHref = href.startsWith('/') ? href : `/${href}`;
   const [pathOnly] = normalizedHref.split('?');
   return pathOnly === '/' ? '/' : pathOnly.replace(/\/+$/, '').toLowerCase();
+};
+const normalizePageSlug = (value?: string): string | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!normalized) return 'home';
+  return normalized;
+};
+const getLocaleOverrideValue = (map: Record<string, string> | undefined, locale: string): string | null => {
+  if (!map || typeof map !== 'object') return null;
+  const normalizedLocale = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
+  const directMatch = typeof map[normalizedLocale] === 'string' ? map[normalizedLocale].trim() : '';
+  if (directMatch) return directMatch;
+  const languageFallback = normalizedLocale.split('-')[0];
+  if (languageFallback && languageFallback !== normalizedLocale) {
+    const languageMatch = typeof map[languageFallback] === 'string' ? map[languageFallback].trim() : '';
+    if (languageMatch) return languageMatch;
+  }
+  return null;
 };
 const localizePageSlugLabel = (pageSlug: string): string | null => {
   const normalizedSlug = pageSlug.trim().toLowerCase();
@@ -89,6 +129,21 @@ const localizePageSlugLabel = (pageSlug: string): string | null => {
     return t(localeMessages, 'core.nav.articles', 'Articles');
   }
   return null;
+};
+const isImplicitPageLabel = (label: string, pageSlug?: string): boolean => {
+  const normalizedLabel = label.trim().toLowerCase();
+  if (!normalizedLabel) return true;
+  if (pageSlug) {
+    const normalizedSlug = pageSlug.trim().toLowerCase();
+    if (normalizedLabel === normalizedSlug || normalizedLabel === normalizedSlug.replace(/-/g, ' ')) {
+      return true;
+    }
+    const defaultTitle = defaultLocalePageTitlesBySlug.get(normalizedSlug);
+    if (defaultTitle && normalizedLabel === defaultTitle.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return defaultLocaleCoreNavTokens.has(normalizedLabel);
 };
 const localizeDefaultLabel = (label: string, href: string, pageSlug?: string): string => {
   if (typeof pageSlug === 'string') {
@@ -114,10 +169,37 @@ const localizeDefaultLabel = (label: string, href: string, pageSlug?: string): s
   }
   return label;
 };
+const resolveNavLabelForLocale = (link: (typeof siteNavigation.topLinks)[number], baseHref: string): string => {
+  const explicitLocaleLabel = getLocaleOverrideValue(link.labelByLocale, currentLocale);
+  if (explicitLocaleLabel) return explicitLocaleLabel;
+
+  const normalizedSlug = normalizePageSlug(link.pageSlug || (link.type === 'page' ? link.href : ''));
+  if (link.type === 'page' && normalizedSlug) {
+    const localizedLabel = localizePageSlugLabel(normalizedSlug);
+    if (localizedLabel && isImplicitPageLabel(link.label, normalizedSlug)) {
+      return localizedLabel;
+    }
+  }
+
+  return localizeDefaultLabel(link.label, baseHref, normalizedSlug || link.pageSlug);
+};
+const resolveNavHrefForLocale = (link: (typeof siteNavigation.topLinks)[number]): string => {
+  const explicitLocaleHref = getLocaleOverrideValue(link.hrefByLocale, currentLocale);
+  const baseHref = explicitLocaleHref || link.href || '';
+  return localizeSiteHref(baseHref);
+};
+const resolveLocalizedNavLink = (link: (typeof siteNavigation.topLinks)[number]) => {
+  const baseHref = getLocaleOverrideValue(link.hrefByLocale, currentLocale) || link.href || '';
+  const href = resolveNavHrefForLocale(link);
+  const label = resolveNavLabelForLocale(link, baseHref);
+  return { ...link, href, label };
+};
 const getLocaleDisplayLabel = (locale: string): string => {
   const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
   if (normalized === 'nb') return t(localeMessages, 'core.locale.nb', 'Norwegian Bokmal');
   if (normalized === 'en') return t(localeMessages, 'core.locale.en', 'English');
+  if (normalized === 'es') return t(localeMessages, 'core.locale.es', 'Spanish');
+  if (normalized === 'zh') return t(localeMessages, 'core.locale.zh', 'Chinese');
   return normalized.toUpperCase();
 };
 const localizedHomeHref = buildLocalizedPath('/', currentLocale);
@@ -184,11 +266,9 @@ const dedupedSocialLinks = rawSocialLinks.filter((link, index, links) => (
   links.findIndex((candidate) => candidate.href.toLowerCase() === link.href.toLowerCase()) === index
 ));
 const sameAsProfiles = dedupedSocialLinks.map((link) => link.href);
-const navLinks = siteNavigation.topLinks.map((link) => ({
-  ...link,
-  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
-  href: localizeSiteHref(link.href)
-}));
+const navLinks = siteNavigation.topLinks
+  .map((link) => resolveLocalizedNavLink(link))
+  .filter((link) => typeof link.href === 'string' && link.href.trim().length > 0);
 const localizedSearchPath = buildLocalizedPath('/search', currentLocale);
 const websiteStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
@@ -226,16 +306,12 @@ const navigationStructuredData = navLinks.length > 0
 
 const footerLinks = siteNavigation.bottomLinks;
 const footerItems = siteNavigation.footerLinks;
-const localizedFooterLinks = footerLinks.map((link) => ({
-  ...link,
-  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
-  href: localizeSiteHref(link.href)
-}));
-const localizedFooterItems = footerItems.map((link) => ({
-  ...link,
-  label: localizeDefaultLabel(link.label, link.href, link.pageSlug),
-  href: localizeSiteHref(link.href)
-}));
+const localizedFooterLinks = footerLinks
+  .map((link) => resolveLocalizedNavLink(link))
+  .filter((link) => typeof link.href === 'string' && link.href.trim().length > 0);
+const localizedFooterItems = footerItems
+  .map((link) => resolveLocalizedNavLink(link))
+  .filter((link) => typeof link.href === 'string' && link.href.trim().length > 0);
 const usedFooterHrefs = new Set(
   [...localizedFooterLinks, ...localizedFooterItems]
     .map((item) => item?.href)
