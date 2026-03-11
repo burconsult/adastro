@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   getSettings: vi.fn(),
-  updateSettings: vi.fn()
+  updateSettings: vi.fn(),
+  ensureLocalizedSystemPages: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/lib/services/settings-service', () => ({
   }))
 }));
 
+vi.mock('@/lib/services/system-pages', () => ({
+  ensureLocalizedSystemPages: mocks.ensureLocalizedSystemPages
+}));
+
 import { GET, PUT } from '../locales';
 
 describe('admin locales api', () => {
@@ -25,7 +30,8 @@ describe('admin locales api', () => {
     mocks.requireAdmin.mockResolvedValue({ id: 'admin-1', role: 'admin' });
     let settingsState = {
       'content.defaultLocale': 'en',
-      'content.locales': ['en', 'nb']
+      'content.locales': ['en', 'nb'],
+      'content.articleBasePath': 'blog'
     };
     mocks.getSettings.mockImplementation(async () => settingsState);
     mocks.updateSettings.mockImplementation(async (updates: Record<string, unknown>) => {
@@ -33,6 +39,12 @@ describe('admin locales api', () => {
         ...settingsState,
         ...updates
       };
+    });
+    mocks.ensureLocalizedSystemPages.mockResolvedValue({
+      targetLocale: 'es',
+      createdSlugs: ['home', 'about', 'contact', 'blog'],
+      clonedSlugs: ['home', 'about', 'contact', 'blog'],
+      blueprintSlugs: []
     });
   });
 
@@ -66,6 +78,12 @@ describe('admin locales api', () => {
       'content.defaultLocale': 'nb',
       'content.locales': ['nb', 'es']
     }, 'admin-1');
+    expect(mocks.ensureLocalizedSystemPages).toHaveBeenCalledWith({
+      articleBasePath: 'blog',
+      targetLocale: 'es',
+      sourceLocale: 'en',
+      fallbackSourceLocale: 'en'
+    });
     expect(payload.defaultLocale).toBe('nb');
     expect(payload.activeLocales).toEqual(['nb', 'es']);
   });

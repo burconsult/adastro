@@ -123,8 +123,8 @@
   "core.mobile.closeMenu": "Lukk mobilmeny",
   "core.mobile.toggleTheme": "Bytt tema",
   "core.locale.switcher": "Språk",
-  "core.locale.en": "Engelsk",
-  "core.locale.nb": "Norsk bokmål",
+  "core.locale.en": "English",
+  "core.locale.nb": "Norsk",
   "core.footer.navigate": "Naviger",
   "core.footer.connect": "Koble til",
   "core.footer.poweredBy": "Drevet av AdAstro",
@@ -189,6 +189,6 @@
   "core.search.searchPostsSuffix": "for å søke i innlegg.",
   "core.search.minChars": "Skriv minst 2 tegn for å søke.",
   "core.search.noResults": "Ingen publiserte innlegg matchet søket ditt.",
-  "core.locale.es": "Spansk",
-  "core.locale.zh": "Kinesisk"
+  "core.locale.es": "Español",
+  "core.locale.zh": "中文"
 }

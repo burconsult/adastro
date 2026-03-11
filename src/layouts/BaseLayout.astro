@@ -14,6 +14,7 @@ import { authService } from "@/lib/auth/auth-helpers";
 import { getSiteContentRouting, getSiteCustomScripts, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
 import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
+import { getCoreLocalePacks } from "@/lib/i18n/catalog";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
 type Props = {
@@ -194,13 +195,16 @@ const resolveLocalizedNavLink = (link: (typeof siteNavigation.topLinks)[number])
   const label = resolveNavLabelForLocale(link, baseHref);
   return { ...link, href, label };
 };
+const coreLocalePacks = getCoreLocalePacks();
 const getLocaleDisplayLabel = (locale: string): string => {
   const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
-  if (normalized === 'nb') return t(localeMessages, 'core.locale.nb', 'Norwegian Bokmal');
-  if (normalized === 'en') return t(localeMessages, 'core.locale.en', 'English');
-  if (normalized === 'es') return t(localeMessages, 'core.locale.es', 'Spanish');
-  if (normalized === 'zh') return t(localeMessages, 'core.locale.zh', 'Chinese');
-  return normalized.toUpperCase();
+  const ownPack = coreLocalePacks[normalized]
+    || coreLocalePacks[normalized.split('-')[0]]
+    || coreLocalePacks[siteLocaleConfig.defaultLocale]
+    || coreLocalePacks.en;
+  return ownPack?.messages[`core.locale.${normalized}`]
+    || ownPack?.messages[`core.locale.${normalized.split('-')[0]}`]
+    || normalized.toUpperCase();
 };
 const localizedHomeHref = buildLocalizedPath('/', currentLocale);
 

@@ -119,12 +119,12 @@
   "core.nav.articles": "Articles",
   "core.nav.about": "About",
   "core.nav.contact": "Contact",
-  "core.mobile.openMenu": "Open menu",
-  "core.mobile.closeMenu": "Close mobile menu",
-  "core.mobile.toggleTheme": "Toggle theme",
-  "core.locale.switcher": "Language",
+  "core.mobile.openMenu": "Abrir menú",
+  "core.mobile.closeMenu": "Cerrar menú móvil",
+  "core.mobile.toggleTheme": "Cambiar tema",
+  "core.locale.switcher": "Idioma",
   "core.locale.en": "English",
-  "core.locale.nb": "Norwegian Bokmal",
+  "core.locale.nb": "Norsk",
   "core.footer.navigate": "Navigate",
   "core.footer.connect": "Connect",
   "core.footer.poweredBy": "Powered by AdAstro",
@@ -189,6 +189,6 @@
   "core.search.searchPostsSuffix": "to search posts.",
   "core.search.minChars": "Enter at least 2 characters to run a search.",
   "core.search.noResults": "No published posts matched your search.",
-  "core.locale.es": "Spanish",
-  "core.locale.zh": "Chinese"
+  "core.locale.es": "Español",
+  "core.locale.zh": "中文"
 }

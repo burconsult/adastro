@@ -67,6 +67,7 @@
     "setupRuntime": "src/lib/setup/runtime.ts",
     "dataAccess": "src/lib/database/repositories",
     "services": "src/lib/services",
+    "systemPagesService": "src/lib/services/system-pages.ts",
     "migrationPipeline": [
       "src/lib/services/wordpress-migration.ts",
       "src/lib/services/wordpress-migration/types.ts",

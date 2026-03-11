@@ -149,7 +149,7 @@ export default function MobileNavigation({
             <select
               id="mobile-locale-switcher"
               aria-label={localeSwitcherLabel}
-              className="h-10 max-w-[8.5rem] rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase tracking-wide text-foreground"
+              className="h-10 max-w-[8.5rem] rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-foreground"
               value={activeLocale}
               onChange={(event) => {
                 const nextLocale = event.target.value;
@@ -159,7 +159,7 @@ export default function MobileNavigation({
             >
               {localeOptions.map((option) => (
                 <option key={option.code} value={option.code.trim().toLowerCase()}>
-                  {option.code} · {option.label}
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -216,7 +216,7 @@ export default function MobileNavigation({
         {hasLocaleSwitcher && (
           <select
             aria-label={localeSwitcherLabel}
-            className="h-9 min-w-[8.5rem] rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground"
+            className="h-9 min-w-[8.5rem] rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground"
             value={activeLocale}
             onChange={(event) => {
               const nextLocale = event.target.value;
@@ -226,7 +226,7 @@ export default function MobileNavigation({
           >
             {localeOptions.map((option) => (
               <option key={option.code} value={option.code.trim().toLowerCase()}>
-                {option.code} · {option.label}
+                {option.label}
               </option>
             ))}
           </select>

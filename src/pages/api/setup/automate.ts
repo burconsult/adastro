@@ -16,8 +16,7 @@ import {
   upsertStorageBucketConfig
 } from '@/lib/storage/buckets';
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
-import { PageRepository } from '@/lib/database/repositories/page-repository';
-import type { PageSectionInput } from '@/lib/database/repositories/page-section-repository';
+import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 
 type AutomationActionStatus = 'ok' | 'warn' | 'fail';
 
@@ -545,270 +544,32 @@ const applySettingsDefaults = async (
   };
 };
 
-type SystemPageBlueprint = {
-  title: string;
-  slug: string;
-  template: 'home' | 'landing' | 'blog';
-  excerpt: string;
-  seoMetadata: Record<string, unknown>;
-  sections: PageSectionInput[];
-};
-
-const buildSystemPageBlueprints = (articleBasePath: string): SystemPageBlueprint[] => {
-  const articlesPath = `/${articleBasePath}`;
-
-  return [
-    {
-      title: 'Home',
-      slug: 'home',
-      template: 'home',
-      excerpt: 'AdAstro launch page with a practical performance-first overview.',
-      seoMetadata: {
-        metaTitle: 'AdAstro - The Lightspeed CMS',
-        metaDescription: 'Fast publishing with Astro + Supabase, with modular features you can enable when needed.'
-      },
-      sections: [
-        {
-          type: 'hero',
-          orderIndex: 0,
-          content: {
-            label: 'AdAstro - The Lightspeed CMS',
-            heading: 'Fast publishing with practical defaults',
-            subheading: 'A clean CMS core built for green PageSpeed scores, reliable SEO, and modular features you can keep off until needed.',
-            primaryCtaLabel: 'Open articles',
-            primaryCtaHref: articlesPath,
-            secondaryCtaLabel: 'About AdAstro',
-            secondaryCtaHref: '/about',
-            imageUrl: '/images/adastro.webp',
-            imageAlt: 'AdAstro launch illustration'
-          }
-        },
-        {
-          type: 'info_blocks',
-          orderIndex: 1,
-          content: {
-            heading: 'What ships in the core',
-            items: [
-              {
-                title: 'Speed-first architecture',
-                description: 'Astro rendering and stable defaults keep performance predictable as content grows.'
-              },
-              {
-                title: 'SEO baseline included',
-                description: 'Canonical tags, sitemap, metadata controls, and OG previews come built in.'
-              },
-              {
-                title: 'Modular feature model',
-                description: 'AI, comments, and newsletter stay off by default and can be enabled when you need them.'
-              }
-            ]
-          }
-        },
-        {
-          type: 'cta',
-          orderIndex: 2,
-          content: {
-            heading: 'Ready to customize this site?',
-            body: 'Start by editing this homepage and the About page from Admin -> Pages.',
-            ctaLabel: 'Open pages',
-            ctaHref: '/admin/pages'
-          }
-        }
-      ]
-    },
-    {
-      title: 'Articles',
-      slug: articleBasePath,
-      template: 'blog',
-      excerpt: 'Article index intro managed from the page editor.',
-      seoMetadata: {
-        metaTitle: 'Articles - AdAstro',
-        metaDescription: 'Publishing notes, migration workflows, and practical performance wins.'
-      },
-      sections: [
-        {
-          type: 'hero',
-          orderIndex: 0,
-          content: {
-            label: 'Articles',
-            heading: 'Publishing notes, migration workflows, and performance wins',
-            subheading: 'This page header is editable from Pages. The article list below is always generated from published posts.',
-            primaryCtaLabel: 'Go to home',
-            primaryCtaHref: '/',
-            secondaryCtaLabel: 'Contact',
-            secondaryCtaHref: '/contact'
-          }
-        }
-      ]
-    },
-    {
-      title: 'About',
-      slug: 'about',
-      template: 'landing',
-      excerpt: 'Editable About page with practical context for the CMS.',
-      seoMetadata: {
-        metaTitle: 'About - AdAstro',
-        metaDescription: 'How AdAstro is built and why the stack focuses on practical speed-first publishing.'
-      },
-      sections: [
-        {
-          type: 'hero',
-          orderIndex: 0,
-          content: {
-            label: 'About',
-            heading: 'Built to stay fast while keeping publishing simple',
-            subheading: 'AdAstro started as a practical response to slow CMS setups and grew into a modular Astro + Supabase stack.',
-            primaryCtaLabel: 'Open pages',
-            primaryCtaHref: '/admin/pages',
-            secondaryCtaLabel: 'Read articles',
-            secondaryCtaHref: articlesPath,
-            imageUrl: '/images/adastro.webp',
-            imageAlt: 'AdAstro project timeline illustration'
-          }
-        },
-        {
-          type: 'feature_grid',
-          orderIndex: 1,
-          content: {
-            heading: 'What this CMS optimizes for',
-            items: [
-              {
-                title: 'Predictable performance',
-                description: 'The baseline is tuned for 90+ PSI targets with real-world content.',
-                badge: 'Core'
-              },
-              {
-                title: 'Editable system pages',
-                description: 'Home, About, Articles header, and Contact are managed from the page editor.',
-                badge: 'Content'
-              },
-              {
-                title: 'Modular feature lifecycle',
-                description: 'Bundled features are optional and can be enabled or removed without touching the core.',
-                badge: 'Features'
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      title: 'Contact',
-      slug: 'contact',
-      template: 'landing',
-      excerpt: 'Editable contact page for support and collaboration details.',
-      seoMetadata: {
-        metaTitle: 'Contact - AdAstro',
-        metaDescription: 'Contact details and collaboration links for your AdAstro site.'
-      },
-      sections: [
-        {
-          type: 'hero',
-          orderIndex: 0,
-          content: {
-            label: 'Contact',
-            heading: 'Questions, bug reports, or collaboration ideas',
-            subheading: 'Update this page with your own support channels, SLA notes, and preferred contact paths.',
-            primaryCtaLabel: 'Open an issue',
-            primaryCtaHref: 'https://github.com/burconsult/adastro/issues',
-            secondaryCtaLabel: 'View discussions',
-            secondaryCtaHref: 'https://github.com/burconsult/adastro/discussions',
-            imageUrl: '/images/adastro.webp',
-            imageAlt: 'Support desk illustration for AdAstro contact page'
-          }
-        },
-        {
-          type: 'cta',
-          orderIndex: 1,
-          content: {
-            heading: 'Customize this contact flow',
-            body: 'Swap links, text, and CTA actions from Admin -> Pages without editing code.',
-            ctaLabel: 'Edit contact page',
-            ctaHref: '/admin/pages'
-          }
-        }
-      ]
-    }
-  ];
-};
-
-const resolvePrimaryAuthorId = async (): Promise<string | null> => {
-  const { data, error } = await (supabaseAdmin as any)
-    .from('authors')
-    .select('id')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (error && !isMissingTableError(String(error.message || ''))) {
-    throw new Error(`Could not determine default author for system pages: ${error.message}`);
-  }
-
-  return data?.id || null;
-};
-
 const ensureSystemPages = async (articleBasePath: string): Promise<AutomationAction> => {
-  const blueprints = buildSystemPageBlueprints(articleBasePath);
-  const slugs = blueprints.map((page) => page.slug);
-  const { data: existingRows, error: existingError } = await (supabaseAdmin as any)
-    .from('pages')
-    .select('slug')
-    .in('slug', slugs);
+  try {
+    const result = await ensureLocalizedSystemPages({
+      articleBasePath,
+      targetLocale: DEFAULT_LOCALE,
+      sourceLocale: DEFAULT_LOCALE,
+      fallbackSourceLocale: DEFAULT_LOCALE
+    });
 
-  if (existingError) {
+    return {
+      id: 'system.pages',
+      label: 'System pages',
+      status: 'ok',
+      detail: result.createdSlugs.length > 0
+        ? `Created editable system pages: ${result.createdSlugs.join(', ')}.`
+        : `Editable system pages already exist for locale ${result.targetLocale.toUpperCase()}.`
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown error';
     return {
       id: 'system.pages',
       label: 'System pages',
       status: 'warn',
-      detail: `Could not verify existing pages: ${existingError.message}`
+      detail: `Could not create system pages: ${message}`
     };
   }
-
-  const existingSlugs = new Set((existingRows || []).map((row: { slug?: string }) => row.slug).filter(Boolean));
-  const pageRepo = new PageRepository(true);
-  const authorId = await resolvePrimaryAuthorId();
-  const created: string[] = [];
-  const failed: string[] = [];
-
-  for (const blueprint of blueprints) {
-    if (existingSlugs.has(blueprint.slug)) continue;
-    try {
-      await pageRepo.createWithSections({
-        title: blueprint.title,
-        slug: blueprint.slug,
-        status: 'published',
-        template: blueprint.template,
-        excerpt: blueprint.excerpt,
-        authorId,
-        seoMetadata: blueprint.seoMetadata,
-        publishedAt: new Date()
-      }, blueprint.sections);
-      created.push(blueprint.slug);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
-      failed.push(`${blueprint.slug} (${message})`);
-    }
-  }
-
-  if (failed.length > 0) {
-    return {
-      id: 'system.pages',
-      label: 'System pages',
-      status: 'warn',
-      detail: created.length > 0
-        ? `Created: ${created.join(', ')}. Failed: ${failed.join('; ')}`
-        : `Could not create system pages: ${failed.join('; ')}`
-    };
-  }
-
-  return {
-    id: 'system.pages',
-    label: 'System pages',
-    status: 'ok',
-    detail: created.length > 0
-      ? `Created editable system pages: ${created.join(', ')}.`
-      : `Editable system pages already exist (${slugs.join(', ')}).`
-  };
 };
 
 const configureStorageBuckets = async (resolvedSiteUrl: string | null): Promise<StorageBucketConfig> => {

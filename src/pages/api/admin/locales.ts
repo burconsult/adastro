@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { requireAdmin } from '@/lib/auth/auth-helpers';
 import { getAvailableLocaleCodes, getCoreLocalePacks, getLocalePackHealth, LOCALE_CATALOG_VERSION, LOCALE_SCHEMA_VERSION } from '@/lib/i18n/catalog';
 import { DEFAULT_LOCALE, ensureDefaultLocaleInList, isValidLocaleCode, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
+import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
+import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 import { SettingsService } from '@/lib/services/settings-service';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -60,6 +62,12 @@ export const GET: APIRoute = async ({ request }) => {
 export const PUT: APIRoute = async ({ request }) => {
   try {
     const admin = await requireAdmin(request);
+    const settingsService = new SettingsService();
+    const currentSettings = await settingsService.getSettings([
+      'content.defaultLocale',
+      'content.locales',
+      'content.articleBasePath'
+    ]);
     const body = await request.json().catch(() => null);
     const requestedDefaultLocale = normalizeLocaleCode(body?.defaultLocale, DEFAULT_LOCALE);
     const requestedLocales = Array.isArray(body?.activeLocales)
@@ -71,6 +79,16 @@ export const PUT: APIRoute = async ({ request }) => {
       requestedDefaultLocale,
       normalizeLocaleList(requestedLocales, requestedDefaultLocale)
     ).filter((locale) => coreLocales.includes(locale));
+    const previousDefaultLocale = normalizeLocaleCode(currentSettings['content.defaultLocale'], DEFAULT_LOCALE);
+    const previousActiveLocales = ensureDefaultLocaleInList(
+      previousDefaultLocale,
+      normalizeLocaleList(currentSettings['content.locales'], previousDefaultLocale)
+    );
+    const articleBasePath = normalizeArticleBasePath(
+      typeof currentSettings['content.articleBasePath'] === 'string'
+        ? currentSettings['content.articleBasePath']
+        : DEFAULT_ARTICLE_ROUTING.basePath
+    );
 
     if (!isValidLocaleCode(requestedDefaultLocale)) {
       return new Response(JSON.stringify({ error: 'Default locale is invalid.' }), { status: 400, headers: jsonHeaders });
@@ -84,7 +102,16 @@ export const PUT: APIRoute = async ({ request }) => {
       return new Response(JSON.stringify({ error: 'At least one active locale is required.' }), { status: 400, headers: jsonHeaders });
     }
 
-    const settingsService = new SettingsService();
+    const newlyActivatedLocales = normalizedActiveLocales.filter((locale) => !previousActiveLocales.includes(locale));
+    for (const locale of newlyActivatedLocales) {
+      await ensureLocalizedSystemPages({
+        articleBasePath,
+        targetLocale: locale,
+        sourceLocale: previousDefaultLocale,
+        fallbackSourceLocale: DEFAULT_LOCALE
+      });
+    }
+
     await settingsService.updateSettings({
       'content.defaultLocale': requestedDefaultLocale,
       'content.locales': normalizedActiveLocales
