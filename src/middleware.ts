@@ -170,7 +170,14 @@ const getLocaleConfigForRequest = async (): Promise<{ defaultLocale: string; loc
 export const onRequest = defineMiddleware(async (context, next) => {
   const { url, redirect } = context;
   const localeConfig = await getLocaleConfigForRequest();
-  const localePath = resolveLocalePath(url.pathname, localeConfig.locales, localeConfig.defaultLocale);
+  const originalRequestPathname = typeof context.locals.requestPathname === 'string' && context.locals.requestPathname.length > 0
+    ? context.locals.requestPathname
+    : url.pathname;
+  const requestLocalePath = resolveLocalePath(url.pathname, localeConfig.locales, localeConfig.defaultLocale);
+  const originalLocalePath = originalRequestPathname !== url.pathname
+    ? resolveLocalePath(originalRequestPathname, localeConfig.locales, localeConfig.defaultLocale)
+    : requestLocalePath;
+  const localePath = originalLocalePath.hasLocalePrefix ? originalLocalePath : requestLocalePath;
   const requestPolicyPath = getRequestPolicyPath(url.pathname, localePath);
   context.locals.locale = localePath.locale;
   context.locals.defaultLocale = localeConfig.defaultLocale;
