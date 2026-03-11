@@ -126,6 +126,8 @@ export {
   getPostsByCategory,
   getTagsWithPosts,
   getCategoriesWithPosts,
+  getLocalizedTagBySlug,
+  getLocalizedCategoryBySlug,
   getPostStaticPaths,
   getPageStaticPaths,
   getTagStaticPaths,

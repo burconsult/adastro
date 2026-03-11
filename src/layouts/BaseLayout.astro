@@ -28,13 +28,14 @@ type Props = {
   hideFooterNewsletter?: boolean;
 }
 
-const siteIdentity = await getSiteIdentity();
+const siteLocaleConfig = await getSiteLocaleConfig();
+const currentLocale = normalizeLocaleCode(Astro.locals.locale, siteLocaleConfig.defaultLocale);
+const siteIdentity = await getSiteIdentity({ locale: currentLocale });
 const siteNavigation = await getSiteNavigation();
 const siteTheme = await getSiteTheme();
 const siteSeoDefaults = await getSiteSeoDefaults();
 const siteSocialProfiles = await getSiteSocialProfiles();
 const siteCustomScripts = await getSiteCustomScripts();
-const siteLocaleConfig = await getSiteLocaleConfig();
 const siteContentRouting = await getSiteContentRouting();
 const activeTheme = getThemeModuleById(siteTheme.preset);
 const themeFontMap = Object.fromEntries(
@@ -51,7 +52,6 @@ const {
   hideFooterNewsletter = false
 } = Astro.props as Props;
 const showFooterNewsletter = !hideFooterNewsletter && await isFeatureActive('newsletter');
-const currentLocale = normalizeLocaleCode(Astro.locals.locale, siteLocaleConfig.defaultLocale);
 const localizedPathname = typeof Astro.locals.localizedPath === 'string'
   ? Astro.locals.localizedPath
   : Astro.url.pathname;

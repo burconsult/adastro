@@ -47,6 +47,30 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     validation: { required: true, min: 3, max: 140 }
   },
   {
+    key: 'site.titleByLocale',
+    displayName: 'Localized Site Titles',
+    description: 'Optional locale-specific site titles keyed by locale code.',
+    type: 'json',
+    category: 'general',
+    defaultValue: {}
+  },
+  {
+    key: 'site.descriptionByLocale',
+    displayName: 'Localized Site Descriptions',
+    description: 'Optional locale-specific site descriptions keyed by locale code.',
+    type: 'json',
+    category: 'general',
+    defaultValue: {}
+  },
+  {
+    key: 'site.taglineByLocale',
+    displayName: 'Localized Site Taglines',
+    description: 'Optional locale-specific taglines keyed by locale code.',
+    type: 'json',
+    category: 'general',
+    defaultValue: {}
+  },
+  {
     key: 'site.logoUrl',
     displayName: 'Site Logo URL',
     description: 'Header/footer logo URL (use /logo.svg or an absolute https:// URL).',
@@ -267,6 +291,30 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     type: 'array',
     category: 'content',
     defaultValue: ['en']
+  },
+  {
+    key: 'content.categoryLabelsByLocale',
+    displayName: 'Localized Category Labels',
+    description: 'Optional localized category labels keyed by category slug, then locale code.',
+    type: 'json',
+    category: 'content',
+    defaultValue: {}
+  },
+  {
+    key: 'content.categoryDescriptionsByLocale',
+    displayName: 'Localized Category Descriptions',
+    description: 'Optional localized category descriptions keyed by category slug, then locale code.',
+    type: 'json',
+    category: 'content',
+    defaultValue: {}
+  },
+  {
+    key: 'content.tagLabelsByLocale',
+    displayName: 'Localized Tag Labels',
+    description: 'Optional localized tag labels keyed by tag slug, then locale code.',
+    type: 'json',
+    category: 'content',
+    defaultValue: {}
   },
   {
     key: 'content.postsPerPage',

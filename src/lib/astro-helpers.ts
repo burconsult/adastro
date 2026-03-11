@@ -3,6 +3,14 @@ import { PageRepository } from './database/repositories/page-repository.js';
 import { CategoryRepository } from './database/repositories/category-repository.js';
 import { TagRepository } from './database/repositories/tag-repository.js';
 import { getSiteLocaleConfig } from './site-config.js';
+import {
+  localizeBlogPost,
+  localizeBlogPosts,
+  localizeCategories,
+  localizeCategory,
+  localizeTag,
+  localizeTags
+} from './i18n/content-localizations.js';
 import type { BlogPost, Category, Tag, PostFilters, Page } from './types/index.js';
 import { DEFAULT_LOCALE, normalizeLocaleCode } from './i18n/locales.js';
 
@@ -43,19 +51,24 @@ async function resolveLocaleSequence(options?: LocalizedLookupOptions): Promise<
 
 export async function getPublishedPosts(limit?: number, offset?: number, locale?: string): Promise<BlogPost[]> {
   return withFallback('getPublishedPosts', [], async () => {
+    const normalizedLocale = locale ? normalizeLocaleCode(locale, DEFAULT_LOCALE) : undefined;
     const filters: PostFilters = {
       status: 'published',
       limit,
       offset,
-      ...(locale ? { locale: normalizeLocaleCode(locale, DEFAULT_LOCALE) } : {})
+      ...(normalizedLocale ? { locale: normalizedLocale } : {})
     };
 
     const posts = await postRepo.findWithFilters(filters);
-    return posts.sort((a, b) => {
+    const sortedPosts = posts.sort((a, b) => {
       const aDate = a.publishedAt || a.createdAt;
       const bDate = b.publishedAt || b.createdAt;
       return bDate.getTime() - aDate.getTime();
     });
+
+    return normalizedLocale
+      ? localizeBlogPosts(sortedPosts, normalizedLocale)
+      : sortedPosts;
   });
 }
 
@@ -66,7 +79,8 @@ export async function getPublishedPostBySlug(slug: string, options?: LocalizedLo
     if (!post || post.status !== 'published') {
       return null;
     }
-    return post;
+    const requestedLocale = normalizeLocaleCode(options?.locale, DEFAULT_LOCALE);
+    return localizeBlogPost(post, requestedLocale);
   });
 }
 
@@ -112,11 +126,12 @@ export async function getPostsByTag(
     };
 
     const posts = await postRepo.findWithFilters(filters);
-    return posts.sort((a, b) => {
+    const sortedPosts = posts.sort((a, b) => {
       const aDate = a.publishedAt || a.createdAt;
       const bDate = b.publishedAt || b.createdAt;
       return bDate.getTime() - aDate.getTime();
     });
+    return locale ? localizeBlogPosts(sortedPosts, locale) : sortedPosts;
   });
 }
 
@@ -141,29 +156,32 @@ export async function getPostsByCategory(
     };
 
     const posts = await postRepo.findWithFilters(filters);
-    return posts.sort((a, b) => {
+    const sortedPosts = posts.sort((a, b) => {
       const aDate = a.publishedAt || a.createdAt;
       const bDate = b.publishedAt || b.createdAt;
       return bDate.getTime() - aDate.getTime();
     });
+    return locale ? localizeBlogPosts(sortedPosts, locale) : sortedPosts;
   });
 }
 
-export async function getTagsWithPosts(): Promise<Tag[]> {
+export async function getTagsWithPosts(locale?: string): Promise<Tag[]> {
   return withFallback('getTagsWithPosts', [], async () => {
     const tags = await tagRepo.findAllWithStats();
-    return tags
+    const filteredTags = tags
       .filter((tag) => (tag.postCount ?? 0) > 0)
       .map((tag) => ({ ...tag, postCount: tag.postCount }));
+    return locale ? localizeTags(filteredTags, locale) : filteredTags;
   });
 }
 
-export async function getCategoriesWithPosts(): Promise<Category[]> {
+export async function getCategoriesWithPosts(locale?: string): Promise<Category[]> {
   return withFallback('getCategoriesWithPosts', [], async () => {
     const categories = await categoryRepo.findAllWithStats();
-    return categories
+    const filteredCategories = categories
       .filter((category) => (category.postCount ?? 0) > 0)
       .map((category) => ({ ...category, postCount: category.postCount }));
+    return locale ? localizeCategories(filteredCategories, locale) : filteredCategories;
   });
 }
 
@@ -203,6 +221,26 @@ export async function getCategoryStaticPaths() {
     params: { category: category.slug },
     props: { category }
   }));
+}
+
+export async function getLocalizedTagBySlug(slug: string, locale: string): Promise<Tag | null> {
+  return withFallback('getLocalizedTagBySlug', null, async () => {
+    const tag = await tagRepo.findBySlug(slug);
+    if (!tag) {
+      return null;
+    }
+    return localizeTag(tag, locale);
+  });
+}
+
+export async function getLocalizedCategoryBySlug(slug: string, locale: string): Promise<Category | null> {
+  return withFallback('getLocalizedCategoryBySlug', null, async () => {
+    const category = await categoryRepo.findBySlug(slug);
+    if (!category) {
+      return null;
+    }
+    return localizeCategory(category, locale);
+  });
 }
 
 export interface PaginationInfo {

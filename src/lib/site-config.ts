@@ -22,6 +22,12 @@ export interface SiteIdentity {
   logoUrl: string;
 }
 
+type LocaleIdentityOverrides = {
+  titleByLocale: Record<string, string>;
+  descriptionByLocale: Record<string, string>;
+  taglineByLocale: Record<string, string>;
+};
+
 export interface NavLink {
   label: string;
   href: string;
@@ -143,8 +149,8 @@ const DEFAULT_CUSTOM_SCRIPTS: SiteCustomScripts = {
 
 const THEME_CACHE_TTL_MS = 2000;
 
-let cachedIdentity: SiteIdentity | null = null;
-let loadingPromise: Promise<SiteIdentity> | null = null;
+let cachedIdentity = new Map<string, SiteIdentity>();
+let loadingPromise = new Map<string, Promise<SiteIdentity>>();
 let cachedNavigation: SiteNavigation | null = null;
 let loadingNavigationPromise: Promise<SiteNavigation> | null = null;
 let cachedTheme: SiteTheme | null = null;
@@ -163,13 +169,49 @@ let loadingLocaleConfigPromise: Promise<SiteLocaleConfig> | null = null;
 let cachedCustomScripts: SiteCustomScripts | null = null;
 let loadingCustomScriptsPromise: Promise<SiteCustomScripts> | null = null;
 
-async function fetchSiteIdentity(): Promise<SiteIdentity> {
+const resolveLocalizedStringValue = (
+  map: Record<string, string> | undefined,
+  locale: string,
+  fallbackValue: string
+): string => {
+  if (!map || Object.keys(map).length === 0) {
+    return fallbackValue;
+  }
+
+  const normalizedLocale = normalizeLocaleCode(locale, DEFAULT_LOCALE);
+  const languageCode = normalizedLocale.split('-')[0];
+
+  return map[normalizedLocale]
+    || (languageCode && languageCode !== normalizedLocale ? map[languageCode] : undefined)
+    || map[DEFAULT_LOCALE]
+    || fallbackValue;
+};
+
+async function fetchLocalizedSiteIdentityOverrides(): Promise<LocaleIdentityOverrides> {
   const settingsService = new SettingsService();
   const settings = await settingsService.getSettings([
-    'site.title',
-    'site.description',
-    'site.tagline',
-    'site.logoUrl'
+    'site.titleByLocale',
+    'site.descriptionByLocale',
+    'site.taglineByLocale'
+  ]);
+
+  return {
+    titleByLocale: normalizeLocalizedStringMap(settings['site.titleByLocale']) || {},
+    descriptionByLocale: normalizeLocalizedStringMap(settings['site.descriptionByLocale']) || {},
+    taglineByLocale: normalizeLocalizedStringMap(settings['site.taglineByLocale']) || {}
+  };
+}
+
+async function fetchSiteIdentity(locale = DEFAULT_LOCALE): Promise<SiteIdentity> {
+  const settingsService = new SettingsService();
+  const [settings, localizedOverrides] = await Promise.all([
+    settingsService.getSettings([
+      'site.title',
+      'site.description',
+      'site.tagline',
+      'site.logoUrl'
+    ]),
+    fetchLocalizedSiteIdentityOverrides()
   ]);
 
   const logoCandidate = typeof settings['site.logoUrl'] === 'string'
@@ -180,9 +222,21 @@ async function fetchSiteIdentity(): Promise<SiteIdentity> {
     : DEFAULT_IDENTITY.logoUrl;
 
   return {
-    title: settings['site.title'] ?? DEFAULT_IDENTITY.title,
-    description: settings['site.description'] ?? DEFAULT_IDENTITY.description,
-    tagline: settings['site.tagline'] ?? DEFAULT_IDENTITY.tagline,
+    title: resolveLocalizedStringValue(
+      localizedOverrides.titleByLocale,
+      locale,
+      settings['site.title'] ?? DEFAULT_IDENTITY.title
+    ),
+    description: resolveLocalizedStringValue(
+      localizedOverrides.descriptionByLocale,
+      locale,
+      settings['site.description'] ?? DEFAULT_IDENTITY.description
+    ),
+    tagline: resolveLocalizedStringValue(
+      localizedOverrides.taglineByLocale,
+      locale,
+      settings['site.tagline'] ?? DEFAULT_IDENTITY.tagline
+    ),
     logoUrl
   };
 }
@@ -542,27 +596,32 @@ async function fetchSiteSocialProfiles(): Promise<SiteSocialProfiles> {
   };
 }
 
-export async function getSiteIdentity(options?: { refresh?: boolean }): Promise<SiteIdentity> {
+export async function getSiteIdentity(options?: { refresh?: boolean; locale?: string }): Promise<SiteIdentity> {
+  const cacheKey = normalizeLocaleCode(options?.locale, DEFAULT_LOCALE);
+
   if (options?.refresh) {
-    cachedIdentity = null;
-    loadingPromise = null;
+    cachedIdentity.clear();
+    loadingPromise.clear();
   }
 
-  if (cachedIdentity) {
-    return cachedIdentity;
+  const cached = cachedIdentity.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
-  if (!loadingPromise) {
-    loadingPromise = fetchSiteIdentity().catch((error) => {
+  let pending = loadingPromise.get(cacheKey);
+  if (!pending) {
+    pending = fetchSiteIdentity(cacheKey).catch((error) => {
       console.warn('Failed to load site identity from settings. Falling back to defaults.', error);
       return DEFAULT_IDENTITY;
     }).then((identity) => {
-      cachedIdentity = identity;
+      cachedIdentity.set(cacheKey, identity);
       return identity;
     });
+    loadingPromise.set(cacheKey, pending);
   }
 
-  return loadingPromise;
+  return pending;
 }
 
 export async function getSiteNavigation(options?: { refresh?: boolean }): Promise<SiteNavigation> {

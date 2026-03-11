@@ -1,8 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import BlogPostGrid from "@/components/BlogPostGrid.astro";
-import { getPostsByCategory, getCategoriesWithPosts } from "@/lib/database/index.js";
-import { CategoryRepository } from "@/lib/database/repositories/category-repository";
+import { getCategoriesWithPosts, getLocalizedCategoryBySlug, getPostsByCategory } from "@/lib/database/index.js";
 import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlesIndexPath } from "@/lib/routing/articles";
 import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
@@ -17,8 +16,7 @@ if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
 const localeMessages = getLocaleMessages(locale);
 
 const { category: categorySlug } = Astro.params;
-const categoryRepo = new CategoryRepository();
-const category = categorySlug ? await categoryRepo.findBySlug(categorySlug) : null;
+const category = categorySlug ? await getLocalizedCategoryBySlug(categorySlug, locale) : null;
 
 if (!category) {
   return new Response(null, { status: 404 });
@@ -32,7 +30,7 @@ const articlesIndexPath = buildArticlesIndexPath({
   permalinkStyle: contentRouting.articlePermalinkStyle,
   localePrefix: locale
 });
-const sidebarCategories = (await getCategoriesWithPosts())
+const sidebarCategories = (await getCategoriesWithPosts(locale))
   .filter((item) => item.slug !== category.slug)
   .slice(0, 6);
 ---

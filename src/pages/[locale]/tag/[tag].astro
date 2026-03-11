@@ -1,8 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import BlogPostGrid from "@/components/BlogPostGrid.astro";
-import { getPostsByTag, getTagsWithPosts } from "@/lib/database/index.js";
-import { TagRepository } from "@/lib/database/repositories/tag-repository";
+import { getLocalizedTagBySlug, getPostsByTag, getTagsWithPosts } from "@/lib/database/index.js";
 import { getSiteContentPreferences, getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlesIndexPath } from "@/lib/routing/articles";
 import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
@@ -17,8 +16,7 @@ if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
 const localeMessages = getLocaleMessages(locale);
 
 const { tag: tagSlug } = Astro.params;
-const tagRepo = new TagRepository();
-const tag = tagSlug ? await tagRepo.findBySlug(tagSlug) : null;
+const tag = tagSlug ? await getLocalizedTagBySlug(tagSlug, locale) : null;
 
 if (!tag) {
   return new Response(null, { status: 404 });
@@ -32,7 +30,7 @@ const articlesIndexPath = buildArticlesIndexPath({
   permalinkStyle: contentRouting.articlePermalinkStyle,
   localePrefix: locale
 });
-const sidebarTags = (await getTagsWithPosts())
+const sidebarTags = (await getTagsWithPosts(locale))
   .filter((item) => item.slug !== tag.slug)
   .slice(0, 10);
 ---

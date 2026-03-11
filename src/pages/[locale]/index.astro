@@ -15,7 +15,7 @@ if (!localeConfig.locales.includes(locale) || rawLocale !== locale) {
 }
 const localeMessages = getLocaleMessages(locale);
 
-const siteIdentity = await getSiteIdentity();
+const siteIdentity = await getSiteIdentity({ locale });
 const contentRouting = await getSiteContentRouting();
 const articlesIndexPath = buildArticlesIndexPath({
   basePath: contentRouting.articleBasePath,

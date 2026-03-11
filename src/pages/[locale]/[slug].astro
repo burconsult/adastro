@@ -25,7 +25,7 @@ if (!page) {
   return new Response(null, { status: 404 });
 }
 
-const siteIdentity = await getSiteIdentity();
+const siteIdentity = await getSiteIdentity({ locale });
 const pageTitle = page.seoMetadata?.metaTitle || page.title;
 const pageDescription = page.seoMetadata?.metaDescription || page.excerpt || siteIdentity.description;
 const origin = Astro.url.origin;

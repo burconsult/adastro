@@ -44,7 +44,7 @@ posts.sort((a, b) => {
   return bDate.getTime() - aDate.getTime();
 });
 
-const siteIdentity = await getSiteIdentity();
+const siteIdentity = await getSiteIdentity({ locale });
 const description = author.bio || `${t(localeMessages, 'core.author.descriptionPrefix', 'Posts written by')} ${author.name}.`;
 ---
 <BaseLayout title={`${author.name} — ${siteIdentity.title}`} description={description}>

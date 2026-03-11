@@ -95,6 +95,8 @@ Locale settings (configured in admin settings):
 - Add a new locale by adding `src/lib/i18n/messages/<locale>.json` and optional feature files under `src/lib/features/*/messages/<locale>.json`, then activate it in `/admin/locales`.
 - Every locale JSON must include `_meta.locale`, `_meta.catalogVersion`, `_meta.schemaVersion`, and `_meta.fallbackLocale`. Missing feature packs fall back to English by design.
 - Navigation links support optional per-locale overrides via `labelByLocale` and `hrefByLocale` for translated labels and locale-specific slugs.
+- Optional localized site identity uses `site.titleByLocale`, `site.descriptionByLocale`, and `site.taglineByLocale`.
+- Optional localized taxonomy labels use `content.categoryLabelsByLocale`, `content.categoryDescriptionsByLocale`, and `content.tagLabelsByLocale`.
 
 ### Additional Scripts
 | Command | Description |
