@@ -3,6 +3,6 @@
   "_meta.catalogVersion": "1.1.0",
   "_meta.schemaVersion": "1",
   "_meta.fallbackLocale": "en",
-  "settings.features.newsletter.title": "Newsletter",
-  "settings.features.newsletter.description": "Turn on email subscriptions and campaigns."
+  "settings.features.newsletter.title": "Boletín",
+  "settings.features.newsletter.description": "Activa suscripciones por correo y campañas."
 }
