@@ -231,7 +231,7 @@ export default function MobileNavigation({
             ))}
           </select>
         )}
-        <ModeToggle />
+        <ModeToggle label={toggleThemeLabel} />
         {isAdmin && adminLink && (
           <a
             href={adminLink.href}
