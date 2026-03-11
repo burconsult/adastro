@@ -38,13 +38,16 @@ const STATIC_ASSET_PATTERN = /\.[a-z0-9]+$/i;
 const LOCALE_REDIRECT_BYPASS_PREFIXES = [
   '/admin',
   '/api',
+  '/auth',
+  '/profile',
   '/setup',
   '/mcp',
   '/_astro',
   '/images',
   '/scripts',
   '/favicon',
-  '/404'
+  '/404',
+  '/500'
 ];
 
 const getRequestPolicyPath = (pathname: string, localePath: { hasLocalePrefix: boolean; pathnameWithoutLocale: string }) => (
