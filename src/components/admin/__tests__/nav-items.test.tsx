@@ -52,4 +52,12 @@ describe('resolveAdminNavItems', () => {
     expect(posts?.isActive).toBe(true);
     expect(settings?.isActive).toBe(true);
   });
+
+  it('includes locales in top-level admin navigation', () => {
+    const items = resolveAdminNavItems('/admin/locales');
+    const locales = items.find((item) => item.href === '/admin/locales');
+
+    expect(locales).toBeDefined();
+    expect(locales?.isActive).toBe(true);
+  });
 });

@@ -44,7 +44,7 @@ flowchart TD
 - Theme resolution: `src/lib/site-config.ts`, `src/lib/themes/*`
 - Content routing resolution: `src/lib/site-config.ts`, `src/lib/routing/articles.ts`
 - Locale resolution + redirects: `src/middleware.ts`, `src/lib/i18n/locales.ts`
-- Locale message resolution (core + features): `src/lib/i18n/runtime.ts`, `src/lib/features/i18n.ts`
+- Locale message resolution (core + features): `src/lib/i18n/runtime.ts`, `src/lib/i18n/catalog.ts`, `src/lib/features/i18n.ts`
 
 ## 4. Source of Truth by Concern
 
@@ -58,7 +58,7 @@ flowchart TD
 | Setup runtime primitives | `src/lib/setup/runtime.ts` |
 | MCP endpoint + auth | `src/pages/mcp.ts`, `src/lib/mcp/server.ts`, `src/lib/mcp/auth.ts` |
 | Settings definitions | `src/lib/settings/core-definitions.ts`, `src/lib/features/*/settings.ts` |
-| Locale settings + helpers | `content.defaultLocale`, `content.locales`, `src/lib/i18n/locales.ts`, `src/lib/i18n/runtime.ts` |
+| Locale settings + helpers | `content.defaultLocale`, `content.locales`, `src/lib/i18n/locales.ts`, `src/lib/i18n/runtime.ts`, `src/lib/i18n/catalog.ts`, `src/pages/api/admin/locales.ts`, `src/pages/admin/locales.astro` |
 | Features manifest | `src/lib/features/manifest.ts` |
 | AI feature architecture | `docs/architecture/ai-feature.md`, `src/lib/features/ai/lib/provider-catalog.ts`, `src/lib/features/ai/lib/usage.ts` |
 | Themes manifest | `src/lib/themes/manifest.ts` |

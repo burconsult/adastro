@@ -1,4 +1,8 @@
 {
+  "_meta.locale": "zh",
+  "_meta.catalogVersion": "1.1.0",
+  "_meta.schemaVersion": "1",
+  "_meta.fallbackLocale": "en",
   "settings.features.ai.title": "AI Suite",
   "settings.features.ai.description": "Enable or pause every AI feature in the app.",
   "settings.features.ai.capabilities.title": "Capabilities",

@@ -66,6 +66,10 @@ export default function MobileNavigation({
   const isAdmin = Boolean(adminLink);
   const hasLocaleSwitcher = localeOptions.length > 1;
   const activeLocale = currentLocale.trim().toLowerCase();
+  const handleLocaleChange = (href: string) => {
+    if (!href || typeof window === 'undefined') return;
+    window.location.assign(href);
+  };
 
   return (
     <nav className="flex items-center gap-3">
@@ -139,30 +143,26 @@ export default function MobileNavigation({
       {(hasLocaleSwitcher || isAdmin || authLink) && (
         <div className="flex items-center gap-2 sm:hidden">
           {hasLocaleSwitcher && (
-            <div
-              className="inline-flex items-center rounded-md border border-border bg-background p-0.5"
+            <label className="sr-only" htmlFor="mobile-locale-switcher">{localeSwitcherLabel}</label>
+          )}
+          {hasLocaleSwitcher && (
+            <select
+              id="mobile-locale-switcher"
               aria-label={localeSwitcherLabel}
-              role="group"
+              className="h-10 max-w-[8.5rem] rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase tracking-wide text-foreground"
+              value={activeLocale}
+              onChange={(event) => {
+                const nextLocale = event.target.value;
+                const nextOption = localeOptions.find((option) => option.code.trim().toLowerCase() === nextLocale);
+                if (nextOption) handleLocaleChange(nextOption.href);
+              }}
             >
-              {localeOptions.map((option) => {
-                const isCurrent = option.code.trim().toLowerCase() === activeLocale;
-                return (
-                  <a
-                    key={option.code}
-                    href={option.href}
-                    {...prefetchProps(option.href)}
-                    className={`inline-flex min-w-8 items-center justify-center rounded-sm px-2 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
-                      isCurrent ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    }`}
-                    aria-label={option.label}
-                    title={option.label}
-                    aria-current={isCurrent ? 'true' : undefined}
-                  >
-                    {option.code}
-                  </a>
-                );
-              })}
-            </div>
+              {localeOptions.map((option) => (
+                <option key={option.code} value={option.code.trim().toLowerCase()}>
+                  {option.code} · {option.label}
+                </option>
+              ))}
+            </select>
           )}
           {isAdmin && adminLink && (
             <a
@@ -214,30 +214,22 @@ export default function MobileNavigation({
           </a>
         )}
         {hasLocaleSwitcher && (
-          <div
-            className="inline-flex items-center rounded-md border border-border bg-background p-0.5"
+          <select
             aria-label={localeSwitcherLabel}
-            role="group"
+            className="h-9 min-w-[8.5rem] rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground"
+            value={activeLocale}
+            onChange={(event) => {
+              const nextLocale = event.target.value;
+              const nextOption = localeOptions.find((option) => option.code.trim().toLowerCase() === nextLocale);
+              if (nextOption) handleLocaleChange(nextOption.href);
+            }}
           >
-            {localeOptions.map((option) => {
-              const isCurrent = option.code.trim().toLowerCase() === activeLocale;
-              return (
-                <a
-                  key={option.code}
-                  href={option.href}
-                  {...prefetchProps(option.href)}
-                  className={`inline-flex min-w-8 items-center justify-center rounded-sm px-2 py-1 text-xs font-semibold uppercase tracking-wide transition-colors ${
-                    isCurrent ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  }`}
-                  aria-label={option.label}
-                  title={option.label}
-                  aria-current={isCurrent ? 'true' : undefined}
-                >
-                  {option.code}
-                </a>
-              );
-            })}
-          </div>
+            {localeOptions.map((option) => (
+              <option key={option.code} value={option.code.trim().toLowerCase()}>
+                {option.code} · {option.label}
+              </option>
+            ))}
+          </select>
         )}
         <ModeToggle />
         {isAdmin && adminLink && (

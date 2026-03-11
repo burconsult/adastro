@@ -1,4 +1,8 @@
 {
+  "_meta.locale": "nb",
+  "_meta.catalogVersion": "1.1.0",
+  "_meta.schemaVersion": "1",
+  "_meta.fallbackLocale": "en",
   "settings.features.ai.title": "AI-suite",
   "settings.features.ai.description": "Aktiver eller pause alle AI-funksjoner i appen.",
   "settings.features.ai.capabilities.title": "Muligheter",

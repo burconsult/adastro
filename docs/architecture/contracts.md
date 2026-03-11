@@ -99,6 +99,27 @@ Invariants:
 - Slug uniqueness is locale-scoped for posts/pages (`UNIQUE (locale, slug)`).
 - Locale-aware metadata output must include deterministic canonical + hreflang alternates.
 
+## 4.1 Locale Pack Contract
+
+Core locale packs:
+- `src/lib/i18n/messages/<locale>.json`
+
+Feature locale packs:
+- `src/lib/features/<feature>/messages/<locale>.json`
+
+Required metadata keys:
+- `_meta.locale`
+- `_meta.catalogVersion`
+- `_meta.schemaVersion`
+- `_meta.fallbackLocale`
+
+Invariants:
+- Admin UI stays English-only; localization applies to public routes and feature UI rendered on public surfaces.
+- English (`en`) is the required fallback locale for core and feature strings.
+- A locale is only activatable when a core pack exists.
+- Feature packs may be absent for a locale; runtime must then fail closed to English strings, not empty labels.
+- Locale pack health and version mismatch reporting is owned by `src/lib/i18n/catalog.ts` and surfaced in `/admin/locales`.
+
 ## 5. Theme Contract
 
 Theme modules are registered via `src/lib/themes/manifest.ts` and looked up by id.

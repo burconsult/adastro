@@ -1,7 +1,7 @@
 {
   "project": "adastro",
-  "version": "1.0.0",
-  "lastUpdated": "2026-03-05",
+  "version": "1.1.0",
+  "lastUpdated": "2026-03-11",
   "surfaces": {
     "public": {
       "entryRoots": [
@@ -14,7 +14,12 @@
         "src/pages/admin.astro",
         "src/pages/admin"
       ],
-      "reactIslandsRoot": "src/lib/components"
+      "reactIslandsRoot": "src/lib/components",
+      "localeControl": [
+        "src/pages/admin/locales.astro",
+        "src/lib/components/LocaleManager.tsx",
+        "src/pages/api/admin/locales.ts"
+      ]
     },
     "api": {
       "roots": [
@@ -85,6 +90,7 @@
     "routing": "src/lib/routing/articles.ts",
     "i18n": [
       "src/lib/i18n/locales.ts",
+      "src/lib/i18n/catalog.ts",
       "src/lib/i18n/runtime.ts",
       "src/lib/features/i18n.ts"
     ],

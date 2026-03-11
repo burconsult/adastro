@@ -31,7 +31,7 @@ export const normalizeLocaleList = (value: unknown, fallback = DEFAULT_LOCALE): 
 };
 
 export const ensureDefaultLocaleInList = (defaultLocale: string, locales: string[]): string[] => (
-  locales.includes(defaultLocale) ? locales : [defaultLocale, ...locales]
+  [defaultLocale, ...locales.filter((locale) => locale !== defaultLocale)]
 );
 
 export type LocalePathResolution = {

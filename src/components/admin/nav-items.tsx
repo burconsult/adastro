@@ -8,6 +8,7 @@ import {
   FolderTree,
   Images,
   LayoutDashboard,
+  Languages,
   Mail,
   MessageSquare,
   Palette,
@@ -107,6 +108,11 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: '/admin/themes',
     label: 'Themes',
     icon: <Palette className="h-4 w-4" />
+  },
+  {
+    href: '/admin/locales',
+    label: 'Locales',
+    icon: <Languages className="h-4 w-4" />
   },
   {
     href: '/admin/settings',

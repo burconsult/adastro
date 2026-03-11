@@ -1,4 +1,8 @@
 {
+  "_meta.locale": "es",
+  "_meta.catalogVersion": "1.1.0",
+  "_meta.schemaVersion": "1",
+  "_meta.fallbackLocale": "en",
   "core.auth.signIn": "Sign in",
   "core.auth.profile": "Profile",
   "core.auth.admin": "Admin",

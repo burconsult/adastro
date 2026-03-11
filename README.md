@@ -91,7 +91,9 @@ Locale settings (configured in admin settings):
 - `content.locales`: enabled locale codes used for public route prefixes.
 - Recommended for Norwegian Bokmal: use `nb` in URLs (`/nb/...`).
 - Shipped locale packs include `en`, `nb`, `es`, and `zh`; only locales listed in `content.locales` are active.
-- Add a new locale by adding `src/lib/i18n/messages/<locale>.json` and optional feature files under `src/lib/features/*/messages/<locale>.json`, then include the code in `content.locales`.
+- Public locale activation is managed in `/admin/locales`; admin pages remain English-only.
+- Add a new locale by adding `src/lib/i18n/messages/<locale>.json` and optional feature files under `src/lib/features/*/messages/<locale>.json`, then activate it in `/admin/locales`.
+- Every locale JSON must include `_meta.locale`, `_meta.catalogVersion`, `_meta.schemaVersion`, and `_meta.fallbackLocale`. Missing feature packs fall back to English by design.
 - Navigation links support optional per-locale overrides via `labelByLocale` and `hrefByLocale` for translated labels and locale-specific slugs.
 
 ### Additional Scripts
@@ -167,6 +169,7 @@ The EditorJS block editor renders inside `PostEditor` when `editor.blocks.enable
 - `docs/architecture/feature-map.md` – bundled/external feature lifecycle + runtime wiring.
 - `docs/architecture/ai-feature.md` – AI capability/provider architecture and extension points.
 - `docs/architecture/contracts.md` – interface contracts (setup, feature, settings, theme, media).
+- `docs/architecture/i18n.md` – public multilingual model, locale pack metadata/versioning, and activation workflow.
 - `docs/architecture/data-ownership.md` – table ownership and schema change protocol.
 - `docs/engineering/ai-collab-playbook.md` – workflow/rules for AI-assisted implementation.
 - `docs/engineering/local-testing.md` – local Supabase-first validation workflow and verify commands.
