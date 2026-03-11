@@ -1,0 +1,32 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import ErrorMascot from "@/components/motion/ErrorMascot";
+import { getSiteIdentity } from "@/lib/site-config";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
+
+const currentLocale = normalizeLocaleCode(Astro.locals.locale, Astro.locals.defaultLocale || 'en');
+const localeMessages = getLocaleMessages(currentLocale);
+const siteIdentity = await getSiteIdentity({ locale: currentLocale });
+---
+<BaseLayout
+  title={`500 — ${siteIdentity.title}`}
+  description={t(localeMessages, 'core.error.500.description', 'Something went sideways on the server. We will try to recover.')}
+>
+  <section class="mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center sm:px-8 sm:py-24">
+    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">{t(localeMessages, 'core.error.500.badge', 'Launch hiccup')}</span>
+    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+      {t(localeMessages, 'core.error.500.heading', '500: Server wobble')}
+    </h1>
+    <p class="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+      {t(localeMessages, 'core.error.500.body', 'The AdAstro engines sparked but did not ignite. Give it a moment or jump back to safer ground.')}
+    </p>
+
+    <ErrorMascot client:load accentClass="text-primary" forceMotion={true} />
+
+    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+      <a href={buildLocalizedPath('/', currentLocale)} class="btn">{t(localeMessages, 'core.error.returnHome', 'Return home')}</a>
+      <a href={buildLocalizedPath('/contact', currentLocale)} class="btn btn-outline">{t(localeMessages, 'core.error.reportIssue', 'Report the issue')}</a>
+    </div>
+  </section>
+</BaseLayout>

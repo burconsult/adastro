@@ -1,0 +1,31 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { ProfileManager } from "@/lib/components/ProfileManager";
+import { loadFeatureModules } from "@/lib/features/loader";
+import { isFeatureActive } from "@/lib/features/state";
+import { getSiteLocaleConfig } from "@/lib/site-config";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
+
+let activeFeatureIds: string[] = [];
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const localeMessages = getLocaleMessages(locale);
+
+try {
+  const featureIds = loadFeatureModules().map((module) => module.id);
+  const featureStates = await Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) })));
+  activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
+} catch (error) {
+  console.error('Error resolving active features for profile page:', error);
+}
+---
+
+<BaseLayout
+  title={t(localeMessages, 'core.profile.pageTitle', 'Your profile')}
+  description={t(localeMessages, 'core.profile.pageDescription', 'Update your profile details')}
+>
+  <div class="py-10 px-4">
+    <ProfileManager client:load activeFeatureIds={activeFeatureIds} messages={localeMessages} />
+  </div>
+</BaseLayout>

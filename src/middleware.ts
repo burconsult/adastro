@@ -54,18 +54,6 @@ const getRequestPolicyPath = (pathname: string, localePath: { hasLocalePrefix: b
   localePath.hasLocalePrefix ? localePath.pathnameWithoutLocale : pathname
 );
 
-const shouldRewriteLocalizedPublicRoute = (pathname: string) => (
-  pathname === '/profile'
-  || pathname === '/404'
-  || pathname === '/500'
-  || pathname === '/auth/callback'
-  || pathname === '/auth/login'
-  || pathname === '/auth/forgot-password'
-  || pathname === '/auth/reset-password'
-  || pathname === '/auth/unauthorized'
-  || pathname.startsWith('/auth/oauth/')
-);
-
 const shouldBypassSetupRedirect = (pathname: string) => {
   if (STATIC_ASSET_PATTERN.test(pathname)) return true;
   if (pathname === '/') return false;
@@ -268,12 +256,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  if (localePath.hasLocalePrefix && shouldRewriteLocalizedPublicRoute(localePath.pathnameWithoutLocale)) {
-    const rewriteUrl = new URL(url);
-    rewriteUrl.pathname = localePath.pathnameWithoutLocale;
-    return context.rewrite(rewriteUrl);
-  }
-  
   // Protect authenticated app routes
   if (isAdminRoute || isProfileRoute) {
     try {

@@ -1,0 +1,157 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { authService } from "@/lib/auth/auth-helpers";
+import { sanitizeRedirectPath } from "@/lib/auth/redirects";
+import { getOAuthProviderAvailability } from "@/lib/auth/oauth-providers";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
+import { getSiteLocaleConfig } from "@/lib/site-config";
+import loginScriptUrl from "@/lib/client/auth/login.js?url";
+
+const rawRedirect = Astro.url.searchParams.get('redirect') || '/admin';
+const redirect = sanitizeRedirectPath(rawRedirect, '/admin');
+const localeConfig = await getSiteLocaleConfig();
+const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const localeMessages = getLocaleMessages(locale);
+const localizedProfilePath = buildLocalizedPath('/profile', locale);
+const localizedLoginPath = buildLocalizedPath('/auth/login', locale);
+const localizedForgotPasswordPath = buildLocalizedPath('/auth/forgot-password', locale);
+const currentUser = await authService.getUserFromRequest(Astro.request);
+if (currentUser) {
+  const redirectTarget = redirect.startsWith('/auth/login')
+    ? (currentUser.role === 'admin' ? '/admin' : localizedProfilePath)
+    : redirect;
+  const destination = redirectTarget.startsWith('/admin') && currentUser.role !== 'admin'
+    ? localizedProfilePath
+    : redirectTarget;
+  return Astro.redirect(destination);
+}
+const error = Astro.url.searchParams.get('error');
+const loggedOut = Astro.url.searchParams.get('logged_out') === '1';
+const oauthProviders = (await getOAuthProviderAvailability()).filter((provider) => provider.available);
+const loginClientMessages = {
+  loginFailedTitle: t(localeMessages, 'core.auth.login.toast.failedTitle', 'Sign in failed'),
+  loginFailedDescription: t(localeMessages, 'core.auth.login.toast.failedDescription', 'Please verify your credentials and try again.'),
+  loginErrorTitle: t(localeMessages, 'core.auth.login.toast.errorTitle', 'Sign in error'),
+  loginErrorDescription: t(localeMessages, 'core.auth.login.toast.errorDescription', 'An unexpected error occurred. Please try again.')
+};
+---
+
+<BaseLayout
+  title={t(localeMessages, 'core.auth.login.title', 'Sign in')}
+  description={t(localeMessages, 'core.auth.login.description', 'Sign in to your AdAstro account')}
+>
+  <div class="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <div class="card p-8">
+        <div class="text-center mb-8">
+          <img src="/logo.svg" alt="" class="h-12 w-12 mx-auto mb-4" />
+          <h1 class="text-2xl font-bold">{t(localeMessages, 'core.auth.login.heading', 'Sign in')}</h1>
+          <p class="text-muted-foreground mt-2">{t(localeMessages, 'core.auth.login.subheading', 'Sign in to access your dashboard and profile')}</p>
+        </div>
+
+        {loggedOut && (
+          <div class="mb-6 p-4 bg-success/10 border border-success/20 rounded-md">
+            <p class="text-sm text-success">
+              {t(localeMessages, 'core.auth.login.loggedOut', 'Signed out successfully.')}
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div class="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p class="text-sm text-destructive">
+              {error === 'auth_error' && t(localeMessages, 'core.auth.login.error.auth', 'Authentication error occurred. Please try again.')}
+              {error === 'unauthorized' && t(localeMessages, 'core.auth.login.error.unauthorized', 'You do not have permission to access the admin area.')}
+              {error === 'session_expired' && t(localeMessages, 'core.auth.login.error.sessionExpired', 'Your session has expired. Please log in again.')}
+              {error === 'oauth_provider_unavailable' && t(localeMessages, 'core.auth.login.error.oauthUnavailable', 'Social sign-in is currently unavailable. Use email and password or enable OAuth in settings.')}
+            </p>
+          </div>
+        )}
+
+        <form id="login-form" class="space-y-6" data-redirect={redirect}>
+          {oauthProviders.length > 0 && (
+            <>
+              <div class="grid gap-3">
+                {oauthProviders.map((provider) => (
+                  <a href={`${buildLocalizedPath(`/auth/oauth/${provider.id}`, locale)}?redirect=${encodeURIComponent(redirect)}`} class="w-full btn btn-outline">
+                    {t(localeMessages, 'core.auth.login.continueWith', 'Continue with')} {provider.label}
+                  </a>
+                ))}
+              </div>
+
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-border"></div>
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                  <span class="bg-card px-2 text-muted-foreground">{t(localeMessages, 'core.auth.login.orEmail', 'Or use email and password')}</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div>
+            <label for="email" class="block text-sm font-medium mb-2">{t(localeMessages, 'core.auth.login.email', 'Email')}</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              autocomplete="email"
+              required
+              class="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium mb-2">{t(localeMessages, 'core.auth.login.password', 'Password')}</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              class="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="flex items-center">
+              <input type="checkbox" id="remember" name="remember" class="mr-2" />
+              <span class="text-sm text-muted-foreground">{t(localeMessages, 'core.auth.login.remember', 'Remember me')}</span>
+            </label>
+            <a href={localizedForgotPasswordPath} class="text-sm text-primary hover:underline">
+              {t(localeMessages, 'core.auth.login.forgot', 'Forgot password?')}
+            </a>
+          </div>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full btn btn-primary"
+            disabled
+          >
+            <span id="submit-text">{t(localeMessages, 'core.auth.login.submit', 'Sign in')}</span>
+            <span id="submit-loading" class="hidden">{t(localeMessages, 'core.auth.login.submitting', 'Signing in...')}</span>
+          </button>
+        </form>
+
+        <p class="mt-4 text-center text-xs text-muted-foreground">
+          {t(localeMessages, 'core.auth.login.invited', 'Invited user? Use the invite email link to set your password.')}
+          <a href={localizedForgotPasswordPath} class="text-primary hover:underline">{t(localeMessages, 'core.auth.login.needNewLink', 'Need a new link?')}</a>
+        </p>
+
+        <div class="mt-6 text-center">
+          <a href={buildLocalizedPath('/', locale)} class="text-sm text-muted-foreground hover:text-foreground">
+            ← {t(localeMessages, 'core.auth.login.backToSite', 'Back to site')}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="auth-login-messages" set:html={JSON.stringify(loginClientMessages)}></script>
+  <script type="module" src={loginScriptUrl}></script>
+</BaseLayout>
