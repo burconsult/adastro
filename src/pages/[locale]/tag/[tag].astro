@@ -33,9 +33,13 @@ const articlesIndexPath = buildArticlesIndexPath({
 const sidebarTags = (await getTagsWithPosts(locale))
   .filter((item) => item.slug !== tag.slug)
   .slice(0, 10);
+const pageDescription = `${t(localeMessages, 'core.tag.descriptionPrefix', 'Posts tagged with')} "${tag.name}".`;
 ---
 
-<BaseLayout title={`${t(localeMessages, 'core.tag.titlePrefix', 'Posts tagged')} ${tag.name}`}>
+<BaseLayout
+  title={`${t(localeMessages, 'core.tag.titlePrefix', 'Posts tagged')} ${tag.name}`}
+  description={pageDescription}
+>
   <div class="min-h-screen">
     <div class="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">
       <header class="mb-12 text-center">
@@ -48,7 +52,7 @@ const sidebarTags = (await getTagsWithPosts(locale))
         <h1 class="mb-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">#{tag.name}</h1>
 
         <div class="space-y-2 text-muted-foreground">
-          <p class="text-base sm:text-lg">{t(localeMessages, 'core.tag.descriptionPrefix', 'Posts tagged with')} "{tag.name}".</p>
+          <p class="text-base sm:text-lg">{pageDescription}</p>
           <p class="text-sm font-medium text-primary">
             {posts.length} {posts.length === 1
               ? t(localeMessages, 'core.tag.postSingular', 'post')

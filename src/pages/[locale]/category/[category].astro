@@ -33,8 +33,13 @@ const articlesIndexPath = buildArticlesIndexPath({
 const sidebarCategories = (await getCategoriesWithPosts(locale))
   .filter((item) => item.slug !== category.slug)
   .slice(0, 6);
+const pageDescription = category.description
+  || `${t(localeMessages, 'core.category.descriptionPrefix', 'Posts in the')} "${category.name}".`;
 ---
-<BaseLayout title={`${t(localeMessages, 'core.category.titlePrefix', 'Posts in')} ${category.name}`}>
+<BaseLayout
+  title={`${t(localeMessages, 'core.category.titlePrefix', 'Posts in')} ${category.name}`}
+  description={pageDescription}
+>
   <div class="min-h-screen">
     <div class="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">
       <header class="mb-12 text-center">
@@ -48,7 +53,7 @@ const sidebarCategories = (await getCategoriesWithPosts(locale))
 
         <div class="text-muted-foreground space-y-2">
           {category.description && <p class="text-base sm:text-lg">{category.description}</p>}
-          {!category.description && <p class="text-base sm:text-lg">{t(localeMessages, 'core.category.descriptionPrefix', 'Posts in the')} "{category.name}".</p>}
+          {!category.description && <p class="text-base sm:text-lg">{pageDescription}</p>}
           <p class="text-sm font-medium text-primary">
             {posts.length} {posts.length === 1
               ? t(localeMessages, 'core.category.postSingular', 'post')
