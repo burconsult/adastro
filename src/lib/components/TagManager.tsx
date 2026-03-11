@@ -26,6 +26,9 @@ interface Tag {
   name: string;
   slug: string;
   postCount?: number;
+  localizations?: {
+    labels?: Record<string, string>;
+  };
 }
 
 interface TagStats {
@@ -59,6 +62,7 @@ export default function TagManager(props: TagManagerProps) {
 function TagManagerInner({ onClose }: TagManagerProps) {
   const { toast } = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
+  const [supportedLocales, setSupportedLocales] = useState<string[]>(['en']);
   const [stats, setStats] = useState<TagStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +70,8 @@ function TagManagerInner({ onClose }: TagManagerProps) {
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    slug: ''
+    slug: '',
+    localizedLabels: {} as Record<string, string>
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -124,6 +129,23 @@ function TagManagerInner({ onClose }: TagManagerProps) {
   }, [searchTerm]);
 
   useEffect(() => {
+    const loadLocales = async () => {
+      try {
+        const response = await fetch('/api/admin/locales');
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (Array.isArray(payload?.activeLocales) && payload.activeLocales.length > 0) {
+          setSupportedLocales(payload.activeLocales);
+        }
+      } catch {
+        // Keep fallback
+      }
+    };
+
+    void loadLocales();
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (newTagButtonTimer.current) {
         clearTimeout(newTagButtonTimer.current);
@@ -151,7 +173,10 @@ function TagManagerInner({ onClose }: TagManagerProps) {
       setIsSubmitting(true);
       const payload = {
         name: formData.name.trim(),
-        slug: (formData.slug || generateSlug(formData.name)).trim()
+        slug: (formData.slug || generateSlug(formData.name)).trim(),
+        localizations: {
+          labels: formData.localizedLabels
+        }
       };
 
       if (!payload.name || !payload.slug) {
@@ -178,7 +203,7 @@ function TagManagerInner({ onClose }: TagManagerProps) {
       if (response.ok) {
         setShowForm(false);
         setEditingTag(null);
-        setFormData({ name: '', slug: '' });
+        setFormData({ name: '', slug: '', localizedLabels: {} });
         await loadTags();
         scheduleShowNewTagButton();
         toast({
@@ -213,7 +238,8 @@ function TagManagerInner({ onClose }: TagManagerProps) {
     setEditingTag(tag);
     setFormData({
       name: tag.name,
-      slug: tag.slug
+      slug: tag.slug,
+      localizedLabels: tag.localizations?.labels || {}
     });
     hideNewTagButton();
     setShowForm(true);
@@ -489,7 +515,7 @@ function TagManagerInner({ onClose }: TagManagerProps) {
   const handleCancel = () => {
     setShowForm(false);
     setEditingTag(null);
-    setFormData({ name: '', slug: '' });
+    setFormData({ name: '', slug: '', localizedLabels: {} });
     scheduleShowNewTagButton();
   };
 
@@ -513,7 +539,7 @@ function TagManagerInner({ onClose }: TagManagerProps) {
 
   const handleNewTagClick = () => {
     setEditingTag(null);
-    setFormData({ name: '', slug: '' });
+    setFormData({ name: '', slug: '', localizedLabels: {} });
     hideNewTagButton();
     setShowForm(true);
   };
@@ -692,15 +718,41 @@ function TagManagerInner({ onClose }: TagManagerProps) {
                 />
               </div>
             </div>
+            {supportedLocales.filter((locale) => locale !== 'en').length > 0 && (
+              <div className="rounded-xl border border-border/60 p-4">
+                <p className="text-sm font-semibold text-foreground">Localized versions</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add translated tag labels for active locales.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {supportedLocales.filter((locale) => locale !== 'en').map((locale) => (
+                    <div key={locale}>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                        {locale} label
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.localizedLabels[locale] || ''}
+                        onChange={(event) => setFormData((prev) => ({
+                          ...prev,
+                          localizedLabels: { ...prev.localizedLabels, [locale]: event.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-input rounded-md"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <button type="submit" className="btn btn-primary" disabled={isSubmitting} aria-disabled={isSubmitting}>
                 {editingTag ? 'Update Tag' : 'Create Tag'}
               </button>
-                <button type="button" onClick={handleCancel} className="btn btn-outline">
-                  Cancel
-                </button>
-              </div>
+              <button type="button" onClick={handleCancel} className="btn btn-outline">
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}

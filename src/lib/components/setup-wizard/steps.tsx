@@ -431,6 +431,11 @@ type RoutingStepProps = {
   normalizeBasePath: (value: string) => string;
   articlePermalinkStyle: 'segment' | 'wordpress';
   setArticlePermalinkStyle: (value: 'segment' | 'wordpress') => void;
+  defaultLocale: string;
+  setDefaultLocale: (value: string) => void;
+  activeLocales: string[];
+  setActiveLocales: (value: string[]) => void;
+  availableLocales: Array<{ code: string; label: string }>;
   applyingRouting: boolean;
   applyContentRouting: () => Promise<void>;
   handleCopy: (label: string, value: string) => Promise<void>;
@@ -444,6 +449,11 @@ export function RoutingStep({
   normalizeBasePath,
   articlePermalinkStyle,
   setArticlePermalinkStyle,
+  defaultLocale,
+  setDefaultLocale,
+  activeLocales,
+  setActiveLocales,
+  availableLocales,
   applyingRouting,
   applyContentRouting,
   handleCopy,
@@ -478,6 +488,54 @@ export function RoutingStep({
             <option value="wordpress">WordPress style (`/YYYY/MM/DD/post-slug/`)</option>
           </select>
         </label>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="space-y-2 text-sm text-foreground">
+          <span className="font-medium">Default locale</span>
+          <select
+            value={defaultLocale}
+            onChange={(event) => {
+              const nextDefaultLocale = event.target.value;
+              setDefaultLocale(nextDefaultLocale);
+              setActiveLocales(Array.from(new Set([nextDefaultLocale, ...activeLocales])));
+            }}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            {availableLocales.map((locale) => (
+              <option key={locale.code} value={locale.code}>{locale.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="space-y-2 text-sm text-foreground">
+          <span className="font-medium">Active public locales</span>
+          <div className="rounded-md border border-input bg-background p-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {availableLocales.map((locale) => {
+                const checked = activeLocales.includes(locale.code);
+                return (
+                  <label key={locale.code} className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          setActiveLocales(Array.from(new Set([...activeLocales, locale.code])));
+                          return;
+                        }
+                        if (locale.code === defaultLocale) return;
+                        setActiveLocales(activeLocales.filter((value) => value !== locale.code));
+                      }}
+                    />
+                    <span>{locale.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Activating a locale during setup also provisions editable system pages for that locale.
+            </p>
+          </div>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button

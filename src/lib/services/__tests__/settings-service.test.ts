@@ -198,7 +198,9 @@ describe('SettingsService', () => {
 
       expect(result.name).toBe('general');
       expect(result.displayName).toBe('General Settings');
-      const expectedGeneralCount = getAllSettingDefinitions().filter((definition) => definition.category === 'general').length;
+      const expectedGeneralCount = getAllSettingDefinitions().filter((definition) => (
+        definition.category === 'general' && (definition.adminSurface ?? 'settings') === 'settings'
+      )).length;
       expect(result.settings).toHaveLength(expectedGeneralCount);
     });
 

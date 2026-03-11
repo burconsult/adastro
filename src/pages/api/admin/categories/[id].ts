@@ -1,6 +1,14 @@
 import type { APIRoute } from 'astro';
 import { CategoryRepository } from '@/lib/database/repositories/category-repository';
 import { requireAdmin } from '@/lib/auth/auth-helpers';
+import { SettingsService } from '@/lib/services/settings-service';
+
+const settingsService = new SettingsService();
+
+const getCategoryLocalizationMaps = async () => settingsService.getSettings([
+  'content.categoryLabelsByLocale',
+  'content.categoryDescriptionsByLocale'
+]);
 
 export const GET: APIRoute = async ({ params, request }) => {
   try {
@@ -26,10 +34,17 @@ export const GET: APIRoute = async ({ params, request }) => {
     }
 
     const usageCount = await categoryRepo.getUsageCount(id);
+    const localizationSettings = await getCategoryLocalizationMaps();
+    const labelMaps = (localizationSettings['content.categoryLabelsByLocale'] ?? {}) as Record<string, Record<string, string>>;
+    const descriptionMaps = (localizationSettings['content.categoryDescriptionsByLocale'] ?? {}) as Record<string, Record<string, string>>;
 
     return new Response(JSON.stringify({
       ...category,
       postCount: usageCount,
+      localizations: {
+        labels: labelMaps[category.slug] ?? {},
+        descriptions: descriptionMaps[category.slug] ?? {}
+      }
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
@@ -83,11 +98,27 @@ export const PUT: APIRoute = async ({ params, request }) => {
       });
     }
 
+    const previousSlug = existingCategory.slug;
     const category = await categoryRepo.update(id, {
       name: data.name,
       slug: data.slug,
       description: data.description,
       parentId: data.parentId || null
+    });
+    const localizationSettings = await getCategoryLocalizationMaps();
+    const labelMaps = { ...((localizationSettings['content.categoryLabelsByLocale'] ?? {}) as Record<string, Record<string, string>>) };
+    const descriptionMaps = { ...((localizationSettings['content.categoryDescriptionsByLocale'] ?? {}) as Record<string, Record<string, string>>) };
+    const nextLabels = { ...(data.localizations?.labels ?? labelMaps[previousSlug] ?? {}) };
+    const nextDescriptions = { ...(data.localizations?.descriptions ?? descriptionMaps[previousSlug] ?? {}) };
+    if (previousSlug !== category.slug) {
+      delete labelMaps[previousSlug];
+      delete descriptionMaps[previousSlug];
+    }
+    labelMaps[category.slug] = nextLabels;
+    descriptionMaps[category.slug] = nextDescriptions;
+    await settingsService.updateSettings({
+      'content.categoryLabelsByLocale': labelMaps,
+      'content.categoryDescriptionsByLocale': descriptionMaps
     });
 
     const usageCount = await categoryRepo.getUsageCount(id);
@@ -95,6 +126,10 @@ export const PUT: APIRoute = async ({ params, request }) => {
     return new Response(JSON.stringify({
       ...category,
       postCount: usageCount,
+      localizations: {
+        labels: nextLabels,
+        descriptions: nextDescriptions
+      }
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
@@ -146,7 +181,16 @@ export const DELETE: APIRoute = async ({ params, request }) => {
       });
     }
 
+    const localizationSettings = await getCategoryLocalizationMaps();
+    const labelMaps = { ...((localizationSettings['content.categoryLabelsByLocale'] ?? {}) as Record<string, Record<string, string>>) };
+    const descriptionMaps = { ...((localizationSettings['content.categoryDescriptionsByLocale'] ?? {}) as Record<string, Record<string, string>>) };
+    delete labelMaps[existingCategory.slug];
+    delete descriptionMaps[existingCategory.slug];
     await categoryRepo.delete(id);
+    await settingsService.updateSettings({
+      'content.categoryLabelsByLocale': labelMaps,
+      'content.categoryDescriptionsByLocale': descriptionMaps
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

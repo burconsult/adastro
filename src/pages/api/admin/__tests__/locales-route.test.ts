@@ -76,7 +76,10 @@ describe('admin locales api', () => {
     expect(response.status).toBe(200);
     expect(mocks.updateSettings).toHaveBeenCalledWith({
       'content.defaultLocale': 'nb',
-      'content.locales': ['nb', 'es']
+      'content.locales': ['nb', 'es'],
+      'site.titleByLocale': {},
+      'site.descriptionByLocale': {},
+      'site.taglineByLocale': {}
     }, 'admin-1');
     expect(mocks.ensureLocalizedSystemPages).toHaveBeenCalledWith({
       articleBasePath: 'blog',

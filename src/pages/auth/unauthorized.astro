@@ -5,10 +5,11 @@ import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
-const siteIdentity = await getSiteIdentity();
 const localeConfig = await getSiteLocaleConfig();
 const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
 const localeMessages = getLocaleMessages(locale);
+const siteIdentity = await getSiteIdentity({ locale });
+const localizedLoginPath = buildLocalizedPath('/auth/login', locale);
 ---
 <BaseLayout
   title={`${t(localeMessages, 'core.auth.unauthorized.title', 'Unauthorized')} - ${siteIdentity.title}`}
@@ -26,7 +27,7 @@ const localeMessages = getLocaleMessages(locale);
     <ErrorMascot client:load accentClass="text-primary" forceMotion={true} />
 
     <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-      <a href="/auth/login" class="btn">{t(localeMessages, 'core.auth.signIn', 'Sign in')}</a>
+      <a href={localizedLoginPath} class="btn">{t(localeMessages, 'core.auth.signIn', 'Sign in')}</a>
       <a href={buildLocalizedPath('/', locale)} class="btn btn-outline">{t(localeMessages, 'core.auth.unauthorized.returnHome', 'Return home')}</a>
     </div>
   </section>

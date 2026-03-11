@@ -3,33 +3,38 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import ErrorMascot from "@/components/motion/ErrorMascot";
 import { getSiteContentRouting, getSiteIdentity } from "@/lib/site-config";
 import { buildArticlesIndexPath } from "@/lib/routing/articles";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
+import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 
-const siteIdentity = await getSiteIdentity();
+const currentLocale = normalizeLocaleCode(Astro.locals.locale, Astro.locals.defaultLocale || 'en');
+const localeMessages = getLocaleMessages(currentLocale);
+const siteIdentity = await getSiteIdentity({ locale: currentLocale });
 const contentRouting = await getSiteContentRouting();
 const articlesIndexPath = buildArticlesIndexPath({
   basePath: contentRouting.articleBasePath,
-  permalinkStyle: contentRouting.articlePermalinkStyle
+  permalinkStyle: contentRouting.articlePermalinkStyle,
+  localePrefix: currentLocale
 });
 ---
 <BaseLayout
   title={`404 — ${siteIdentity.title}`}
-  description="This page drifted into deep space. Let’s get you back to Adastro."
+  description={t(localeMessages, 'core.error.404.description', 'This page drifted into deep space. Let’s get you back to AdAstro.')}
 >
   <section class="mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center sm:px-8 sm:py-24">
-    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Lost signal</span>
+    <span class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">{t(localeMessages, 'core.error.404.badge', 'Lost signal')}</span>
     <h1 class="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-      404: Page not found
+      {t(localeMessages, 'core.error.404.heading', '404: Page not found')}
     </h1>
     <p class="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
-      This route wandered off like a tiny satellite. Adastro could not lock onto the URL you requested.
+      {t(localeMessages, 'core.error.404.body', 'This route wandered off like a tiny satellite. AdAstro could not lock onto the URL you requested.')}
     </p>
 
     <ErrorMascot client:load accentClass="text-primary" forceMotion={true} />
 
     <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-      <a href="/" class="btn">Return home</a>
-      <a href={articlesIndexPath} class="btn btn-outline">Browse articles</a>
-      <a href="/contact" class="btn btn-ghost">Ping the maintainer</a>
+      <a href={buildLocalizedPath('/', currentLocale)} class="btn">{t(localeMessages, 'core.error.returnHome', 'Return home')}</a>
+      <a href={articlesIndexPath} class="btn btn-outline">{t(localeMessages, 'core.error.browseArticles', 'Browse articles')}</a>
+      <a href={buildLocalizedPath('/contact', currentLocale)} class="btn btn-ghost">{t(localeMessages, 'core.error.contact', 'Contact support')}</a>
     </div>
   </section>
 </BaseLayout>

@@ -17,6 +17,8 @@ import {
 } from '@/lib/storage/buckets';
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
 import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
+import { getCoreLocalePacks } from '@/lib/i18n/catalog';
+import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 
 type AutomationActionStatus = 'ok' | 'warn' | 'fail';
 
@@ -34,6 +36,8 @@ type SetupAutomationRequest = {
   siteUrl?: string;
   articleBasePath?: string;
   articlePermalinkStyle?: 'segment' | 'wordpress';
+  defaultLocale?: string;
+  activeLocales?: string[];
   forceFeatureDefaultsDisabled?: boolean;
 };
 
@@ -503,9 +507,18 @@ const applySettingsDefaults = async (
 ): Promise<AutomationAction> => {
   const settingsService = new SettingsService();
   await settingsService.initializeDefaultSettings();
+  const availableCoreLocales = Object.keys(getCoreLocalePacks());
   const effectiveArticleBasePath = typeof request.articleBasePath === 'string' && request.articleBasePath.trim()
     ? normalizeArticleBasePath(request.articleBasePath)
     : normalizeArticleBasePath(undefined);
+  const requestedDefaultLocale = normalizeLocaleCode(request.defaultLocale, DEFAULT_LOCALE);
+  const normalizedDefaultLocale = availableCoreLocales.includes(requestedDefaultLocale)
+    ? requestedDefaultLocale
+    : DEFAULT_LOCALE;
+  const normalizedActiveLocales = ensureDefaultLocaleInList(
+    normalizedDefaultLocale,
+    normalizeLocaleList(request.activeLocales, normalizedDefaultLocale)
+  ).filter((locale) => availableCoreLocales.includes(locale));
 
   const updates: Record<string, unknown> = {};
   if (resolvedSiteUrl) {
@@ -513,6 +526,8 @@ const applySettingsDefaults = async (
   }
 
   updates['content.articleBasePath'] = effectiveArticleBasePath;
+  updates['content.defaultLocale'] = normalizedDefaultLocale;
+  updates['content.locales'] = normalizedActiveLocales;
   if (request.articlePermalinkStyle === 'segment' || request.articlePermalinkStyle === 'wordpress') {
     updates['content.articlePermalinkStyle'] = request.articlePermalinkStyle;
   }
@@ -544,22 +559,33 @@ const applySettingsDefaults = async (
   };
 };
 
-const ensureSystemPages = async (articleBasePath: string): Promise<AutomationAction> => {
+const ensureSystemPages = async (
+  articleBasePath: string,
+  locales: string[],
+  defaultLocale: string
+): Promise<AutomationAction> => {
   try {
-    const result = await ensureLocalizedSystemPages({
-      articleBasePath,
-      targetLocale: DEFAULT_LOCALE,
-      sourceLocale: DEFAULT_LOCALE,
-      fallbackSourceLocale: DEFAULT_LOCALE
-    });
+    const targetLocales = ensureDefaultLocaleInList(defaultLocale, locales);
+    const createdSlugsByLocale: string[] = [];
+    for (const locale of targetLocales) {
+      const result = await ensureLocalizedSystemPages({
+        articleBasePath,
+        targetLocale: locale,
+        sourceLocale: defaultLocale,
+        fallbackSourceLocale: DEFAULT_LOCALE
+      });
+      if (result.createdSlugs.length > 0) {
+        createdSlugsByLocale.push(`${locale}: ${result.createdSlugs.join(', ')}`);
+      }
+    }
 
     return {
       id: 'system.pages',
       label: 'System pages',
       status: 'ok',
-      detail: result.createdSlugs.length > 0
-        ? `Created editable system pages: ${result.createdSlugs.join(', ')}.`
-        : `Editable system pages already exist for locale ${result.targetLocale.toUpperCase()}.`
+      detail: createdSlugsByLocale.length > 0
+        ? `Created editable system pages for locales: ${createdSlugsByLocale.join(' | ')}.`
+        : `Editable system pages already exist for locales ${targetLocales.map((locale) => locale.toUpperCase()).join(', ')}.`
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error';
@@ -639,7 +665,18 @@ export const POST: APIRoute = async ({ request }) => {
     actions.push(await applySettingsDefaults(payload, resolvedSiteUrl));
     resetAllSiteConfigCaches();
     const contentRouting = await getSiteContentRouting();
-    actions.push(await ensureSystemPages(normalizeArticleBasePath(contentRouting.articleBasePath)));
+    const availableCoreLocales = Object.keys(getCoreLocalePacks());
+    const defaultLocale = normalizeLocaleCode(payload.defaultLocale, DEFAULT_LOCALE);
+    const normalizedDefaultLocale = availableCoreLocales.includes(defaultLocale) ? defaultLocale : DEFAULT_LOCALE;
+    const activeLocales = ensureDefaultLocaleInList(
+      normalizedDefaultLocale,
+      normalizeLocaleList(payload.activeLocales, normalizedDefaultLocale)
+    ).filter((locale) => availableCoreLocales.includes(locale));
+    actions.push(await ensureSystemPages(
+      normalizeArticleBasePath(contentRouting.articleBasePath),
+      activeLocales,
+      normalizedDefaultLocale
+    ));
 
     const bucketConfig = await configureStorageBuckets(resolvedSiteUrl);
     actions.push({

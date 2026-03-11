@@ -4,12 +4,12 @@ import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 import { Loader2 } from "lucide-react";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 import { getSiteLocaleConfig } from "@/lib/site-config";
-import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
 import authCallbackScriptUrl from "@/lib/client/auth/auth-callback.js?url";
 
-const redirectTarget = sanitizeRedirectPath(Astro.url.searchParams.get('redirect'), '/profile');
 const localeConfig = await getSiteLocaleConfig();
 const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
+const redirectTarget = sanitizeRedirectPath(Astro.url.searchParams.get('redirect'), buildLocalizedPath('/profile', locale));
 const localeMessages = getLocaleMessages(locale);
 const callbackClientMessages = {
   authFailedPrefix: t(localeMessages, 'core.auth.callback.errorPrefix', 'Authentication failed:'),

@@ -24,6 +24,21 @@ interface PageEditorProps {
   mode: 'create' | 'edit';
   defaultLocale?: string;
   supportedLocales?: string[];
+  localizedVersions?: Array<{
+    id: string;
+    locale: string;
+    slug: string;
+    title: string;
+  }>;
+  variantSource?: {
+    id: string;
+    locale: string;
+    title: string;
+  };
+  missingLocaleVariants?: Array<{
+    locale: string;
+    href: string;
+  }>;
 }
 
 interface PageFormData {
@@ -177,7 +192,10 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
   authors,
   mode,
   defaultLocale = 'en',
-  supportedLocales = ['en']
+  supportedLocales = ['en'],
+  localizedVersions = [],
+  variantSource,
+  missingLocaleVariants = []
 }) => {
   const { toast } = useToast();
   const normalizedPage = useMemo(() => {
@@ -418,6 +436,38 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
 
           {(alternateLocales.length > 0 || localeOptions.length > 1) && (
             <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Localized Versions</p>
+              {variantSource && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  This draft was seeded from the <span className="font-medium text-foreground">{variantSource.locale}</span> version
+                  {' '}<a className="font-medium text-foreground underline underline-offset-2" href={`/admin/pages/edit/${variantSource.id}`}>{variantSource.title}</a>.
+                </p>
+              )}
+              {localizedVersions.length > 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  This page also has version{localizedVersions.length === 1 ? '' : 's'} in{' '}
+                  {localizedVersions.map((version, index) => (
+                    <React.Fragment key={version.id}>
+                      {index > 0 ? ', ' : ''}
+                      <a className="font-medium text-foreground underline underline-offset-2" href={`/admin/pages/edit/${version.id}`}>
+                        {version.locale}
+                      </a>
+                    </React.Fragment>
+                  ))}
+                  .
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">No linked localized versions found yet.</p>
+              )}
+              {missingLocaleVariants.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {missingLocaleVariants.map((variant) => (
+                    <a key={variant.locale} href={variant.href} className="btn btn-outline btn-sm">
+                      Create {variant.locale} variant
+                    </a>
+                  ))}
+                </div>
+              )}
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Localized URL variants</p>
               <div className="mt-2 space-y-2">
                 {alternateLocales.length > 0 ? alternateLocales.map((entry, index) => (

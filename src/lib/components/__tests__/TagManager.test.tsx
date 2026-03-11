@@ -45,6 +45,12 @@ describe('TagManager', () => {
     
     // Mock successful API responses
     (global.fetch as any).mockImplementation((url: string, options: any) => {
+      if (url.includes('/api/admin/locales')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ activeLocales: ['en', 'nb', 'es'] })
+        });
+      }
       if (url.includes('/api/admin/tags/stats')) {
         return Promise.resolve({
           ok: true,
@@ -185,7 +191,10 @@ describe('TagManager', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: 'New Tag',
-            slug: 'new-tag'
+            slug: 'new-tag',
+            localizations: {
+              labels: {}
+            }
           })
         })
       );

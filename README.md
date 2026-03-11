@@ -86,17 +86,18 @@ Choose the article base path and permalink style in setup:
 
 This helps preserve imported URL structures while keeping article slugs unchanged.
 
-Locale settings (configured in admin settings):
+Locale settings:
 - `content.defaultLocale`: default locale used for redirects/fallback.
 - `content.locales`: enabled locale codes used for public route prefixes.
 - Recommended for Norwegian Bokmal: use `nb` in URLs (`/nb/...`).
 - Shipped locale packs include `en`, `nb`, `es`, and `zh`; only locales listed in `content.locales` are active.
-- Public locale activation is managed in `/admin/locales`; admin pages remain English-only.
+- Public locale activation is managed in `/admin/locales` and the setup wizard; admin pages remain English-only.
 - Add a new locale by adding `src/lib/i18n/messages/<locale>.json` and optional feature files under `src/lib/features/*/messages/<locale>.json`, then activate it in `/admin/locales`.
 - Every locale JSON must include `_meta.locale`, `_meta.catalogVersion`, `_meta.schemaVersion`, and `_meta.fallbackLocale`. Missing feature packs fall back to English by design.
 - Navigation links support optional per-locale overrides via `labelByLocale` and `hrefByLocale` for translated labels and locale-specific slugs.
 - Optional localized site identity uses `site.titleByLocale`, `site.descriptionByLocale`, and `site.taglineByLocale`.
 - Optional localized taxonomy labels use `content.categoryLabelsByLocale`, `content.categoryDescriptionsByLocale`, and `content.tagLabelsByLocale`.
+- Post and page editors can seed localized drafts from existing variants so alternate locale metadata starts linked correctly.
 
 ### Additional Scripts
 | Command | Description |

@@ -38,16 +38,30 @@ const STATIC_ASSET_PATTERN = /\.[a-z0-9]+$/i;
 const LOCALE_REDIRECT_BYPASS_PREFIXES = [
   '/admin',
   '/api',
-  '/auth',
   '/setup',
   '/mcp',
   '/_astro',
   '/images',
   '/scripts',
   '/favicon',
-  '/profile',
   '/404'
 ];
+
+const getRequestPolicyPath = (pathname: string, localePath: { hasLocalePrefix: boolean; pathnameWithoutLocale: string }) => (
+  localePath.hasLocalePrefix ? localePath.pathnameWithoutLocale : pathname
+);
+
+const shouldRewriteLocalizedPublicRoute = (pathname: string) => (
+  pathname === '/profile'
+  || pathname === '/404'
+  || pathname === '/500'
+  || pathname === '/auth/callback'
+  || pathname === '/auth/login'
+  || pathname === '/auth/forgot-password'
+  || pathname === '/auth/reset-password'
+  || pathname === '/auth/unauthorized'
+  || pathname.startsWith('/auth/oauth/')
+);
 
 const shouldBypassSetupRedirect = (pathname: string) => {
   if (STATIC_ASSET_PATTERN.test(pathname)) return true;
@@ -154,6 +168,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { url, redirect } = context;
   const localeConfig = await getLocaleConfigForRequest();
   const localePath = resolveLocalePath(url.pathname, localeConfig.locales, localeConfig.defaultLocale);
+  const requestPolicyPath = getRequestPolicyPath(url.pathname, localePath);
   context.locals.locale = localePath.locale;
   context.locals.defaultLocale = localeConfig.defaultLocale;
   context.locals.supportedLocales = localeConfig.locales;
@@ -163,11 +178,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.requestPathname = url.pathname;
   }
 
-  const isSetupRoute = url.pathname === '/setup' || url.pathname.startsWith('/setup/');
+  const isSetupRoute = requestPolicyPath === '/setup' || requestPolicyPath.startsWith('/setup/');
   const isAdminRoute = url.pathname.startsWith('/admin');
-  const isProfileRoute = url.pathname === '/profile' || url.pathname.startsWith('/profile/');
+  const isProfileRoute = requestPolicyPath === '/profile' || requestPolicyPath.startsWith('/profile/');
 
-  if (!hasRequiredSetupEnv() && !shouldBypassSetupRedirect(url.pathname)) {
+  if (!hasRequiredSetupEnv() && !shouldBypassSetupRedirect(requestPolicyPath)) {
     return redirect('/setup');
   }
 
@@ -178,7 +193,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return redirect('/');
     }
 
-    if (!shouldBypassSetupRedirect(url.pathname) && !setupGate.completed) {
+    if (!shouldBypassSetupRedirect(requestPolicyPath) && !setupGate.completed) {
       return redirect('/setup');
     }
   }
@@ -202,7 +217,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (
     !localePath.hasLocalePrefix
     && (context.request.method === 'GET' || context.request.method === 'HEAD')
-    && shouldRedirectToDefaultLocale(url.pathname)
+    && shouldRedirectToDefaultLocale(requestPolicyPath)
   ) {
     const localizedUrl = new URL(url);
     localizedUrl.pathname = buildLocalizedPath(url.pathname, localeConfig.defaultLocale);
@@ -221,7 +236,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (
     !url.pathname.startsWith('/api')
     && !url.pathname.startsWith('/admin')
-    && !url.pathname.startsWith('/auth')
+    && requestPolicyPath !== '/profile'
+    && !requestPolicyPath.startsWith('/auth')
   ) {
     try {
       const routing = await getContentRoutingForRewrite();
@@ -241,6 +257,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
       console.warn('Article routing rewrite skipped due to settings lookup error.', routingError);
     }
   }
+
+  if (localePath.hasLocalePrefix && shouldRewriteLocalizedPublicRoute(localePath.pathnameWithoutLocale)) {
+    const rewriteUrl = new URL(url);
+    rewriteUrl.pathname = localePath.pathnameWithoutLocale;
+    return context.rewrite(rewriteUrl);
+  }
   
   // Protect authenticated app routes
   if (isAdminRoute || isProfileRoute) {
@@ -248,11 +270,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
       const user = await authService.getUserFromRequest(context.request);
       if (!user) {
         const requestedPath = `${url.pathname}${url.search}`;
-        return redirect('/auth/login?redirect=' + encodeURIComponent(requestedPath));
+        const loginPath = localePath.hasLocalePrefix
+          ? buildLocalizedPath('/auth/login', localePath.locale)
+          : '/auth/login';
+        return redirect(`${loginPath}?redirect=${encodeURIComponent(requestedPath)}`);
       }
 
       if (isAdminRoute && !canRoleAccessAdminPath(user.role, url.pathname)) {
-        return redirect('/auth/unauthorized');
+        const unauthorizedPath = localePath.hasLocalePrefix
+          ? buildLocalizedPath('/auth/unauthorized', localePath.locale)
+          : '/auth/unauthorized';
+        return redirect(unauthorizedPath);
       }
       
       context.locals.user = user;

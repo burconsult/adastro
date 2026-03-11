@@ -33,6 +33,7 @@ let activeFeatureIds: string[] = [];
 let defaultLocale = 'en';
 let supportedLocales: string[] = ['en'];
 let localizedVersions: Array<{ id: string; locale: string; slug: string; title: string }> = [];
+let missingLocaleVariants: Array<{ locale: string; href: string }> = [];
 let viewPostHref = buildArticlesIndexPath(DEFAULT_ARTICLE_ROUTING);
 
 try {
@@ -94,6 +95,13 @@ try {
       slug: version.slug,
       title: version.title
     }));
+  const linkedLocales = new Set([post.locale || defaultLocale, ...localizedVersions.map((version) => version.locale)]);
+  missingLocaleVariants = supportedLocales
+    .filter((locale) => !linkedLocales.has(locale))
+    .map((locale) => ({
+      locale,
+      href: `/admin/posts/new?sourceId=${encodeURIComponent(post.id)}&locale=${encodeURIComponent(locale)}`
+    }));
 } catch (error) {
   console.error('Error loading post:', error);
   return Astro.redirect('/admin/posts');
@@ -132,6 +140,7 @@ try {
       defaultLocale={defaultLocale}
       supportedLocales={supportedLocales}
       localizedVersions={localizedVersions}
+      missingLocaleVariants={missingLocaleVariants}
     />
   </div>
 </AdminLayout>

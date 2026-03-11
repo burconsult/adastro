@@ -22,6 +22,7 @@ export interface SettingDefinition {
   type: 'string' | 'number' | 'boolean' | 'json' | 'array';
   category: string;
   defaultValue: any;
+  adminSurface?: 'settings' | 'locales' | 'hidden';
   validation?: {
     required?: boolean;
     min?: number;

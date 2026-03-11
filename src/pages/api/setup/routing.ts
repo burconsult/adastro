@@ -1,12 +1,17 @@
 import type { APIRoute } from 'astro';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
-import { resetSiteContentRoutingCache, resetSiteNavigationCache } from '@/lib/site-config';
+import { resetAllSiteConfigCaches } from '@/lib/site-config';
 import { isMissingRelationError } from '@/lib/setup/runtime';
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
+import { getCoreLocalePacks } from '@/lib/i18n/catalog';
+import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
+import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 
 type RoutingPayload = {
   articleBasePath?: string;
   articlePermalinkStyle?: 'segment' | 'wordpress';
+  defaultLocale?: string;
+  activeLocales?: string[];
 };
 
 export const POST: APIRoute = async ({ request }) => {
@@ -31,6 +36,24 @@ export const POST: APIRoute = async ({ request }) => {
 
   const basePath = normalizeArticleBasePath(payload.articleBasePath || DEFAULT_ARTICLE_ROUTING.basePath);
   const permalinkStyle = payload.articlePermalinkStyle === 'wordpress' ? 'wordpress' : 'segment';
+  const availableCoreLocales = Object.keys(getCoreLocalePacks());
+  const defaultLocale = normalizeLocaleCode(payload.defaultLocale, DEFAULT_LOCALE);
+  const activeLocales = ensureDefaultLocaleInList(
+    defaultLocale,
+    normalizeLocaleList(payload.activeLocales, defaultLocale)
+  ).filter((locale) => availableCoreLocales.includes(locale));
+
+  if (!availableCoreLocales.includes(defaultLocale)) {
+    return new Response(JSON.stringify({
+      error: `Locale "${defaultLocale}" does not have a bundled core language pack.`
+    }), {
+      status: 400,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
 
   const { error: probeError } = await (supabaseAdmin as any)
     .from('site_settings')
@@ -53,6 +76,20 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
+  const { data: currentLocaleRows } = await (supabaseAdmin as any)
+    .from('site_settings')
+    .select('key,value')
+    .in('key', ['content.defaultLocale', 'content.locales']);
+
+  const localeRowsByKey = new Map(
+    (currentLocaleRows || []).map((row: { key?: string; value?: unknown }) => [row.key, row.value] as const)
+  );
+  const previousDefaultLocale = normalizeLocaleCode(localeRowsByKey.get('content.defaultLocale'), DEFAULT_LOCALE);
+  const previousActiveLocales = ensureDefaultLocaleInList(
+    previousDefaultLocale,
+    normalizeLocaleList(localeRowsByKey.get('content.locales'), previousDefaultLocale)
+  );
+
   const { error: upsertError } = await (supabaseAdmin as any)
     .from('site_settings')
     .upsert([
@@ -67,6 +104,18 @@ export const POST: APIRoute = async ({ request }) => {
         value: permalinkStyle,
         category: 'content',
         description: 'Permalink style for article URLs'
+      },
+      {
+        key: 'content.defaultLocale',
+        value: defaultLocale,
+        category: 'content',
+        description: 'Default locale for localized routes'
+      },
+      {
+        key: 'content.locales',
+        value: activeLocales,
+        category: 'content',
+        description: 'Activated public locales'
       }
     ], {
       onConflict: 'key'
@@ -84,13 +133,25 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  resetSiteContentRoutingCache();
-  resetSiteNavigationCache();
+  const newlyActivatedLocales = activeLocales.filter((locale) => !previousActiveLocales.includes(locale));
+
+  for (const locale of newlyActivatedLocales) {
+    await ensureLocalizedSystemPages({
+      articleBasePath: basePath,
+      targetLocale: locale,
+      sourceLocale: previousDefaultLocale,
+      fallbackSourceLocale: DEFAULT_LOCALE
+    });
+  }
+
+  resetAllSiteConfigCaches();
 
   return new Response(JSON.stringify({
     ok: true,
     articleBasePath: basePath,
-    articlePermalinkStyle: permalinkStyle
+    articlePermalinkStyle: permalinkStyle,
+    defaultLocale,
+    activeLocales
   }), {
     status: 200,
     headers: {

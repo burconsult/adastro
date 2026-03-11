@@ -4,11 +4,13 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { AuthorRepository } from "@/lib/database/repositories/author-repository";
 import { CategoryRepository } from "@/lib/database/repositories/category-repository";
 import { TagRepository } from "@/lib/database/repositories/tag-repository";
+import { PostRepository } from "@/lib/database/repositories/post-repository";
 import { SettingsService } from "@/lib/services/settings-service";
 import PostEditor from "@/lib/components/PostEditor.tsx";
 import { loadFeatureModules } from "@/lib/features/loader";
 import { isFeatureActive } from "@/lib/features/state";
 import { getSiteContentRouting } from "@/lib/site-config";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
 
 // Get data needed for the editor
 let authors: any[] = [];
@@ -18,19 +20,24 @@ let blockEditorEnabled = false;
 let activeFeatureIds: string[] = [];
 let defaultLocale = 'en';
 let supportedLocales: string[] = ['en'];
+let seededPost: any = null;
+let variantSource: { id: string; locale: string; title: string } | undefined;
 const contentRouting = await getSiteContentRouting();
 const user = Astro.locals.user;
 const isAdmin = user?.role === 'admin';
 const authorId = user?.authorId;
+const sourceId = Astro.url.searchParams.get('sourceId');
+const targetLocale = Astro.url.searchParams.get('locale');
 
 try {
   const authorRepo = new AuthorRepository(true);
   const categoryRepo = new CategoryRepository(true);
   const tagRepo = new TagRepository(true);
+  const postRepo = new PostRepository(true);
   const settingsService = new SettingsService();
 
   const featureIds = loadFeatureModules().map((featureModule) => featureModule.id);
-  const [authorResults, categoryResults, tagResults, editorSettings, featureStates] = await Promise.all([
+  const [authorResults, categoryResults, tagResults, editorSettings, featureStates, sourcePost] = await Promise.all([
     authorRepo.findAll(),
     categoryRepo.findAll(),
     tagRepo.findAll(),
@@ -39,7 +46,8 @@ try {
       'content.defaultLocale',
       'content.locales'
     ]),
-    Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) })))
+    Promise.all(featureIds.map(async (id) => ({ id, active: await isFeatureActive(id) }))),
+    sourceId ? postRepo.findByIdWithRelations(sourceId) : Promise.resolve(null)
   ]);
 
   authors = authorResults;
@@ -55,9 +63,37 @@ try {
   if (!supportedLocales.includes(defaultLocale)) {
     supportedLocales.unshift(defaultLocale);
   }
+  const normalizedTargetLocale = normalizeLocaleCode(targetLocale, defaultLocale);
   activeFeatureIds = featureStates.filter((entry) => entry.active).map((entry) => entry.id);
   if (!isAdmin && authorId) {
     authors = authors.filter((author) => author.id === authorId);
+  }
+  if (sourcePost && supportedLocales.includes(normalizedTargetLocale) && sourcePost.locale !== normalizedTargetLocale) {
+    const sourceAlternateLocales = Array.isArray(sourcePost.seoMetadata?.alternateLocales)
+      ? sourcePost.seoMetadata.alternateLocales.filter((entry: any) => entry?.locale && entry?.slug)
+      : [];
+    seededPost = {
+      ...sourcePost,
+      id: undefined,
+      slug: '',
+      locale: normalizedTargetLocale,
+      status: 'draft',
+      publishedAt: undefined,
+      audioAssetId: undefined,
+      audioAsset: undefined,
+      seoMetadata: {
+        ...(sourcePost.seoMetadata || {}),
+        alternateLocales: [
+          ...sourceAlternateLocales.filter((entry: any) => entry.locale !== normalizedTargetLocale),
+          { locale: sourcePost.locale || defaultLocale, slug: sourcePost.slug }
+        ]
+      }
+    };
+    variantSource = {
+      id: sourcePost.id,
+      locale: sourcePost.locale || defaultLocale,
+      title: sourcePost.title
+    };
   }
 } catch (error) {
   console.error('Error loading editor data:', error);
@@ -82,6 +118,7 @@ try {
     <PostEditor
       client:load
       mode="create"
+      post={seededPost ? JSON.parse(JSON.stringify(seededPost, (_key, value) => value instanceof Date ? value.toISOString() : value)) : undefined}
       authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       categories={JSON.parse(JSON.stringify(categories, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       tags={JSON.parse(JSON.stringify(tags, (_key, value) => value instanceof Date ? value.toISOString() : value))}
@@ -91,6 +128,7 @@ try {
       articlePermalinkStyle={contentRouting.articlePermalinkStyle}
       defaultLocale={defaultLocale}
       supportedLocales={supportedLocales}
+      variantSource={variantSource}
     />
   </div>
 </AdminLayout>

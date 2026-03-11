@@ -190,5 +190,21 @@
   "core.search.minChars": "Skriv minst 2 tegn for å søke.",
   "core.search.noResults": "Ingen publiserte innlegg matchet søket ditt.",
   "core.locale.es": "Español",
-  "core.locale.zh": "中文"
+  "core.locale.zh": "中文",
+  "core.error.404.badge": "Signal tapt",
+  "core.error.404.heading": "404: Siden ble ikke funnet",
+  "core.error.404.body": "Denne ruten drev av gårde som en liten satellitt. AdAstro fant ikke URL-en du ba om.",
+  "core.error.404.description": "Denne siden forsvant ut i rommet. La oss få deg tilbake til AdAstro.",
+  "core.error.500.badge": "Oppskytingsfeil",
+  "core.error.500.heading": "500: Serveren vakler",
+  "core.error.500.body": "AdAstro-motorene tente, men kom ikke helt i gang. Vent litt eller gå tilbake til tryggere grunn.",
+  "core.error.500.description": "Noe gikk galt på serveren. Vi prøver å hente oss inn igjen.",
+  "core.error.returnHome": "Tilbake til forsiden",
+  "core.error.browseArticles": "Bla gjennom artikler",
+  "core.error.contact": "Kontakt support",
+  "core.error.reportIssue": "Rapporter problemet",
+  "core.locale.notice.postUnavailableTitle": "Artikkelen finnes ikke på dette språket",
+  "core.locale.notice.postUnavailableBody": "Vi sendte deg tilbake til artikkelarkivet fordi denne artikkelen ennå ikke er oversatt til det valgte språket.",
+  "core.locale.notice.pageUnavailableTitle": "Siden finnes ikke på dette språket",
+  "core.locale.notice.pageUnavailableBody": "Vi sendte deg tilbake til en trygg side fordi denne siden ennå ikke er oversatt til det valgte språket."
 }

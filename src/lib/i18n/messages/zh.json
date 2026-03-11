@@ -190,5 +190,21 @@
   "core.search.minChars": "至少输入 2 个字符后再搜索。",
   "core.search.noResults": "没有已发布文章匹配你的搜索。",
   "core.locale.es": "Español",
-  "core.locale.zh": "中文"
+  "core.locale.zh": "中文",
+  "core.error.404.badge": "信号丢失",
+  "core.error.404.heading": "404：页面未找到",
+  "core.error.404.body": "这个地址像一颗小卫星一样飘走了。AdAstro 无法定位你请求的 URL。",
+  "core.error.404.description": "这个页面漂进了深空。让我们带你回到 AdAstro。",
+  "core.error.500.badge": "发射故障",
+  "core.error.500.heading": "500：服务器抖动",
+  "core.error.500.body": "AdAstro 引擎点火了，但没有完全启动。稍等片刻，或先返回安全页面。",
+  "core.error.500.description": "服务器出现异常。我们会尝试恢复。",
+  "core.error.returnHome": "返回首页",
+  "core.error.browseArticles": "浏览文章",
+  "core.error.contact": "联系支持",
+  "core.error.reportIssue": "报告问题",
+  "core.locale.notice.postUnavailableTitle": "该文章暂无此语言版本",
+  "core.locale.notice.postUnavailableBody": "由于这篇文章尚未提供所选语言版本，我们已将你带回文章归档页。",
+  "core.locale.notice.pageUnavailableTitle": "该页面暂无此语言版本",
+  "core.locale.notice.pageUnavailableBody": "由于这个页面尚未提供所选语言版本，我们已将你带回安全页面。"
 }

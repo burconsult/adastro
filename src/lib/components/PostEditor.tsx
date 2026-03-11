@@ -54,6 +54,15 @@ interface PostEditorProps {
     slug: string;
     title: string;
   }>;
+  variantSource?: {
+    id: string;
+    locale: string;
+    title: string;
+  };
+  missingLocaleVariants?: Array<{
+    locale: string;
+    href: string;
+  }>;
 }
 
 interface PostFormData {
@@ -149,7 +158,9 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   articlePermalinkStyle = 'segment',
   defaultLocale = 'en',
   supportedLocales = ['en'],
-  localizedVersions = []
+  localizedVersions = [],
+  variantSource,
+  missingLocaleVariants = []
 }) => {
   const { toast } = useToast();
   const normalizedPost = useMemo(() => {
@@ -808,6 +819,12 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
               {(localizedVersions.length > 0 || localeOptions.length > 1) && (
                 <div className="rounded-md border border-border bg-muted/30 p-3">
                   <h4 className="text-sm font-semibold text-foreground">Localized Versions</h4>
+                  {variantSource && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      This draft was seeded from the <span className="font-medium text-foreground">{variantSource.locale}</span> version
+                      {' '}<a className="font-medium text-foreground underline underline-offset-2" href={`/admin/posts/edit/${variantSource.id}`}>{variantSource.title}</a>.
+                    </p>
+                  )}
                   {localizedVersions.length > 0 ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       This post also has version{localizedVersions.length === 1 ? '' : 's'} in{' '}
@@ -828,6 +845,16 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
                     <p className="mt-1 text-xs text-muted-foreground">
                       No linked localized versions found yet.
                     </p>
+                  )}
+
+                  {missingLocaleVariants.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {missingLocaleVariants.map((variant) => (
+                        <a key={variant.locale} href={variant.href} className="btn btn-outline btn-sm">
+                          Create {variant.locale} variant
+                        </a>
+                      ))}
+                    </div>
                   )}
 
                   <div className="mt-3 space-y-2">

@@ -13,13 +13,16 @@ const redirect = sanitizeRedirectPath(rawRedirect, '/admin');
 const localeConfig = await getSiteLocaleConfig();
 const locale = normalizeLocaleCode(Astro.locals.locale, localeConfig.defaultLocale);
 const localeMessages = getLocaleMessages(locale);
+const localizedProfilePath = buildLocalizedPath('/profile', locale);
+const localizedLoginPath = buildLocalizedPath('/auth/login', locale);
+const localizedForgotPasswordPath = buildLocalizedPath('/auth/forgot-password', locale);
 const currentUser = await authService.getUserFromRequest(Astro.request);
 if (currentUser) {
   const redirectTarget = redirect.startsWith('/auth/login')
-    ? (currentUser.role === 'admin' ? '/admin' : '/profile')
+    ? (currentUser.role === 'admin' ? '/admin' : localizedProfilePath)
     : redirect;
   const destination = redirectTarget.startsWith('/admin') && currentUser.role !== 'admin'
-    ? '/profile'
+    ? localizedProfilePath
     : redirectTarget;
   return Astro.redirect(destination);
 }
@@ -71,7 +74,7 @@ const loginClientMessages = {
             <>
               <div class="grid gap-3">
                 {oauthProviders.map((provider) => (
-                  <a href={`/auth/oauth/${provider.id}?redirect=${encodeURIComponent(redirect)}`} class="w-full btn btn-outline">
+                  <a href={`${buildLocalizedPath(`/auth/oauth/${provider.id}`, locale)}?redirect=${encodeURIComponent(redirect)}`} class="w-full btn btn-outline">
                     {t(localeMessages, 'core.auth.login.continueWith', 'Continue with')} {provider.label}
                   </a>
                 ))}
@@ -119,7 +122,7 @@ const loginClientMessages = {
               <input type="checkbox" id="remember" name="remember" class="mr-2" />
               <span class="text-sm text-muted-foreground">{t(localeMessages, 'core.auth.login.remember', 'Remember me')}</span>
             </label>
-            <a href="/auth/forgot-password" class="text-sm text-primary hover:underline">
+            <a href={localizedForgotPasswordPath} class="text-sm text-primary hover:underline">
               {t(localeMessages, 'core.auth.login.forgot', 'Forgot password?')}
             </a>
           </div>
@@ -137,7 +140,7 @@ const loginClientMessages = {
 
         <p class="mt-4 text-center text-xs text-muted-foreground">
           {t(localeMessages, 'core.auth.login.invited', 'Invited user? Use the invite email link to set your password.')}
-          <a href="/auth/forgot-password" class="text-primary hover:underline">{t(localeMessages, 'core.auth.login.needNewLink', 'Need a new link?')}</a>
+          <a href={localizedForgotPasswordPath} class="text-primary hover:underline">{t(localeMessages, 'core.auth.login.needNewLink', 'Need a new link?')}</a>
         </p>
 
         <div class="mt-6 text-center">

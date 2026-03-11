@@ -52,6 +52,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional locale-specific site titles keyed by locale code.',
     type: 'json',
     category: 'general',
+    adminSurface: 'locales',
     defaultValue: {}
   },
   {
@@ -60,6 +61,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional locale-specific site descriptions keyed by locale code.',
     type: 'json',
     category: 'general',
+    adminSurface: 'locales',
     defaultValue: {}
   },
   {
@@ -68,6 +70,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional locale-specific taglines keyed by locale code.',
     type: 'json',
     category: 'general',
+    adminSurface: 'locales',
     defaultValue: {}
   },
   {
@@ -281,6 +284,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Default content locale code used when a specific localized version is unavailable.',
     type: 'string',
     category: 'content',
+    adminSurface: 'locales',
     defaultValue: 'en',
     validation: { required: true, pattern: '^[a-z]{2}(?:-[a-z]{2})?$' }
   },
@@ -290,6 +294,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Locale codes enabled for localized content and URL prefixes.',
     type: 'array',
     category: 'content',
+    adminSurface: 'locales',
     defaultValue: ['en']
   },
   {
@@ -298,6 +303,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional localized category labels keyed by category slug, then locale code.',
     type: 'json',
     category: 'content',
+    adminSurface: 'hidden',
     defaultValue: {}
   },
   {
@@ -306,6 +312,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional localized category descriptions keyed by category slug, then locale code.',
     type: 'json',
     category: 'content',
+    adminSurface: 'hidden',
     defaultValue: {}
   },
   {
@@ -314,6 +321,7 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     description: 'Optional localized tag labels keyed by tag slug, then locale code.',
     type: 'json',
     category: 'content',
+    adminSurface: 'hidden',
     defaultValue: {}
   },
   {

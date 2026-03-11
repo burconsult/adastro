@@ -64,6 +64,16 @@ const localizedAlternateLinks = [
 const xDefaultHref = localizedAlternateLinks.find((link) => (
   normalizeLocaleCode(link.locale, localeConfig.defaultLocale) === localeConfig.defaultLocale
 ))?.href ?? pageUrl;
+const localeSwitcherFallbacks = localeConfig.locales
+  .filter((candidateLocale) => !localizedAlternateLinks.some((link) => normalizeLocaleCode(link.locale, localeConfig.defaultLocale) === candidateLocale))
+  .map((candidateLocale) => ({
+    locale: candidateLocale,
+    href: `${buildArticlesIndexPath({
+      basePath: contentRouting.articleBasePath,
+      permalinkStyle: contentRouting.articlePermalinkStyle,
+      localePrefix: candidateLocale
+    })}?locale_notice=post-unavailable`
+  }));
 const authorSlug = post.author.slug || post.author.id;
 const authorHref = buildLocalizedPath(`/author/${authorSlug}/`, locale);
 const imageUrl = post.featuredImage?.url
@@ -144,6 +154,7 @@ const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedA
   ogImage={imageUrl}
   canonicalUrl={pageUrl}
   alternateLinks={localizedAlternateLinks}
+  localeSwitcherFallbacks={localeSwitcherFallbacks}
   xDefaultHref={xDefaultHref}
 >
   <script

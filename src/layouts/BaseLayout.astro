@@ -24,6 +24,7 @@ type Props = {
   ogType?: string;
   canonicalUrl?: string;
   alternateLinks?: Array<{ locale: string; href: string }>;
+  localeSwitcherFallbacks?: Array<{ locale: string; href: string }>;
   xDefaultHref?: string;
   hideFooterNewsletter?: boolean;
 }
@@ -48,6 +49,7 @@ const {
   ogType = 'website',
   canonicalUrl,
   alternateLinks,
+  localeSwitcherFallbacks,
   xDefaultHref,
   hideFooterNewsletter = false
 } = Astro.props as Props;
@@ -62,7 +64,7 @@ const localeMessages = getLocaleMessages(currentLocale);
 const defaultLocaleMessages = currentLocale === siteLocaleConfig.defaultLocale
   ? localeMessages
   : getLocaleMessages(siteLocaleConfig.defaultLocale);
-const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
+const LOCALIZED_HREF_SKIP_PREFIXES = ['/admin', '/api', '/setup', '/mcp', '/_astro', '/images', '/scripts', '/favicon'];
 const localizeSiteHref = (href: string) => localizeHref(href, currentLocale, { skipPrefixes: LOCALIZED_HREF_SKIP_PREFIXES });
 const localizedPages = await getPublishedPages(currentLocale);
 const defaultLocalePages = currentLocale === siteLocaleConfig.defaultLocale
@@ -330,9 +332,11 @@ const authRedirectBasePath = requestPathname || Astro.url.pathname;
 const authRedirectPath = authRedirectBasePath.startsWith('/auth')
   ? '/'
   : `${authRedirectBasePath}${Astro.url.search || ''}`;
+const profileHref = buildLocalizedPath('/profile', currentLocale);
+const signInBaseHref = buildLocalizedPath('/auth/login', currentLocale);
 const authLink = currentUser
-  ? { label: t(localeMessages, 'core.auth.profile', 'Profile'), href: '/profile' }
-  : { label: t(localeMessages, 'core.auth.signIn', 'Sign in'), href: `/auth/login?redirect=${encodeURIComponent(authRedirectPath)}` };
+  ? { label: t(localeMessages, 'core.auth.profile', 'Profile'), href: profileHref }
+  : { label: t(localeMessages, 'core.auth.signIn', 'Sign in'), href: `${signInBaseHref}?redirect=${encodeURIComponent(authRedirectPath)}` };
 const authState = currentUser ? 'authenticated' : 'guest';
 const adminLink = currentUser?.role === 'admin'
   ? { label: t(localeMessages, 'core.auth.admin', 'Admin'), href: '/admin' }
@@ -362,14 +366,25 @@ const alternateLocalePathMap = new Map(
     return [normalizeLocaleCode(link.locale, siteLocaleConfig.defaultLocale), pathWithSearch] as const;
   })
 );
+const fallbackLocalePathMap = new Map(
+  (Array.isArray(localeSwitcherFallbacks) ? localeSwitcherFallbacks : [])
+    .map((link) => ({
+      locale: normalizeLocaleCode(link.locale, siteLocaleConfig.defaultLocale),
+      href: new URL(link.href, siteBaseUrl).toString()
+    }))
+    .map((link) => {
+      const parsed = new URL(link.href, siteBaseUrl);
+      return [link.locale, `${parsed.pathname}${parsed.search}`] as const;
+    })
+);
 const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
   const normalized = normalizeLocaleCode(locale, siteLocaleConfig.defaultLocale);
-  const alternateHref = alternateLocalePathMap.get(normalized);
-  if (alternateHref) {
+  const resolvedHref = alternateLocalePathMap.get(normalized) || fallbackLocalePathMap.get(normalized);
+  if (resolvedHref) {
     return {
       code: normalized,
       label: getLocaleDisplayLabel(normalized),
-      href: alternateHref
+      href: resolvedHref
     };
   }
   const baseHref = buildLocalizedPath(localizedPathname, normalized);
@@ -380,6 +395,18 @@ const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
     href
   };
 });
+const localeNoticeCode = Astro.url.searchParams.get('locale_notice');
+const localeNotice = localeNoticeCode === 'post-unavailable'
+  ? {
+      title: t(localeMessages, 'core.locale.notice.postUnavailableTitle', 'Article unavailable in this language'),
+      body: t(localeMessages, 'core.locale.notice.postUnavailableBody', 'We took you back to the article archive because this article does not have a translation in the selected language yet.')
+    }
+  : localeNoticeCode === 'page-unavailable'
+    ? {
+        title: t(localeMessages, 'core.locale.notice.pageUnavailableTitle', 'Page unavailable in this language'),
+        body: t(localeMessages, 'core.locale.notice.pageUnavailableBody', 'We took you back to a safe page because this page does not have a translation in the selected language yet.')
+      }
+    : null;
 ---
 <!doctype html>
 <html
@@ -475,6 +502,14 @@ const localeSwitcherOptions = siteLocaleConfig.locales.map((locale) => {
         />
       </div>
     </header>
+    {localeNotice && (
+      <div class="mx-auto mt-4 w-full max-w-6xl px-5 sm:px-7 lg:px-8">
+        <div class="rounded-xl border border-border/70 bg-muted/40 px-4 py-3">
+          <p class="text-sm font-semibold text-foreground">{localeNotice.title}</p>
+          <p class="mt-1 text-sm text-muted-foreground">{localeNotice.body}</p>
+        </div>
+      </div>
+    )}
     <main>
       <slot />
     </main>

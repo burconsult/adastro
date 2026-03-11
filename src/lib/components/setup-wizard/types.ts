@@ -27,6 +27,11 @@ export type SetupStatusPayload = {
     articleBasePath: string;
     articlePermalinkStyle: 'segment' | 'wordpress';
   };
+  contentLocales: {
+    defaultLocale: string;
+    activeLocales: string[];
+    availableLocales: string[];
+  };
   checks: SetupCheck[];
   requiredEnv: string[];
   optionalEnv: string[];

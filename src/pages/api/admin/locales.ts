@@ -13,7 +13,13 @@ const toJson = (payload: unknown, status = 200) => (
 
 const buildPayload = async () => {
   const settingsService = new SettingsService();
-  const settings = await settingsService.getSettings(['content.defaultLocale', 'content.locales']);
+  const settings = await settingsService.getSettings([
+    'content.defaultLocale',
+    'content.locales',
+    'site.titleByLocale',
+    'site.descriptionByLocale',
+    'site.taglineByLocale'
+  ]);
   const availableLocales = getAvailableLocaleCodes();
   const coreLocales = Object.keys(getCoreLocalePacks()).sort((a, b) => a.localeCompare(b));
   const defaultLocale = normalizeLocaleCode(settings['content.defaultLocale'], DEFAULT_LOCALE);
@@ -30,6 +36,11 @@ const buildPayload = async () => {
     activeLocales,
     availableLocales,
     activatableLocales: coreLocales,
+    siteIdentityByLocale: {
+      title: settings['site.titleByLocale'] ?? {},
+      description: settings['site.descriptionByLocale'] ?? {},
+      tagline: settings['site.taglineByLocale'] ?? {}
+    },
     locales: localeHealth.map((entry) => ({
       ...entry,
       canActivate: coreLocales.includes(entry.locale)
@@ -66,13 +77,19 @@ export const PUT: APIRoute = async ({ request }) => {
     const currentSettings = await settingsService.getSettings([
       'content.defaultLocale',
       'content.locales',
-      'content.articleBasePath'
+      'content.articleBasePath',
+      'site.titleByLocale',
+      'site.descriptionByLocale',
+      'site.taglineByLocale'
     ]);
     const body = await request.json().catch(() => null);
     const requestedDefaultLocale = normalizeLocaleCode(body?.defaultLocale, DEFAULT_LOCALE);
     const requestedLocales = Array.isArray(body?.activeLocales)
       ? body.activeLocales
       : [];
+    const siteIdentityByLocale = body?.siteIdentityByLocale && typeof body.siteIdentityByLocale === 'object'
+      ? body.siteIdentityByLocale
+      : {};
 
     const coreLocales = Object.keys(getCoreLocalePacks()).sort((a, b) => a.localeCompare(b));
     const normalizedActiveLocales = ensureDefaultLocaleInList(
@@ -114,7 +131,10 @@ export const PUT: APIRoute = async ({ request }) => {
 
     await settingsService.updateSettings({
       'content.defaultLocale': requestedDefaultLocale,
-      'content.locales': normalizedActiveLocales
+      'content.locales': normalizedActiveLocales,
+      'site.titleByLocale': siteIdentityByLocale.title ?? currentSettings['site.titleByLocale'] ?? {},
+      'site.descriptionByLocale': siteIdentityByLocale.description ?? currentSettings['site.descriptionByLocale'] ?? {},
+      'site.taglineByLocale': siteIdentityByLocale.tagline ?? currentSettings['site.taglineByLocale'] ?? {}
     }, admin.id);
 
     const payload = await buildPayload();

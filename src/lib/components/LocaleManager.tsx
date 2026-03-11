@@ -31,6 +31,11 @@ type Payload = {
   activeLocales: string[];
   availableLocales: string[];
   activatableLocales: string[];
+  siteIdentityByLocale: {
+    title: Record<string, string>;
+    description: Record<string, string>;
+    tagline: Record<string, string>;
+  };
   locales: LocaleStatus[];
 };
 
@@ -42,6 +47,11 @@ function LocaleManagerInner() {
   const [error, setError] = useState<string | null>(null);
   const [activeLocales, setActiveLocales] = useState<string[]>([]);
   const [defaultLocale, setDefaultLocale] = useState('en');
+  const [siteIdentityByLocale, setSiteIdentityByLocale] = useState<Payload['siteIdentityByLocale']>({
+    title: {},
+    description: {},
+    tagline: {}
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +69,11 @@ function LocaleManagerInner() {
         setData(payload as Payload);
         setActiveLocales((payload?.activeLocales || []) as string[]);
         setDefaultLocale(String(payload?.defaultLocale || 'en'));
+        setSiteIdentityByLocale((payload?.siteIdentityByLocale || {
+          title: {},
+          description: {},
+          tagline: {}
+        }) as Payload['siteIdentityByLocale']);
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : 'Failed to load locale inventory');
@@ -79,6 +94,7 @@ function LocaleManagerInner() {
     setData(payload);
     setActiveLocales(payload.activeLocales);
     setDefaultLocale(payload.defaultLocale);
+    setSiteIdentityByLocale(payload.siteIdentityByLocale);
   };
 
   const toggleLocale = (locale: string, enabled: boolean) => {
@@ -103,7 +119,7 @@ function LocaleManagerInner() {
       const response = await fetch('/api/admin/locales', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activeLocales, defaultLocale })
+        body: JSON.stringify({ activeLocales, defaultLocale, siteIdentityByLocale })
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -208,6 +224,56 @@ function LocaleManagerInner() {
             <p className="mt-2 text-xs text-muted-foreground">
               Unprefixed public URLs redirect to this locale.
             </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-background p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Localized site identity</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Optional per-locale overrides for the public title, description, and tagline.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {activeLocaleEntries.map((locale) => (
+              <div key={locale.locale} className="rounded-lg border border-border/60 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {locale.displayName} ({locale.locale.toUpperCase()})
+                </p>
+                <div className="mt-3 grid gap-3">
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    placeholder="Localized title"
+                    value={siteIdentityByLocale.title[locale.locale] || ''}
+                    onChange={(event) => setSiteIdentityByLocale((current) => ({
+                      ...current,
+                      title: { ...current.title, [locale.locale]: event.target.value }
+                    }))}
+                  />
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={2}
+                    placeholder="Localized description"
+                    value={siteIdentityByLocale.description[locale.locale] || ''}
+                    onChange={(event) => setSiteIdentityByLocale((current) => ({
+                      ...current,
+                      description: { ...current.description, [locale.locale]: event.target.value }
+                    }))}
+                  />
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    placeholder="Localized tagline"
+                    value={siteIdentityByLocale.tagline[locale.locale] || ''}
+                    onChange={(event) => setSiteIdentityByLocale((current) => ({
+                      ...current,
+                      tagline: { ...current.tagline, [locale.locale]: event.target.value }
+                    }))}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

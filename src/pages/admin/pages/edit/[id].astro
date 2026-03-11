@@ -5,6 +5,7 @@ import { PageRepository } from "@/lib/database/repositories/page-repository";
 import { AuthorRepository } from "@/lib/database/repositories/author-repository";
 import { PageEditor } from "@/lib/components/PageEditor.tsx";
 import { SettingsService } from "@/lib/services/settings-service";
+import { findPageLocaleVariants } from "@/lib/i18n/page-localizations";
 
 const { id } = Astro.params;
 const user = Astro.locals.user;
@@ -20,6 +21,8 @@ let authors: any[] = [];
 let pageHref = '/';
 let defaultLocale = 'en';
 let supportedLocales: string[] = ['en'];
+let localizedVersions: Array<{ id: string; locale: string; slug: string; title: string }> = [];
+let missingLocaleVariants: Array<{ locale: string; href: string }> = [];
 
 try {
   const pageRepo = new PageRepository(true);
@@ -53,6 +56,23 @@ try {
   if (!isAdmin && authorId) {
     authors = authors.filter((author) => author.id === authorId);
   }
+
+  localizedVersions = (await findPageLocaleVariants(page, supportedLocales, {
+    publishedOnly: false,
+    useAdmin: true
+  })).map((version) => ({
+    id: version.id,
+    locale: version.locale || defaultLocale,
+    slug: version.slug,
+    title: version.title
+  }));
+  const linkedLocales = new Set([page.locale || defaultLocale, ...localizedVersions.map((version) => version.locale)]);
+  missingLocaleVariants = supportedLocales
+    .filter((locale) => !linkedLocales.has(locale))
+    .map((locale) => ({
+      locale,
+      href: `/admin/pages/new?sourceId=${encodeURIComponent(page.id)}&locale=${encodeURIComponent(locale)}`
+    }));
 } catch (error) {
   console.error('Error loading page:', error);
   return Astro.redirect('/admin/pages');
@@ -83,6 +103,8 @@ try {
       authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       defaultLocale={defaultLocale}
       supportedLocales={supportedLocales}
+      localizedVersions={localizedVersions}
+      missingLocaleVariants={missingLocaleVariants}
     />
   </div>
 </AdminLayout>

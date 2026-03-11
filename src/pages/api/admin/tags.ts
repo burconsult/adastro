@@ -1,6 +1,13 @@
 import type { APIRoute } from 'astro';
 import { TagRepository } from '@/lib/database/repositories/tag-repository';
 import { requireAdmin, requireAuthor } from '@/lib/auth/auth-helpers';
+import { SettingsService } from '@/lib/services/settings-service';
+
+const settingsService = new SettingsService();
+
+const getTagLocalizationMaps = async () => settingsService.getSettings([
+  'content.tagLabelsByLocale'
+]);
 
 export const GET: APIRoute = async ({ request, locals }) => {
   try {
@@ -20,9 +27,15 @@ export const GET: APIRoute = async ({ request, locals }) => {
       tags = await tagRepo.findAllWithStats(limit, offset);
     }
 
+    const localizationSettings = await getTagLocalizationMaps();
+    const labelMaps = (localizationSettings['content.tagLabelsByLocale'] ?? {}) as Record<string, Record<string, string>>;
+
     const payload = tags.map((tag: any) => ({
       ...tag,
       postCount: tag.postCount ?? 0,
+      localizations: {
+        labels: labelMaps[tag.slug] ?? {}
+      }
     }));
 
     return new Response(JSON.stringify(payload), {
@@ -65,7 +78,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
       slug: data.slug
     });
 
-    const payload = { ...tag, postCount: 0 };
+    if (data.localizations && typeof data.localizations === 'object') {
+      const currentSettings = await getTagLocalizationMaps();
+      const labelMaps = { ...((currentSettings['content.tagLabelsByLocale'] ?? {}) as Record<string, Record<string, string>>) };
+      labelMaps[tag.slug] = { ...(data.localizations.labels ?? {}) };
+      await settingsService.updateSettings({
+        'content.tagLabelsByLocale': labelMaps
+      });
+    }
+
+    const payload = {
+      ...tag,
+      postCount: 0,
+      localizations: {
+        labels: data.localizations?.labels ?? {}
+      }
+    };
 
     return new Response(JSON.stringify(payload), {
       status: 201,

@@ -69,11 +69,13 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [pageOptions, setPageOptions] = useState<PageOption[]>([]);
+  const [localeOptions, setLocaleOptions] = useState<string[]>(['en']);
   const featurePanels = useMemo(() => getFeatureSettingsPanels(), []);
 
   useEffect(() => {
     loadSettings();
     loadNavigationPageOptions();
+    loadLocaleOptions();
   }, []);
 
   useEffect(() => {
@@ -132,6 +134,20 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
       setPageOptions([...grouped.values()].sort((a, b) => a.slug.localeCompare(b.slug)));
     } catch {
       setPageOptions([]);
+    }
+  };
+
+  const loadLocaleOptions = async () => {
+    try {
+      const response = await fetch('/api/admin/locales');
+      if (!response.ok) throw new Error('Failed to load locales');
+      const payload = await response.json();
+      const locales = Array.isArray(payload?.activeLocales)
+        ? payload.activeLocales.filter((entry: unknown): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+        : ['en'];
+      setLocaleOptions(locales.length > 0 ? Array.from(new Set(locales)) : ['en']);
+    } catch {
+      setLocaleOptions(['en']);
     }
   };
 
@@ -645,21 +661,8 @@ export const SettingsManager: React.FC<SettingsManagerProps> = ({
   };
 
   const localeOptionsForMenus = useMemo(() => {
-    const configuredLocales = getSettingValueGlobal('content.locales');
-    const configuredDefaultLocale = typeof getSettingValueGlobal('content.defaultLocale') === 'string'
-      ? String(getSettingValueGlobal('content.defaultLocale')).trim().toLowerCase()
-      : '';
-    const locales = Array.isArray(configuredLocales)
-      ? configuredLocales
-          .map((entry) => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
-          .filter((entry) => /^[a-z]{2}(?:-[a-z]{2})?$/.test(entry))
-      : [];
-    const withDefault = configuredDefaultLocale && /^[a-z]{2}(?:-[a-z]{2})?$/.test(configuredDefaultLocale)
-      ? [configuredDefaultLocale, ...locales]
-      : locales;
-    const deduped = Array.from(new Set(withDefault));
-    return deduped.length > 0 ? deduped : ['en'];
-  }, [categories, pendingChanges]);
+    return localeOptions.length > 0 ? localeOptions : ['en'];
+  }, [localeOptions]);
 
   const renderLinkEditor = (options: {
     title: string;

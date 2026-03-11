@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import { getSiteContentRouting } from '@/lib/site-config';
+import { getAvailableLocaleCodes, getCoreLocalePacks } from '@/lib/i18n/catalog';
+import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 import { getStorageBucketConfig } from '@/lib/storage/buckets';
 import { buildInvitePasswordSetupPath } from '@/lib/auth/access-policy';
 import {
@@ -45,6 +47,11 @@ type SetupStatusPayload = {
   contentRouting: {
     articleBasePath: string;
     articlePermalinkStyle: 'segment' | 'wordpress';
+  };
+  contentLocales: {
+    defaultLocale: string;
+    activeLocales: string[];
+    availableLocales: string[];
   };
   checks: SetupCheck[];
   requiredEnv: string[];
@@ -119,7 +126,10 @@ const probeCoreSchemaReadiness = async (): Promise<{
 const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
   const checks: SetupCheck[] = [];
   const contentRouting = await getSiteContentRouting();
+  const availableLocales = Object.keys(getCoreLocalePacks()).sort((a, b) => a.localeCompare(b));
   let setupCompleted = false;
+  let defaultLocale = DEFAULT_LOCALE;
+  let activeLocales = [DEFAULT_LOCALE];
 
   const supabaseUrl = (import.meta.env.SUPABASE_URL as string | undefined) || getRuntimeEnv('SUPABASE_URL');
   const supabasePublishableKey = (import.meta.env.SUPABASE_PUBLISHABLE_KEY as string | undefined) || getRuntimeEnv('SUPABASE_PUBLISHABLE_KEY');
@@ -208,6 +218,22 @@ const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
     });
 
     if (coreSchema.ready) {
+      const { data: localeSettings } = await (supabaseAdmin as any)
+        .from('site_settings')
+        .select('key,value')
+        .in('key', ['content.defaultLocale', 'content.locales']);
+      const localeSettingsByKey = new Map(
+        (localeSettings || []).map((setting: { key?: string; value?: unknown }) => [setting.key, setting.value] as const)
+      );
+      defaultLocale = normalizeLocaleCode(localeSettingsByKey.get('content.defaultLocale'), DEFAULT_LOCALE);
+      activeLocales = ensureDefaultLocaleInList(
+        defaultLocale,
+        normalizeLocaleList(localeSettingsByKey.get('content.locales'), defaultLocale)
+      ).filter((locale) => availableLocales.includes(locale));
+      if (activeLocales.length === 0) {
+        activeLocales = [defaultLocale];
+      }
+
       const { data: setupGateSettings, error: setupGateError } = await (supabaseAdmin as any)
         .from('site_settings')
         .select('key,value')
@@ -417,6 +443,11 @@ const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
     contentRouting: {
       articleBasePath: contentRouting.articleBasePath,
       articlePermalinkStyle: contentRouting.articlePermalinkStyle
+    },
+    contentLocales: {
+      defaultLocale,
+      activeLocales,
+      availableLocales: availableLocales.length > 0 ? availableLocales : getAvailableLocaleCodes()
     },
     checks,
     requiredEnv: [

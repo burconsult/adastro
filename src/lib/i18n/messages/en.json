@@ -190,5 +190,21 @@
   "core.search.minChars": "Enter at least 2 characters to run a search.",
   "core.search.noResults": "No published posts matched your search.",
   "core.locale.es": "Español",
-  "core.locale.zh": "中文"
+  "core.locale.zh": "中文",
+  "core.error.404.badge": "Lost signal",
+  "core.error.404.heading": "404: Page not found",
+  "core.error.404.body": "This route wandered off like a tiny satellite. AdAstro could not lock onto the URL you requested.",
+  "core.error.404.description": "This page drifted into deep space. Let's get you back to AdAstro.",
+  "core.error.500.badge": "Launch hiccup",
+  "core.error.500.heading": "500: Server wobble",
+  "core.error.500.body": "The AdAstro engines sparked but did not ignite. Give it a moment or jump back to safer ground.",
+  "core.error.500.description": "Something went sideways on the server. We will try to recover.",
+  "core.error.returnHome": "Return home",
+  "core.error.browseArticles": "Browse articles",
+  "core.error.contact": "Contact support",
+  "core.error.reportIssue": "Report the issue",
+  "core.locale.notice.postUnavailableTitle": "Article unavailable in this language",
+  "core.locale.notice.postUnavailableBody": "We took you back to the article archive because this article does not have a translation in the selected language yet.",
+  "core.locale.notice.pageUnavailableTitle": "Page unavailable in this language",
+  "core.locale.notice.pageUnavailableBody": "We took you back to a safe page because this page does not have a translation in the selected language yet."
 }

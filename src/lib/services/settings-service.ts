@@ -15,6 +15,10 @@ export class SettingsService {
     this.settingDefinitions = getAllSettingDefinitions();
   }
 
+  private isVisibleInSettings(definition: SettingDefinition): boolean {
+    return (definition.adminSurface ?? 'settings') === 'settings';
+  }
+
   async initializeDefaultSettings(): Promise<void> {
     for (const definition of this.settingDefinitions) {
       const existing = await this.repository.findByKey(definition.key);
@@ -90,7 +94,9 @@ export class SettingsService {
 
   async getSettingsByCategory(category: string): Promise<SettingsCategory> {
     const settings = await this.repository.findByCategory(category);
-    const categoryDefinitions = this.settingDefinitions.filter(def => def.category === category);
+    const categoryDefinitions = this.settingDefinitions.filter((def) => (
+      def.category === category && this.isVisibleInSettings(def)
+    ));
     const categoryOrder = new Map(categoryDefinitions.map((definition, index) => [definition.key, index]));
     
     // Add missing settings with default values
@@ -181,7 +187,9 @@ export class SettingsService {
 
     for (const category of categories) {
       const categoryData = await this.getSettingsByCategory(category);
-      result.push(categoryData);
+      if (categoryData.settings.length > 0) {
+        result.push(categoryData);
+      }
     }
 
     return result;

@@ -47,6 +47,10 @@ global.fetch = fetchMock;
 
 const setupDefaultFetchMock = () => {
   fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+    if (url.includes('/api/admin/locales')) {
+      return Promise.resolve(createApiResponse({ activeLocales: ['en', 'nb', 'es'] }));
+    }
+
     if (url.includes('/api/admin/categories')) {
       if (!options?.method) {
         return Promise.resolve(createApiResponse(mockCategories));
@@ -139,19 +143,21 @@ describe('CategoryManager', () => {
     fireEvent.click(screen.getByRole('button', { name: /Create Category/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/admin/categories',
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: 'New Category',
-            slug: 'new-category',
-            description: 'A new category',
-            parentId: null
-          })
-        })
-      );
+      const createCall = fetchMock.mock.calls.find(([url, options]) => (
+        url === '/api/admin/categories' && options?.method === 'POST'
+      ));
+      expect(createCall).toBeTruthy();
+      const payload = JSON.parse(String(createCall?.[1]?.body || '{}'));
+      expect(payload).toMatchObject({
+        name: 'New Category',
+        slug: 'new-category',
+        description: 'A new category',
+        parentId: null,
+        localizations: {
+          labels: {},
+          descriptions: {}
+        }
+      });
     });
   });
 

@@ -2,8 +2,10 @@
 import AdminLayout from "@/layouts/AdminLayout.astro";
 import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { AuthorRepository } from "@/lib/database/repositories/author-repository";
+import { PageRepository } from "@/lib/database/repositories/page-repository";
 import { PageEditor } from "@/lib/components/PageEditor.tsx";
 import { SettingsService } from "@/lib/services/settings-service";
+import { normalizeLocaleCode } from "@/lib/i18n/locales";
 
 const user = Astro.locals.user;
 const isAdmin = user?.role === 'admin';
@@ -12,13 +14,19 @@ const authorId = user?.authorId;
 let authors: any[] = [];
 let defaultLocale = 'en';
 let supportedLocales: string[] = ['en'];
+let seededPage: any = null;
+let variantSource: { id: string; locale: string; title: string } | undefined;
+const sourceId = Astro.url.searchParams.get('sourceId');
+const targetLocale = Astro.url.searchParams.get('locale');
 
 try {
   const authorRepo = new AuthorRepository(true);
+  const pageRepo = new PageRepository(true);
   const settingsService = new SettingsService();
-  const [authorResults, localeSettings] = await Promise.all([
+  const [authorResults, localeSettings, sourcePage] = await Promise.all([
     authorRepo.findAll(),
-    settingsService.getSettings(['content.defaultLocale', 'content.locales'])
+    settingsService.getSettings(['content.defaultLocale', 'content.locales']),
+    sourceId ? pageRepo.findByIdWithRelations(sourceId) : Promise.resolve(null)
   ]);
   authors = authorResults;
   defaultLocale = typeof localeSettings['content.defaultLocale'] === 'string'
@@ -29,6 +37,32 @@ try {
     : ['en'];
   if (!supportedLocales.includes(defaultLocale)) {
     supportedLocales.unshift(defaultLocale);
+  }
+  const normalizedTargetLocale = normalizeLocaleCode(targetLocale, defaultLocale);
+  if (sourcePage && supportedLocales.includes(normalizedTargetLocale) && sourcePage.locale !== normalizedTargetLocale) {
+    const sourceAlternateLocales = Array.isArray(sourcePage.seoMetadata?.alternateLocales)
+      ? sourcePage.seoMetadata.alternateLocales.filter((entry: any) => entry?.locale && entry?.slug)
+      : [];
+    seededPage = {
+      ...sourcePage,
+      id: undefined,
+      slug: '',
+      locale: normalizedTargetLocale,
+      status: 'draft',
+      publishedAt: undefined,
+      seoMetadata: {
+        ...(sourcePage.seoMetadata || {}),
+        alternateLocales: [
+          ...sourceAlternateLocales.filter((entry: any) => entry.locale !== normalizedTargetLocale),
+          { locale: sourcePage.locale || defaultLocale, slug: sourcePage.slug }
+        ]
+      }
+    };
+    variantSource = {
+      id: sourcePage.id,
+      locale: sourcePage.locale || defaultLocale,
+      title: sourcePage.title
+    };
   }
 
   if (!isAdmin && authorId) {
@@ -56,9 +90,11 @@ try {
     <PageEditor
       client:load
       mode="create"
+      page={seededPage ? JSON.parse(JSON.stringify(seededPage, (_key, value) => value instanceof Date ? value.toISOString() : value)) : undefined}
       authors={JSON.parse(JSON.stringify(authors, (_key, value) => value instanceof Date ? value.toISOString() : value))}
       defaultLocale={defaultLocale}
       supportedLocales={supportedLocales}
+      variantSource={variantSource}
     />
   </div>
 </AdminLayout>

@@ -39,7 +39,7 @@ describe('oauth provider route', () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe(
-      'https://adastrocms.vercel.app/auth/login?redirect=%2Fadmin&error=oauth_provider_unavailable'
+      'https://adastrocms.vercel.app/en/auth/login?redirect=%2Fadmin&error=oauth_provider_unavailable'
     );
   });
 
@@ -59,7 +59,7 @@ describe('oauth provider route', () => {
     expect(authorizeUrl.searchParams.get('provider')).toBe('google');
     expect(authorizeUrl.searchParams.get('state')).toBeNull();
     expect(authorizeUrl.searchParams.get('redirect_to')).toBe(
-      'https://adastrocms.vercel.app/auth/callback?redirect=%2Fprofile'
+      'https://adastrocms.vercel.app/en/auth/callback?redirect=%2Fprofile'
     );
   });
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
+import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import {
   AuthStep,
   DatabaseStep,
@@ -203,6 +204,8 @@ export default function SetupWizard() {
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [articleBasePath, setArticleBasePath] = useState(DEFAULT_ARTICLE_ROUTING.basePath);
   const [articlePermalinkStyle, setArticlePermalinkStyle] = useState<'segment' | 'wordpress'>('segment');
+  const [defaultLocale, setDefaultLocale] = useState(DEFAULT_LOCALE);
+  const [activeLocales, setActiveLocales] = useState<string[]>([DEFAULT_LOCALE]);
   const [applyingRouting, setApplyingRouting] = useState(false);
   const [routingSaveMessage, setRoutingSaveMessage] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -247,9 +250,16 @@ export default function SetupWizard() {
         setDeployProvider(resolvedProvider);
       }
       const routing = (payload as SetupStatusPayload).contentRouting;
+      const localeConfig = (payload as SetupStatusPayload).contentLocales;
       if (routing) {
         setArticleBasePath(normalizeBasePath(routing.articleBasePath || DEFAULT_ARTICLE_ROUTING.basePath));
         setArticlePermalinkStyle(routing.articlePermalinkStyle === 'wordpress' ? 'wordpress' : 'segment');
+      }
+      if (localeConfig) {
+        const nextDefaultLocale = localeConfig.defaultLocale || DEFAULT_LOCALE;
+        const nextActiveLocales = Array.from(new Set([nextDefaultLocale, ...(localeConfig.activeLocales || [])]));
+        setDefaultLocale(nextDefaultLocale);
+        setActiveLocales(nextActiveLocales);
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load setup status');
@@ -439,6 +449,7 @@ export default function SetupWizard() {
   const contentRoutingSql = useMemo(() => {
     const basePath = normalizeBasePath(articleBasePath);
     const permalinkStyle = articlePermalinkStyle === 'wordpress' ? 'wordpress' : 'segment';
+    const normalizedActiveLocales = Array.from(new Set([defaultLocale, ...activeLocales]));
     return [
       "insert into site_settings (key, value, category, description)",
       `values ('content.articleBasePath', '${basePath}', 'content', 'Base path used for article routes')`,
@@ -448,13 +459,21 @@ export default function SetupWizard() {
       `values ('content.articlePermalinkStyle', '${permalinkStyle}', 'content', 'Permalink style for article URLs')`,
       "on conflict (key) do update set value = excluded.value, category = excluded.category, description = excluded.description, updated_at = now();",
       '',
+      "insert into site_settings (key, value, category, description)",
+      `values ('content.defaultLocale', '\"${defaultLocale}\"'::jsonb, 'content', 'Default locale for localized routes')`,
+      "on conflict (key) do update set value = excluded.value, category = excluded.category, description = excluded.description, updated_at = now();",
+      '',
+      "insert into site_settings (key, value, category, description)",
+      `values ('content.locales', '${JSON.stringify(normalizedActiveLocales)}'::jsonb, 'content', 'Activated public locales')`,
+      "on conflict (key) do update set value = excluded.value, category = excluded.category, description = excluded.description, updated_at = now();",
+      '',
       '-- Optional: keep nav links aligned with the selected base path',
       'update site_settings',
       "set value = replace(value::text, '/" + DEFAULT_ARTICLE_ROUTING.basePath + "', '/" + basePath + "')::jsonb, updated_at = now()",
       "where key in ('navigation.topLinks', 'navigation.bottomLinks')",
       "  and jsonb_typeof(value) = 'array';"
     ].join('\n');
-  }, [articleBasePath, articlePermalinkStyle]);
+  }, [activeLocales, articleBasePath, articlePermalinkStyle, defaultLocale]);
 
   const adminBootstrapCommand = useMemo(() => {
     const email = adminEmail.trim() || 'admin@example.com';
@@ -513,7 +532,9 @@ export default function SetupWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           articleBasePath: basePath,
-          articlePermalinkStyle: permalinkStyle
+          articlePermalinkStyle: permalinkStyle,
+          defaultLocale,
+          activeLocales
         })
       });
       const payload = await response.json().catch(() => ({}));
@@ -561,6 +582,8 @@ export default function SetupWizard() {
         siteUrl: status.environment.siteUrl || undefined,
         articleBasePath: normalizeBasePath(articleBasePath),
         articlePermalinkStyle,
+        defaultLocale,
+        activeLocales,
         adminEmail: adminEmail.trim() || undefined,
         adminPassword: adminPassword || undefined,
         inviteAdminIfMissing,
@@ -621,6 +644,18 @@ export default function SetupWizard() {
       setAutomatingSetup(false);
     }
   };
+
+  const availableLocaleOptions = useMemo(() => {
+    const locales = status?.contentLocales?.availableLocales || [DEFAULT_LOCALE];
+    return locales.map((locale) => {
+      try {
+        const label = new Intl.DisplayNames([locale], { type: 'language' }).of(locale) || locale;
+        return { code: locale, label };
+      } catch {
+        return { code: locale, label: locale };
+      }
+    });
+  }, [status?.contentLocales?.availableLocales]);
 
   const markSetupComplete = async () => {
     try {
@@ -714,6 +749,11 @@ export default function SetupWizard() {
             normalizeBasePath={normalizeBasePath}
             articlePermalinkStyle={articlePermalinkStyle}
             setArticlePermalinkStyle={setArticlePermalinkStyle}
+            defaultLocale={defaultLocale}
+            setDefaultLocale={setDefaultLocale}
+            activeLocales={activeLocales}
+            setActiveLocales={setActiveLocales}
+            availableLocales={availableLocaleOptions}
             applyingRouting={applyingRouting}
             applyContentRouting={applyContentRouting}
             handleCopy={handleCopy}

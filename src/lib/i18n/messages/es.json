@@ -190,5 +190,21 @@
   "core.search.minChars": "Introduce al menos 2 caracteres para buscar.",
   "core.search.noResults": "Ningún artículo publicado coincide con tu búsqueda.",
   "core.locale.es": "Español",
-  "core.locale.zh": "中文"
+  "core.locale.zh": "中文",
+  "core.error.404.badge": "Señal perdida",
+  "core.error.404.heading": "404: Página no encontrada",
+  "core.error.404.body": "Esta ruta salió flotando como un pequeño satélite. AdAstro no pudo localizar la URL solicitada.",
+  "core.error.404.description": "Esta página se perdió en el espacio. Volvamos a AdAstro.",
+  "core.error.500.badge": "Fallo de lanzamiento",
+  "core.error.500.heading": "500: Inestabilidad del servidor",
+  "core.error.500.body": "Los motores de AdAstro arrancaron, pero no terminaron de encender. Espera un momento o vuelve a una zona segura.",
+  "core.error.500.description": "Algo salió mal en el servidor. Intentaremos recuperarnos.",
+  "core.error.returnHome": "Volver al inicio",
+  "core.error.browseArticles": "Explorar artículos",
+  "core.error.contact": "Contactar soporte",
+  "core.error.reportIssue": "Informar del problema",
+  "core.locale.notice.postUnavailableTitle": "El artículo no está disponible en este idioma",
+  "core.locale.notice.postUnavailableBody": "Te llevamos de vuelta al archivo de artículos porque este artículo todavía no tiene traducción en el idioma seleccionado.",
+  "core.locale.notice.pageUnavailableTitle": "La página no está disponible en este idioma",
+  "core.locale.notice.pageUnavailableBody": "Te llevamos de vuelta a una página segura porque esta página todavía no tiene traducción en el idioma seleccionado."
 }

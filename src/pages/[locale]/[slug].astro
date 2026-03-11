@@ -4,7 +4,7 @@ import PageRenderer from "@/components/PageRenderer.astro";
 import { getPublishedPageBySlug } from "@/lib/database/index.js";
 import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import type { Page } from "@/lib/types/index.js";
-import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
 import { findPublishedPageLocaleVariants } from "@/lib/i18n/page-localizations";
 
 const rawLocale = Astro.params.locale || '';
@@ -46,6 +46,12 @@ const localizedAlternateLinks = [
 const xDefaultHref = localizedAlternateLinks.find((link) => (
   normalizeLocaleCode(link.locale, localeConfig.defaultLocale) === localeConfig.defaultLocale
 ))?.href ?? pageUrl;
+const localeSwitcherFallbacks = localeConfig.locales
+  .filter((candidateLocale) => !localizedAlternateLinks.some((link) => normalizeLocaleCode(link.locale, localeConfig.defaultLocale) === candidateLocale))
+  .map((candidateLocale) => ({
+    locale: candidateLocale,
+    href: `${buildLocalizedPath('/', candidateLocale)}?locale_notice=page-unavailable`
+  }));
 ---
 
 <BaseLayout
@@ -53,6 +59,7 @@ const xDefaultHref = localizedAlternateLinks.find((link) => (
   description={pageDescription}
   canonicalUrl={pageUrl}
   alternateLinks={localizedAlternateLinks}
+  localeSwitcherFallbacks={localeSwitcherFallbacks}
   xDefaultHref={xDefaultHref}
 >
   <PageRenderer page={page as Page} />

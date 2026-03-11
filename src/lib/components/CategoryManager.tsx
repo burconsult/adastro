@@ -27,6 +27,10 @@ interface Category {
   description?: string;
   parentId?: string;
   postCount?: number;
+  localizations?: {
+    labels?: Record<string, string>;
+    descriptions?: Record<string, string>;
+  };
 }
 
 interface CategoryManagerProps {
@@ -53,6 +57,7 @@ export default function CategoryManager(props: CategoryManagerProps) {
 function CategoryManagerInner({ onClose }: CategoryManagerProps) {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [supportedLocales, setSupportedLocales] = useState<string[]>(['en']);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -61,7 +66,9 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
     name: '',
     slug: '',
     description: '',
-    parentId: ''
+    parentId: '',
+    localizedLabels: {} as Record<string, string>,
+    localizedDescriptions: {} as Record<string, string>
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
@@ -91,6 +98,23 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    const loadLocales = async () => {
+      try {
+        const response = await fetch('/api/admin/locales');
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (Array.isArray(payload?.activeLocales) && payload.activeLocales.length > 0) {
+          setSupportedLocales(payload.activeLocales);
+        }
+      } catch {
+        // Keep default locale fallback
+      }
+    };
+
+    void loadLocales();
+  }, []);
 
   const categoryNameById = useMemo(() => {
     const entries = categories.map((category) => [category.id, category.name]);
@@ -126,6 +150,10 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
       slug: (formData.slug || generateSlug(formData.name)).trim(),
       description: formData.description.trim(),
       parentId: formData.parentId || null,
+      localizations: {
+        labels: formData.localizedLabels,
+        descriptions: formData.localizedDescriptions
+      }
     };
 
     if (!payload.name || !payload.slug) {
@@ -154,7 +182,7 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
       if (response.ok) {
         setShowForm(false);
         setEditingCategory(null);
-        setFormData({ name: '', slug: '', description: '', parentId: '' });
+        setFormData({ name: '', slug: '', description: '', parentId: '', localizedLabels: {}, localizedDescriptions: {} });
         await loadCategories();
         toast({
           variant: 'success',
@@ -189,7 +217,9 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
       name: category.name,
       slug: category.slug,
       description: category.description || '',
-      parentId: category.parentId || ''
+      parentId: category.parentId || '',
+      localizedLabels: category.localizations?.labels || {},
+      localizedDescriptions: category.localizations?.descriptions || {}
     });
     setShowForm(true);
   };
@@ -249,7 +279,7 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
   const handleCancel = () => {
     setShowForm(false);
     setEditingCategory(null);
-    setFormData({ name: '', slug: '', description: '', parentId: '' });
+    setFormData({ name: '', slug: '', description: '', parentId: '', localizedLabels: {}, localizedDescriptions: {} });
   };
 
   const openConfirm = (config: Omit<ConfirmDialogState, 'open'>) => {
@@ -273,7 +303,7 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
           <button
             onClick={() => {
               setEditingCategory(null);
-              setFormData({ name: '', slug: '', description: '', parentId: '' });
+              setFormData({ name: '', slug: '', description: '', parentId: '', localizedLabels: {}, localizedDescriptions: {} });
               setShowForm(true);
             }}
             className="btn btn-primary"
@@ -363,6 +393,48 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
                 className="h-24 w-full rounded-md border border-input px-3 py-2"
               />
             </div>
+            {supportedLocales.filter((locale) => locale !== 'en').length > 0 && (
+              <div className="rounded-xl border border-border/60 p-4">
+                <p className="text-sm font-semibold text-foreground">Localized versions</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add translated category labels and descriptions for active locales.
+                </p>
+                <div className="mt-4 space-y-4">
+                  {supportedLocales.filter((locale) => locale !== 'en').map((locale) => (
+                    <div key={locale} className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {locale} label
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.localizedLabels[locale] || ''}
+                          onChange={(event) => setFormData((prev) => ({
+                            ...prev,
+                            localizedLabels: { ...prev.localizedLabels, [locale]: event.target.value }
+                          }))}
+                          className="w-full rounded-md border border-input px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {locale} description
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.localizedDescriptions[locale] || ''}
+                          onChange={(event) => setFormData((prev) => ({
+                            ...prev,
+                            localizedDescriptions: { ...prev.localizedDescriptions, [locale]: event.target.value }
+                          }))}
+                          className="w-full rounded-md border border-input px-3 py-2"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <label htmlFor="parent" className="mb-1 block text-sm font-medium">
                 Parent Category
@@ -406,7 +478,7 @@ function CategoryManagerInner({ onClose }: CategoryManagerProps) {
             <button
               onClick={() => {
                 setEditingCategory(null);
-                setFormData({ name: '', slug: '', description: '', parentId: '' });
+                setFormData({ name: '', slug: '', description: '', parentId: '', localizedLabels: {}, localizedDescriptions: {} });
                 setShowForm(true);
               }}
               className="btn btn-primary"
