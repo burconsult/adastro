@@ -163,6 +163,31 @@ function main() {
     .trim()
     .toLowerCase()
     .replace(/^\/+|\/+$/g, '') || 'blog';
+  const defaultLocale = jsonTextSetting('content.defaultLocale', 'en')
+    .trim()
+    .toLowerCase() || 'en';
+  let activeLocales = queryJson(`
+    SELECT COALESCE(
+      (
+        SELECT CASE
+          WHEN jsonb_typeof(value) = 'array' THEN value::text
+          ELSE '[]'
+        END
+        FROM public.site_settings
+        WHERE key = 'content.locales'
+        LIMIT 1
+      ),
+      '[]'
+    );
+  `) || [];
+
+  if (!Array.isArray(activeLocales) || activeLocales.length === 0) {
+    activeLocales = [defaultLocale];
+  }
+
+  assert(activeLocales.includes(defaultLocale), `Default locale "${defaultLocale}" is missing from content.locales.`);
+  assert(activeLocales.length > 0, 'Expected at least one active locale in content.locales.');
+
   const requiredSlugs = [...new Set([...REQUIRED_SYSTEM_SLUGS, articleBasePath])];
   const requiredSlugsSql = requiredSlugs.map((slug) => quoteSql(slug)).join(',');
 
@@ -172,6 +197,7 @@ function main() {
         json_build_object(
           'id', id::text,
           'slug', slug,
+          'locale', locale,
           'status', status
         )
         ORDER BY slug
@@ -179,7 +205,8 @@ function main() {
       '[]'::json
     )::text
     FROM public.pages
-    WHERE slug = ANY(ARRAY[${requiredSlugsSql}]);
+    WHERE slug = ANY(ARRAY[${requiredSlugsSql}])
+      AND locale = ${quoteSql(defaultLocale)};
   `) || [];
 
   const pageSlugStatus = new Map(pages.map((page) => [page.slug, page.status]));
@@ -192,7 +219,8 @@ function main() {
   const publishedPosts = queryJson(`
     SELECT COALESCE(json_agg(slug ORDER BY slug), '[]'::json)::text
     FROM public.posts
-    WHERE status = 'published';
+    WHERE status = 'published'
+      AND locale = ${quoteSql(defaultLocale)};
   `) || [];
   const postSlugs = new Set(
     publishedPosts
@@ -216,7 +244,8 @@ function main() {
     FROM public.page_sections ps
     JOIN public.pages p ON p.id = ps.page_id
     WHERE p.slug = ANY(ARRAY[${requiredSlugsSql}])
-      AND p.status = 'published';
+      AND p.status = 'published'
+      AND p.locale = ${quoteSql(defaultLocale)};
   `) || [];
 
   const sectionCountByPage = new Map();
@@ -285,7 +314,7 @@ function main() {
   }
 
   console.log(
-    `✅ Default content verification passed (pages=${requiredSlugs.join(', ')}, posts=${postSlugs.size}, links=${internalLinks.size}).`
+    `✅ Default content verification passed (defaultLocale=${defaultLocale}, activeLocales=${activeLocales.join(',')}, pages=${requiredSlugs.join(', ')}, posts=${postSlugs.size}, links=${internalLinks.size}).`
   );
 }
 

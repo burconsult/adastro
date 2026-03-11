@@ -362,6 +362,54 @@ ON CONFLICT DO NOTHING;
 INSERT INTO site_settings (key, value, category, description)
 VALUES
   (
+    'content.defaultLocale',
+    to_jsonb('en'::text),
+    'content',
+    'Default locale for public routes and localized content resolution.'
+  ),
+  (
+    'content.locales',
+    '["en"]'::jsonb,
+    'content',
+    'Enabled public locales in URL prefix order (default locale first).'
+  ),
+  (
+    'site.titleByLocale',
+    '{}'::jsonb,
+    'general',
+    'Optional locale-specific site titles keyed by locale code.'
+  ),
+  (
+    'site.descriptionByLocale',
+    '{}'::jsonb,
+    'general',
+    'Optional locale-specific site descriptions keyed by locale code.'
+  ),
+  (
+    'site.taglineByLocale',
+    '{}'::jsonb,
+    'general',
+    'Optional locale-specific taglines keyed by locale code.'
+  ),
+  (
+    'content.categoryLabelsByLocale',
+    '{}'::jsonb,
+    'content',
+    'Optional localized category labels keyed by category slug, then locale code.'
+  ),
+  (
+    'content.categoryDescriptionsByLocale',
+    '{}'::jsonb,
+    'content',
+    'Optional localized category descriptions keyed by category slug, then locale code.'
+  ),
+  (
+    'content.tagLabelsByLocale',
+    '{}'::jsonb,
+    'content',
+    'Optional localized tag labels keyed by tag slug, then locale code.'
+  ),
+  (
     'navigation.footerAttribution',
     to_jsonb('Powered by AdAstro'::text),
     'navigation',

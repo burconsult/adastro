@@ -1,6 +1,6 @@
 # Release Smoke Test Matrix
 
-Use this before tagging `v1.0.0`.
+Use this before tagging a release candidate or minor release.
 Execution state is tracked in `docs/release-execution-board.md` (primarily `G1`, `G3`, `G9`, `G10`).
 
 ## Targets
@@ -14,11 +14,12 @@ Run the same checks on both targets.
 - [ ] Host redeployed after env changes.
 - [ ] `/setup` Step 2 Core Schema SQL executed successfully in Supabase SQL Editor.
 - [ ] `/setup` Step 3 Automated Setup completed (defaults, buckets, admin bootstrap).
+- [ ] `/setup` Step 4 saved default locale + active locales and provisioned localized system pages.
 - [ ] `/setup` reports no blocking checks.
 
 ## B) Auth + Admin
 - [ ] Admin user exists with `app_metadata.role = admin`.
-- [ ] Login works at `/auth/login`.
+- [ ] Login works at `/{default-locale}/auth/login`.
 - [ ] `/admin` loads without CSP/script errors in browser console.
 
 ## C) Core CMS
@@ -27,6 +28,8 @@ Run the same checks on both targets.
 - [ ] Article index route resolves using configured `content.articleBasePath`.
 - [ ] Article permalink style works (`segment` or `wordpress`) and canonical URL is correct.
 - [ ] Create + publish a page in the page editor.
+- [ ] Locale switcher works on home, page, article, and auth surfaces.
+- [ ] Switching locale on untranslated content falls back safely with a user-facing notice.
 
 ## D) Bundled Features (default off, optional on)
 - [ ] `ai`: enable, verify provider/settings UI and at least one action path.

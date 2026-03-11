@@ -20,6 +20,7 @@ Wizard can do (once env vars are set and deployed):
 - Configure and create required storage buckets.
 - Bootstrap admin role by email (and optionally invite if missing).
 - Save article URL model (`content.articleBasePath`, `content.articlePermalinkStyle`).
+- Save locale model (`content.defaultLocale`, `content.locales`) and provision required localized system pages.
 
 Wizard cannot do reliably:
 - Set Vercel/Netlify environment variables for you.
@@ -133,24 +134,27 @@ In Supabase Auth settings:
 Important:
 - If invite emails still point to `localhost`, your Supabase Auth URL configuration is still using a local value. Update it to match `SITE_URL`.
 
-### 8) Configure Article URL Model
+### 8) Configure Article URL Model + Public Locales
 
 Use setup wizard (or admin settings) to set:
 
 - `content.articleBasePath` (example: `blog`, `posts`, `articles`)
 - `content.articlePermalinkStyle` (`segment` or `wordpress`)
+- `content.defaultLocale`
+- `content.locales`
 
-This protects slug compatibility for imported WordPress content.
+This protects slug compatibility for imported WordPress content and ensures required localized system pages are provisioned immediately for every activated locale.
 
 ### 9) Final Smoke Test
 
-1. Login works at `/auth/login`.
-2. Forgot password flow works at `/auth/forgot-password`.
-3. Invite acceptance sends user to `/auth/reset-password` before dashboard/profile redirect.
+1. Login works at `/{default-locale}/auth/login` and unprefixed auth entrypoints resolve correctly.
+2. Forgot password flow works at `/{default-locale}/auth/forgot-password`.
+3. Invite acceptance sends user to `/{default-locale}/auth/reset-password` before dashboard/profile redirect.
 4. Admin works at `/admin`.
 5. Publish one post and verify public URL.
-6. Toggle each bundled feature on/off.
-7. Confirm no blocking checks remain in `/setup`.
+6. Switch locale on one page and one article and confirm alternate locale routing works or falls back safely.
+7. Toggle each bundled feature on/off.
+8. Confirm no blocking checks remain in `/setup`.
 
 ### 10) Mark Setup Complete
 

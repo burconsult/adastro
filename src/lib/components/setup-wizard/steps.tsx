@@ -465,7 +465,7 @@ export function RoutingStep({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Choose your article URL model now so imported content and future posts follow the right structure.
+        Choose your article URL model and public locales now so imported content, system pages, and future posts follow the right structure from day one.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2 text-sm text-foreground">
@@ -695,9 +695,10 @@ export function VerificationStep({
       <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
         <p className="text-sm font-medium text-foreground">Launch smoke test</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Open <code>/auth/login</code> and verify sign-in succeeds.</li>
+          <li>Open <code>/{status.contentLocales.defaultLocale}/auth/login</code> and verify sign-in succeeds.</li>
           <li>Open <code>/admin/settings</code> and save one setting.</li>
           <li>Publish a test post and verify the article URL model.</li>
+          <li>Switch locale on one page and one article, then confirm alternate locale routing behaves correctly.</li>
           <li>Enable each feature from <code>/admin/features</code> and test activation/deactivation.</li>
         </ul>
       </div>

@@ -22,7 +22,7 @@ This directory contains the database schema and optional seed data for the Adast
 ## Files Structure
 
 - `migrations/000_core.sql` - Consolidated schema for initial installs
-- `seed.sql` - Optional sample content (no auth users created)
+- `seed.sql` - Optional sample content and locale-aware baseline settings (no auth users created)
 - `functions.sql` - Custom database functions
 - `README.md` - This file
 
@@ -92,5 +92,6 @@ executing the storage policy section manually in the Supabase SQL editor or CLI.
 After setting up the database:
 
 1. Promote your admin account with `infra/supabase/setup-admin-user.sql`
-2. (Optional) run `npm run db:seed` to load the sample posts
-3. Verify your articles index path (`/blog` by default) shows sample posts and start creating content
+2. (Optional) run `npm run db:seed` to load the sample posts and default-locale system pages
+3. Open `/setup`, choose your default locale + active locales, and let the wizard provision localized system pages
+4. Verify your article index path and localized public routes (`/{locale}/...`) before importing or writing content

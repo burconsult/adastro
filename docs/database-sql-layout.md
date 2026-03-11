@@ -35,6 +35,7 @@ Path:
 
 Purpose:
 - Demo pages, posts, media records, categories, tags, menus/settings content for out-of-box testing/demo installs
+- Locale-aware baseline settings (`content.defaultLocale`, `content.locales`, site identity/taxonomy localization maps) for deterministic fresh installs
 
 Notes:
 - Safe for demo/dev/fresh installs
@@ -101,7 +102,7 @@ Do not use these for v1 installs:
 
 1. `000_core.sql`
 2. Wizard automation (settings + buckets + admin bootstrap)
-3. `seed.sql` (optional demo content)
+3. `seed.sql` (optional demo content + locale-aware baseline settings)
 4. Feature activation later (applies feature SQL only when enabled)
 
 ## Safety / Idempotency Notes

@@ -25,6 +25,11 @@ const samplePayload = {
     articleBasePath: 'blog',
     articlePermalinkStyle: 'segment' as const
   },
+  contentLocales: {
+    defaultLocale: 'en',
+    activeLocales: ['en'],
+    availableLocales: ['en', 'nb', 'es', 'zh']
+  },
   checks: [
     { id: 'env.supabaseUrl', label: 'SUPABASE_URL configured', status: 'ok' as const, detail: 'Configured.' },
     { id: 'env.supabasePublishableKey', label: 'SUPABASE_PUBLISHABLE_KEY configured', status: 'ok' as const, detail: 'Configured.' },
@@ -139,6 +144,29 @@ describe('SetupWizard', () => {
         '/api/setup/routing',
         expect.objectContaining({ method: 'POST' })
       );
+    });
+  });
+
+  it('persists locale settings through setup API', async () => {
+    render(<SetupWizard />);
+    await screen.findByText('Step 1 of 5');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await screen.findByRole('heading', { name: 'Content URLs' });
+
+    fireEvent.change(screen.getByLabelText('Default locale'), { target: { value: 'nb' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /español|spanish/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save URL Settings' }));
+
+    await waitFor(() => {
+      const routingCall = fetchMock.mock.calls.find((call) => call[0] === '/api/setup/routing');
+      expect(routingCall).toBeTruthy();
+      const payload = JSON.parse(String((routingCall?.[1] as RequestInit).body));
+      expect(payload.defaultLocale).toBe('nb');
+      expect(payload.activeLocales).toEqual(expect.arrayContaining(['nb', 'es']));
     });
   });
 
