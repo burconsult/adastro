@@ -239,15 +239,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
   ) {
     try {
       const routing = await getContentRoutingForRewrite();
-      const rewriteInput = localePath.hasLocalePrefix ? localePath.pathnameWithoutLocale : url.pathname;
+      const rewriteInput = requestLocalePath.hasLocalePrefix ? requestLocalePath.pathnameWithoutLocale : url.pathname;
       const rewritePath = resolveLegacyBlogPath(rewriteInput, {
         basePath: routing.articleBasePath,
         permalinkStyle: routing.articlePermalinkStyle
       });
       if (rewritePath && rewritePath !== rewriteInput) {
         const rewriteUrl = new URL(url);
-        rewriteUrl.pathname = localePath.hasLocalePrefix
-          ? `/${localePath.locale}${rewritePath}`
+        rewriteUrl.pathname = requestLocalePath.hasLocalePrefix
+          ? `/${requestLocalePath.locale}${rewritePath}`
           : rewritePath;
         return context.rewrite(rewriteUrl);
       }
