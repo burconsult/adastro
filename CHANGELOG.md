@@ -2,6 +2,33 @@
 
 All notable changes to AdAstro are documented in this file.
 
+## 1.1.0 - 2026-03-19
+
+### Added
+- Public multilingual routing is now release-ready with locale-prefixed URLs (`/{locale}/...`) and locale-scoped post/page variants.
+- Locale operations control plane at `/admin/locales` for activating locales, checking pack health, and managing locale-scoped site identity overrides.
+- Translation catalogs now ship for `en`, `nb`, `es`, and `zh`, including metadata versioning (`_meta.catalogVersion: 1.1.0`).
+
+### Changed
+- Core content model is locale-aware (`posts.locale`, `pages.locale`, `UNIQUE(locale, slug)`), including upgrade migrations for existing installs.
+- Setup flow and system page provisioning now bootstrap default and active locales deterministically for fresh installs.
+- SEO outputs now include locale-aware canonical/hreflang/OG metadata plus locale-aware sitemap and RSS behavior.
+- Post/page editors can create localized variants from existing content to preserve cross-locale linkage and metadata.
+
+### Security
+- Refreshed dependency tree with `npm audit fix`; high-severity npm advisories resolved at release cut time.
+- Locale/runtime fallback behavior remains fail-closed to English when locale packs are missing or incomplete.
+
+### Migration Notes
+- Existing deployments upgrading from `1.0.0` should apply:
+  - `infra/supabase/migrations/001_content_locales.sql`
+  - `infra/supabase/migrations/002_locale_nb_bootstrap.sql` (for Norwegian bootstrap path)
+- After migration, confirm `content.defaultLocale` and `content.locales` in `/admin/locales`.
+
+### Known Limitations (1.1.0)
+- Admin surfaces remain English-only by design; multilingual support targets public surfaces.
+- Hosted smoke/performance validation should still be re-run on your own Vercel/Netlify deployment before production cutover.
+
 ## 1.0.0 - 2026-02-18
 
 ### Added

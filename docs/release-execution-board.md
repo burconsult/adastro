@@ -1,6 +1,6 @@
 # Release Execution Board
 
-Use this board to drive v1.0.0 release readiness with deterministic gate progression.
+Use this board to drive v1.1.0 multilingual release readiness with deterministic gate progression.
 
 ## Autonomous Execution Protocol
 
@@ -41,9 +41,9 @@ Use this board to drive v1.0.0 release readiness with deterministic gate progres
 
 ---
 
-## Post-v1 Strategic Tracks
+## Post-v1.1 Strategic Tracks
 
-- Multilingual CMS rollout (localized content records, locale-prefixed routing, hreflang/canonical handling, translated shared UI strings, and feature-level i18n integration).
+- Multilingual expansion beyond current shipped locales (`en`, `nb`, `es`, `zh`) with full feature-pack parity and translation QA automation.
 
 ## Gate Definitions
 
@@ -253,6 +253,42 @@ Exit criteria:
 ---
 
 ## Evidence Log
+
+### 2026-03-20
+
+- v1.1.0 multilingual release gate unblock (local Supabase):
+  - `npm run verify:quick` -> PASS
+    - local DB reset/setup succeeded
+    - admin consistency + theme token checks passed
+    - targeted verifier suite passed (42/42 tests)
+  - `npm run verify:full` -> PASS
+    - local DB reset/setup/seed succeeded
+    - `verify-default-content` passed (`defaultLocale=en`, `activeLocales=en`)
+    - release hygiene check passed
+    - full vitest suite passed (80 files passed, 1 skipped; 637 tests passed, 19 skipped)
+    - production build passed
+  - blocker from 2026-03-19 is resolved (Docker daemon available).
+
+### 2026-03-19
+
+- v1.1.0 multilingual release prep + health check:
+  - Ran release health checks:
+    - `npm run test:run` -> PASS (80 test files passed, 1 skipped; 637 tests passed, 19 skipped)
+    - `npm run build` -> PASS
+    - `npm run ci:check-admin-consistency` -> PASS
+    - `npm run ci:check-theme-tokens` -> PASS
+    - `npm run ci:check-release-hygiene` -> PASS
+    - `npm audit --audit-level=high` -> FAIL (5 high advisories)
+    - `npm audit fix` -> PASS (0 vulnerabilities remaining)
+  - Local Supabase verifier status:
+    - `npm run verify:quick` -> BLOCKED
+    - `npm run verify:full` -> BLOCKED
+  - Blocker details:
+    - Docker daemon unavailable (`/Users/john/.docker/run/docker.sock` missing), so local Supabase-backed gates could not execute in this environment.
+  - Release metadata updates:
+    - Bumped package version to `1.1.0` (`package.json`, `package-lock.json`)
+    - Added `1.1.0` multilingual changelog entry with migration notes and limitations (`CHANGELOG.md`)
+    - Updated release-scoped docs to `v1.1.0` language (`docs/environment-variables.md`, `docs/release-gates.md`, this execution board header)
 
 ### 2026-03-05
 

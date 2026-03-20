@@ -5,8 +5,8 @@ This file defines release policy. Live execution status is tracked in `docs/rele
 ## Scope
 
 Use for both:
-- `v1.0.0-rc` decisions
-- `v1.0.0` final release decision
+- `v1.1.0` multilingual minor release decisions
+- future patch/minor release decisions that follow the same gate policy
 
 ## Gate Policy (P0)
 

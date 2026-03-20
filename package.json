@@ -1,7 +1,7 @@
 {
   "name": "adastro",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "dev": "astro dev",
     "local:dev": "node scripts/local/with-local-env.mjs npm run dev -- --host 127.0.0.1 --port 4321",
