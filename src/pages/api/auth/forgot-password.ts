@@ -3,6 +3,7 @@ import { authService } from '../../../lib/auth/auth-helpers.js';
 import { sanitizeRedirectPath } from '../../../lib/auth/redirects.js';
 import { checkRateLimit } from '../../../lib/security/rate-limit.js';
 import { getClientIp } from '../../../lib/security/request-guards.js';
+import { resolveSiteUrl } from '../../../lib/url/site-url.js';
 
 const GENERIC_RESPONSE = {
   success: true,
@@ -10,19 +11,6 @@ const GENERIC_RESPONSE = {
 };
 
 const isValidEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-const resolvePublicSiteUrl = (requestUrl: string): string | undefined => {
-  const configuredSiteUrl = (import.meta.env.SITE_URL as string | undefined)?.trim();
-  if (configuredSiteUrl) {
-    return configuredSiteUrl;
-  }
-
-  try {
-    return new URL(requestUrl).origin;
-  } catch {
-    return undefined;
-  }
-};
-
 export const POST: APIRoute = async ({ request }) => {
   try {
     const payload = await request.json().catch(() => ({}));
@@ -62,7 +50,7 @@ export const POST: APIRoute = async ({ request }) => {
       await authService.resetPassword(
         { email },
         {
-          siteUrl: resolvePublicSiteUrl(request.url),
+          siteUrl: resolveSiteUrl(request, import.meta.env.SITE),
           redirectPath
         }
       );

@@ -5,16 +5,7 @@ import { buildLocalizedPath } from '@/lib/i18n/locales';
 import { getSiteLocaleConfig } from '@/lib/site-config';
 import { ensureAuthorProfileForAuthUser } from '@/lib/auth/author-provisioning';
 import { supabaseAdmin } from '@/lib/supabase';
-
-const sanitizeSiteUrl = (value: string | undefined): string | null => {
-  if (!value || !value.trim()) return null;
-  try {
-    const parsed = new URL(value.trim());
-    return `${parsed.protocol}//${parsed.host}`;
-  } catch {
-    return null;
-  }
-};
+import { resolveSiteUrl } from '@/lib/url/site-url';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -39,9 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const siteUrl = sanitizeSiteUrl(import.meta.env.SITE_URL as string | undefined);
-    const requestOrigin = sanitizeSiteUrl(request.url);
-    const redirectBase = siteUrl || requestOrigin;
+    const redirectBase = resolveSiteUrl(request, import.meta.env.SITE);
     const localeConfig = await getSiteLocaleConfig();
     const defaultLocale = localeConfig.defaultLocale;
     const callbackPath = buildInvitePasswordSetupPath(normalizedRole, { locale: defaultLocale, defaultLocale });

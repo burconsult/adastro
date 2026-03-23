@@ -5,6 +5,7 @@ import { getPublishedPosts } from "@/lib/database";
 import { getSiteContentRouting, getSiteLocaleConfig } from "@/lib/site-config";
 import { buildArticlePostPath } from "@/lib/routing/articles";
 import { normalizeLocaleCode } from "@/lib/i18n/locales";
+import { resolveSiteUrl } from "@/lib/url/site-url";
 
 const rawQuery = Astro.url.searchParams.get('q') || '';
 const query = rawQuery.trim();
@@ -25,7 +26,8 @@ const results = normalizedQuery.length >= 2
 const canonicalPath = query.length > 0
   ? `/${locale}/search?q=${encodeURIComponent(query)}`
   : `/${locale}/search`;
-const canonicalUrl = new URL(canonicalPath, Astro.url.origin).toString();
+const siteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString());
+const canonicalUrl = new URL(canonicalPath, siteUrl).toString();
 const pageTitle = query ? `Search: ${query}` : 'Search';
 const pageDescription = query
   ? `Search results for "${query}" on ${allPosts.length.toLocaleString()} published articles.`
@@ -50,7 +52,7 @@ const searchStructuredData = query
               permalinkStyle: contentRouting.articlePermalinkStyle,
               localePrefix: locale
             }),
-            Astro.url.origin
+            siteUrl
           ).toString()
         }))
       }

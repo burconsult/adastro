@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { normalizeCanonicalSiteUrl } from '@/lib/url/site-url';
 
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -40,14 +41,10 @@ const resolveExpectedRedirectBase = (requestUrl: string) => {
     : '';
 
   if (configuredSiteUrl) {
-    try {
-      return new URL(configuredSiteUrl).origin;
-    } catch {
-      // Fall back to request origin when SITE_URL is invalid.
-    }
+    return normalizeCanonicalSiteUrl(configuredSiteUrl) || new URL(requestUrl).origin;
   }
 
-  return new URL(requestUrl).origin;
+  return normalizeCanonicalSiteUrl(new URL(requestUrl).origin) || new URL(requestUrl).origin;
 };
 
 describe('invite user api', () => {

@@ -10,6 +10,7 @@ import { buildArticlePostPath, buildArticlesIndexPath } from "@/lib/routing/arti
 import { buildLocalizedPath, normalizeLocaleCode, toIntlLocale } from "@/lib/i18n/locales";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
 import { findPublishedPostLocaleVariants } from "@/lib/i18n/post-localizations";
+import { resolveSiteUrl } from "@/lib/url/site-url";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -35,13 +36,13 @@ const articleRouting = {
   permalinkStyle: contentRouting.articlePermalinkStyle,
   localePrefix: locale
 } as const;
-const origin = Astro.url.origin;
+const siteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString());
 const pageTitle = post.seoMetadata?.metaTitle || post.title;
 const pageDescription = post.seoMetadata?.metaDescription || post.excerpt || `${t(localeMessages, 'core.author.descriptionPrefix', 'Posts written by')} ${post.author.name}.`;
 const publishedAt = post.publishedAt || post.createdAt;
 const updatedAt = post.updatedAt || publishedAt;
 const pagePath = buildArticlePostPath(post.slug, publishedAt, articleRouting);
-const pageUrl = new URL(pagePath, origin).toString();
+const pageUrl = new URL(pagePath, siteUrl).toString();
 const articlesIndexPath = buildArticlesIndexPath(articleRouting);
 const localeVariants = await findPublishedPostLocaleVariants(post, localeConfig.locales);
 const localizedAlternateLinks = [
@@ -56,7 +57,7 @@ const localizedAlternateLinks = [
           permalinkStyle: contentRouting.articlePermalinkStyle,
           localePrefix: variant.locale || localeConfig.defaultLocale
         }),
-        origin
+        siteUrl
       ).toString()
     };
   })
@@ -79,8 +80,8 @@ const authorHref = buildLocalizedPath(`/author/${authorSlug}/`, locale);
 const imageUrl = post.featuredImage?.url
   ? (post.featuredImage.url.startsWith('http')
       ? post.featuredImage.url
-      : new URL(post.featuredImage.url, origin).toString())
-  : new URL(siteSeoDefaults.ogImage, origin).toString();
+      : new URL(post.featuredImage.url, siteUrl).toString())
+  : new URL(siteSeoDefaults.ogImage, siteUrl).toString();
 const heroDimensions = post.featuredImage?.dimensions || post.featuredImage?.originalDimensions || {
   width: 1600,
   height: 900
@@ -97,14 +98,14 @@ const structuredData = {
   author: {
     '@type': 'Person',
     name: post.author.name,
-    url: new URL(authorHref, origin).toString()
+    url: new URL(authorHref, siteUrl).toString()
   },
   publisher: {
     '@type': 'Organization',
     name: siteIdentity.title,
     logo: {
       '@type': 'ImageObject',
-      url: new URL('/favicon.svg', origin).toString()
+      url: new URL('/favicon.svg', siteUrl).toString()
     }
   },
   mainEntityOfPage: {
@@ -122,13 +123,13 @@ const breadcrumbStructuredData = {
       '@type': 'ListItem',
       position: 1,
       name: t(localeMessages, 'core.post.breadcrumb.home', 'Home'),
-      item: new URL(buildLocalizedPath('/', locale), origin).toString()
+      item: new URL(buildLocalizedPath('/', locale), siteUrl).toString()
     },
     {
       '@type': 'ListItem',
       position: 2,
       name: t(localeMessages, 'core.post.breadcrumb.articles', 'Articles'),
-      item: new URL(articlesIndexPath, origin).toString()
+      item: new URL(articlesIndexPath, siteUrl).toString()
     },
     {
       '@type': 'ListItem',
@@ -245,7 +246,7 @@ const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedA
         {post.audioAsset?.url && (
           <div class="mb-8">
             <AudioPlayer
-              client:load
+              client:idle
               src={post.audioAsset.url}
               type={post.audioAsset.mimeType}
               label={t(localeMessages, 'core.post.audioVersion', 'Audio version')}
@@ -271,7 +272,7 @@ const showUpdated = updatedAt && publishedAt && updatedAt.getTime() > publishedA
 
         <div class="pt-8">
           <BlogCommentsSlot
-            client:load
+            client:visible
             slug={post.slug}
             postId={post.id}
             locale={locale}

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { normalizeCanonicalSiteUrl } from '../../../../lib/url/site-url.js';
 
 const mocks = vi.hoisted(() => ({
   resetPassword: vi.fn(),
@@ -54,7 +55,7 @@ describe('forgot password api', () => {
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
     expect(String(payload.message).toLowerCase()).toContain('if an account exists');
-    const expectedSiteUrl = (import.meta.env.SITE_URL as string | undefined)?.trim() || 'https://adastrocms.vercel.app';
+    const expectedSiteUrl = normalizeCanonicalSiteUrl((import.meta.env.SITE_URL as string | undefined) || 'https://adastrocms.vercel.app');
     expect(mocks.resetPassword).toHaveBeenCalledWith(
       { email: 'reader@example.com' },
       { siteUrl: expectedSiteUrl, redirectPath: '/auth/reset-password' }
@@ -76,7 +77,7 @@ describe('forgot password api', () => {
     expect(mocks.resetPassword).toHaveBeenCalledWith(
       { email: 'reader@example.com' },
       {
-        siteUrl: (import.meta.env.SITE_URL as string | undefined)?.trim() || 'https://adastrocms.vercel.app',
+        siteUrl: normalizeCanonicalSiteUrl((import.meta.env.SITE_URL as string | undefined) || 'https://adastrocms.vercel.app'),
         redirectPath: '/nb/auth/reset-password'
       }
     );

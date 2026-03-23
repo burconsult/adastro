@@ -2,6 +2,7 @@ import sanitizeHtml from 'sanitize-html';
 import { normalizeFeatureFlag } from '@/lib/features/flags';
 import { SettingsService } from '@/lib/services/settings-service';
 import { supabaseAdmin } from '@/lib/supabase';
+import { normalizeCanonicalSiteUrl } from '@/lib/url/site-url';
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -135,10 +136,7 @@ const toPlainText = (value: string, maxLength = 280) =>
 const getDefaultSiteUrl = (): string => {
   const runtimeSiteUrl = typeof process !== 'undefined' ? process.env.SITE_URL : undefined;
   const configuredSiteUrl = (import.meta.env.SITE_URL as string | undefined) || runtimeSiteUrl;
-  if (configuredSiteUrl && configuredSiteUrl.trim()) {
-    return configuredSiteUrl.trim();
-  }
-  return 'https://example.com';
+  return normalizeCanonicalSiteUrl(configuredSiteUrl) || 'https://example.com';
 };
 
 export const escapeHtml = (value: string) =>

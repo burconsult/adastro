@@ -6,6 +6,7 @@ import { getSiteIdentity, getSiteLocaleConfig } from "@/lib/site-config";
 import type { Page } from "@/lib/types/index.js";
 import { buildLocalizedPath, normalizeLocaleCode } from "@/lib/i18n/locales";
 import { findPublishedPageLocaleVariants } from "@/lib/i18n/page-localizations";
+import { resolveSiteUrl } from "@/lib/url/site-url";
 
 const rawLocale = Astro.params.locale || '';
 const localeConfig = await getSiteLocaleConfig();
@@ -28,9 +29,9 @@ if (!page) {
 const siteIdentity = await getSiteIdentity({ locale });
 const pageTitle = page.seoMetadata?.metaTitle || page.title;
 const pageDescription = page.seoMetadata?.metaDescription || page.excerpt || siteIdentity.description;
-const origin = Astro.url.origin;
+const siteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString());
 const pagePath = page.slug === 'home' ? `/${locale}` : `/${locale}/${page.slug}`;
-const pageUrl = new URL(pagePath, origin).toString();
+const pageUrl = new URL(pagePath, siteUrl).toString();
 const localeVariants = await findPublishedPageLocaleVariants(page, localeConfig.locales);
 const localizedAlternateLinks = [
   { locale: page.locale || locale, href: pageUrl },
@@ -39,7 +40,7 @@ const localizedAlternateLinks = [
     const variantPath = variant.slug === 'home' ? `/${variantLocale}` : `/${variantLocale}/${variant.slug}`;
     return {
       locale: variantLocale,
-      href: new URL(variantPath, origin).toString()
+      href: new URL(variantPath, siteUrl).toString()
     };
   })
 ];

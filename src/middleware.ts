@@ -1,6 +1,14 @@
 import { defineMiddleware } from 'astro:middleware';
 import { canRoleAccessAdminPath } from './lib/auth/access-policy.js';
 import { authService } from './lib/auth/auth-helpers.js';
+import {
+  HTML_BROWSER_CACHE_CONTROL,
+  HTML_CDN_CACHE_CONTROL,
+  HTML_VERCEL_CDN_CACHE_CONTROL,
+  NO_STORE_CACHE_CONTROL,
+  shouldApplyHtmlCdnCache,
+  shouldForceNoStore
+} from './lib/http/cache-policy.js';
 import { isSameOriginRequest, isUnsafeMethod } from './lib/security/request-guards.js';
 import { getSiteContentRouting, getSiteLocaleConfig } from './lib/site-config.js';
 import { resolveLegacyBlogPath } from './lib/routing/articles.js';
@@ -333,8 +341,27 @@ export const onRequest = defineMiddleware(async (context, next) => {
     setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
-  if (url.pathname.startsWith('/api')) {
-    setHeader('Cache-Control', 'no-store');
+  const contentType = headers.get('content-type');
+
+  if (shouldForceNoStore({
+    request: context.request,
+    pathname: url.pathname,
+    requestPolicyPath,
+    contentType
+  })) {
+    setHeader('Cache-Control', NO_STORE_CACHE_CONTROL);
+    deleteHeader('CDN-Cache-Control');
+    deleteHeader('Vercel-CDN-Cache-Control');
+  } else if (shouldApplyHtmlCdnCache({
+    request: context.request,
+    pathname: url.pathname,
+    requestPolicyPath,
+    responseStatus: mutableResponse.status,
+    contentType
+  })) {
+    setHeader('Cache-Control', HTML_BROWSER_CACHE_CONTROL);
+    setHeader('CDN-Cache-Control', HTML_CDN_CACHE_CONTROL);
+    setHeader('Vercel-CDN-Cache-Control', HTML_VERCEL_CDN_CACHE_CONTROL);
   }
 
   const csp = [

@@ -2,6 +2,7 @@ import { createSupabaseServerClient, supabase, supabaseAdmin, isSupabaseAdminCon
 import { DatabaseError, ValidationError } from '../database/connection.js';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { sanitizeRedirectPath } from './redirects.js';
+import { normalizeCanonicalSiteUrl } from '../url/site-url.js';
 
 const ACCESS_TOKEN_COOKIE = 'sb-access-token';
 
@@ -67,10 +68,11 @@ export class AuthService {
   async signUp(credentials: SignUpCredentials): Promise<{ user: AuthUser | null; needsConfirmation: boolean }> {
     try {
       const serverClient = createSupabaseServerClient();
-      const fallbackSiteUrl = typeof window !== 'undefined'
+      const browserSiteUrl = typeof window !== 'undefined'
         ? window.location.origin
         : undefined;
-      const siteUrl = import.meta.env.SITE_URL || fallbackSiteUrl;
+      const siteUrl = normalizeCanonicalSiteUrl((import.meta.env.SITE_URL as string | undefined) || browserSiteUrl)
+        || browserSiteUrl;
 
       const { data, error } = await serverClient.auth.signUp({
         email: credentials.email,
@@ -243,16 +245,18 @@ export class AuthService {
   ): Promise<void> {
     try {
       const serverClient = createSupabaseServerClient();
-      const configuredSiteUrl = options?.siteUrl || (import.meta.env.SITE_URL as string | undefined);
-      const fallbackSiteUrl = configuredSiteUrl && configuredSiteUrl.trim().length > 0
-        ? configuredSiteUrl.trim()
+      const browserSiteUrl = typeof window !== 'undefined'
+        ? window.location.origin
         : undefined;
+      const fallbackSiteUrl = normalizeCanonicalSiteUrl(
+        options?.siteUrl
+        || (import.meta.env.SITE_URL as string | undefined)
+        || browserSiteUrl
+      ) || browserSiteUrl;
       const resetPasswordPath = sanitizeRedirectPath(options?.redirectPath, '/auth/reset-password');
-      const redirectTo = typeof window !== 'undefined'
-        ? `${window.location.origin}${resetPasswordPath}`
-        : fallbackSiteUrl
-          ? `${fallbackSiteUrl}${resetPasswordPath}`
-          : undefined;
+      const redirectTo = fallbackSiteUrl
+        ? `${fallbackSiteUrl}${resetPasswordPath}`
+        : undefined;
 
       const { error } = await serverClient.auth.resetPasswordForEmail(credentials.email, {
         ...(redirectTo ? { redirectTo } : {}),

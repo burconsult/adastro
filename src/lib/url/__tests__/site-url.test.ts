@@ -12,7 +12,7 @@ vi.mock('@/lib/setup/runtime', () => ({
   sanitizeBaseUrl: mocks.sanitizeBaseUrl
 }));
 
-import { FALLBACK_SITE_URL, resolveSiteUrl } from '../site-url.ts';
+import { FALLBACK_SITE_URL, normalizeCanonicalSiteUrl, resolveSiteUrl } from '../site-url.ts';
 
 describe('resolveSiteUrl', () => {
   const compileTimeSiteUrl = (import.meta.env.SITE_URL as string | undefined) || '';
@@ -61,6 +61,21 @@ describe('resolveSiteUrl', () => {
     const url = resolveSiteUrl(new Request('https://request.example.com/rss.xml'), 'https://build.example.com');
 
     expect(url).toBe('https://request.example.com');
+  });
+
+  it('normalizes the production apex host when request detection falls back to it', () => {
+    if (hasCompileTimeSiteUrl) {
+      expect(normalizeCanonicalSiteUrl(compileTimeSiteUrl)).toBeTruthy();
+      return;
+    }
+
+    mocks.getRuntimeEnv.mockReturnValue('');
+    mocks.sanitizeBaseUrl.mockImplementation((value?: string) => value || null);
+    mocks.detectRequestSiteUrl.mockReturnValue('https://adastro.no');
+
+    const url = resolveSiteUrl(new Request('https://adastro.no/rss.xml'), '');
+
+    expect(url).toBe('https://www.adastro.no');
   });
 
   it('falls back to build-time site URL when env and request resolution fail', () => {

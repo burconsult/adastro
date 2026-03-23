@@ -1,4 +1,4 @@
-const ACCESS_TOKEN_COOKIE = 'sb-access-token';
+export const ACCESS_TOKEN_COOKIE = 'sb-access-token';
 
 export function buildAccessTokenCookie(value: string, maxAgeSec: number, requestUrl: string): string {
   const isSecure = requestUrl.startsWith('https://');

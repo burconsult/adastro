@@ -6,6 +6,7 @@ import CtaSection from "@/components/sections/CtaSection.astro"
 import { getPublishedPosts, calculatePagination, getPublishedPageBySlug } from "@/lib/database/index.js"
 import { getSiteContentPreferences, getSiteContentRouting } from "@/lib/site-config"
 import { buildArticlesPagePath, DEFAULT_ARTICLE_ROUTING } from "@/lib/routing/articles"
+import { resolveSiteUrl } from "@/lib/url/site-url"
 
 export async function getStaticPaths() {
   const contentPreferences = await getSiteContentPreferences()
@@ -42,7 +43,8 @@ const articleRouting = {
   permalinkStyle: contentRouting.articlePermalinkStyle
 }
 const toArticlesPagePath = (targetPage: number) => buildArticlesPagePath(targetPage, articleRouting)
-const canonicalUrl = new URL(buildArticlesPagePath(pageNum, articleRouting), Astro.url.origin).toString()
+const siteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString())
+const canonicalUrl = new URL(buildArticlesPagePath(pageNum, articleRouting), siteUrl).toString()
 
 const pageSlugCandidates = [...new Set([contentRouting.articleBasePath, DEFAULT_ARTICLE_ROUTING.basePath])]
 let blogPage = null

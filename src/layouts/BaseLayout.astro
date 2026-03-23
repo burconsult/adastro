@@ -16,6 +16,7 @@ import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
 import { getCoreLocalePacks } from "@/lib/i18n/catalog";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
+import { resolveSiteUrl } from "@/lib/url/site-url";
 
 type Props = {
   title?: string;
@@ -210,12 +211,10 @@ const getLocaleDisplayLabel = (locale: string): string => {
 };
 const localizedHomeHref = buildLocalizedPath('/', currentLocale);
 
-const site = Astro.site?.toString() ?? '';
+const resolvedSiteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString());
 const computedRequestPath = `${requestPathname}${Astro.url.search || ''}`;
-const computedUrl = site
-  ? new URL(computedRequestPath, site).toString()
-  : new URL(computedRequestPath, Astro.url.origin).toString();
-const siteBaseUrl = site ? new URL('/', site).toString() : `${Astro.url.origin}/`;
+const siteBaseUrl = new URL('/', resolvedSiteUrl).toString();
+const computedUrl = new URL(computedRequestPath, siteBaseUrl).toString();
 const normalizedCanonicalUrl = typeof canonicalUrl === 'string' && canonicalUrl.trim().length > 0
   ? canonicalUrl.trim()
   : computedUrl;
@@ -483,7 +482,7 @@ const localeNotice = localeNoticeCode === 'post-unavailable'
           </span>
         </a>
         <MobileNavigation
-          client:load
+          client:idle
           siteTitle={siteIdentity.title}
           siteLogoUrl={siteIdentity.logoUrl}
           homeHref={localizedHomeHref}
@@ -517,7 +516,7 @@ const localeNotice = localeNoticeCode === 'post-unavailable'
       <div class="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:px-8 sm:py-12">
         {showFooterNewsletter && (
           <div class="mx-auto w-full max-w-2xl">
-            <FooterNewsletterSlot client:load tone="inverse" />
+            <FooterNewsletterSlot client:visible tone="inverse" />
           </div>
         )}
         <div class="grid gap-8 text-center md:grid-cols-[1.2fr_1fr_1fr] md:text-left">
@@ -604,7 +603,7 @@ const localeNotice = localeNoticeCode === 'post-unavailable'
       </div>
     </footer>
     <ToastHost client:load />
-    <PageViewTracker client:load />
+    <PageViewTracker client:idle />
     {siteCustomScripts.footerHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.footerHtml} />}
   </body>
 </html>

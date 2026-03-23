@@ -292,13 +292,16 @@ describe('AuthService', () => {
       });
 
       await expect(
-        service.resetPassword({ email: 'test@example.com' })
+        service.resetPassword(
+          { email: 'test@example.com' },
+          { siteUrl: 'https://www.adastro.no' }
+        )
       ).resolves.not.toThrow();
 
       expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
         'test@example.com',
         expect.objectContaining({
-          redirectTo: expect.stringContaining('/auth/reset-password'),
+          redirectTo: 'https://www.adastro.no/auth/reset-password',
         })
       );
     });

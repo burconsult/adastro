@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@astrojs/react';
 import vercel from '@astrojs/vercel';
 import netlify from '@astrojs/netlify';
+import { FALLBACK_SITE_URL, normalizeCanonicalSiteUrl } from './src/lib/url/canonical-site.js';
 
 const normalizedAdapter = process.env.ASTRO_ADAPTER?.trim().toLowerCase();
 const platformAdapter = process.env.NETLIFY
@@ -31,18 +32,7 @@ const adapter = resolvedAdapter === 'netlify'
   ? netlify({ excludeFiles: NETLIFY_EXCLUDE_FILES })
   : vercel();
 
-/** @param {unknown} value */
-const normalizeSiteUrl = (value) => {
-  if (!value || typeof value !== 'string') return null;
-  try {
-    const parsed = new URL(value.trim());
-    return `${parsed.protocol}//${parsed.host}`;
-  } catch {
-    return null;
-  }
-};
-
-const resolvedSiteUrl = normalizeSiteUrl(process.env.SITE_URL) || 'https://example.com';
+const resolvedSiteUrl = normalizeCanonicalSiteUrl(process.env.SITE_URL) || FALLBACK_SITE_URL;
 
 // https://astro.build/config
 export default defineConfig({
