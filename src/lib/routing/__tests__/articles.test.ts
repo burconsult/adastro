@@ -4,6 +4,7 @@ import {
   buildArticlePostPath,
   buildArticlesIndexPath,
   buildArticlesPagePath,
+  buildLocalizedPagePath,
   normalizeArticleBasePath,
   normalizeArticleRoutingConfig,
   resolveLegacyBlogPath
@@ -21,6 +22,12 @@ describe('article routing helpers', () => {
     expect(buildArticlesIndexPath({ basePath: 'posts' })).toBe('/posts');
     expect(buildArticlesPagePath(1, { basePath: 'posts' })).toBe('/posts');
     expect(buildArticlesPagePath(4, { basePath: 'posts' })).toBe('/posts/page/4/');
+  });
+
+  it('maps legacy article index slugs to the configured article base path', () => {
+    expect(buildLocalizedPagePath('blog', { basePath: 'articles', localePrefix: 'en' })).toBe('/en/articles');
+    expect(buildLocalizedPagePath('articles', { basePath: 'articles', localePrefix: 'en' })).toBe('/en/articles');
+    expect(buildLocalizedPagePath('about', { basePath: 'articles', localePrefix: 'en' })).toBe('/en/about');
   });
 
   it('builds segment post path by default', () => {

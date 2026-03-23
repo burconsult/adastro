@@ -78,6 +78,25 @@ export const buildArticlesPagePath = (page: number, config: Partial<ArticleRouti
   return applyLocalePrefix(basePath, normalized.localePrefix);
 };
 
+export const buildLocalizedPagePath = (
+  slug: string,
+  config: Partial<ArticleRoutingConfig> | null | undefined
+): string => {
+  const normalized = normalizeArticleRoutingConfig(config);
+  const normalizedSlug = trimSlashes((slug || '').trim());
+  const comparableSlug = normalizedSlug.toLowerCase();
+
+  if (!normalizedSlug || comparableSlug === 'home') {
+    return applyLocalePrefix('/', normalized.localePrefix);
+  }
+
+  if (comparableSlug === normalized.basePath || comparableSlug === DEFAULT_ARTICLE_ROUTING.basePath) {
+    return buildArticlesIndexPath(normalized);
+  }
+
+  return applyLocalePrefix(`/${normalizedSlug}`, normalized.localePrefix);
+};
+
 export const buildArticlePostPath = (
   slug: string,
   publishedAt: Date | string | null | undefined,

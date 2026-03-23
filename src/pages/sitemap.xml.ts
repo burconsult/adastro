@@ -3,6 +3,7 @@ import { SitemapGenerator } from '../lib/seo/sitemap-generator.js';
 import { PostRepository } from '../lib/database/repositories/post-repository.js';
 import { PageRepository } from '../lib/database/repositories/page-repository.js';
 import { getSiteContentRouting, getSiteLocaleConfig } from '../lib/site-config.js';
+import { buildLocalizedPagePath } from '../lib/routing/articles.js';
 import { resolveSiteUrl } from '../lib/url/site-url.js';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -36,7 +37,11 @@ export const GET: APIRoute = async ({ request }) => {
       });
 
       const pageEntries = pages.map((page) => ({
-        url: page.slug === 'home' ? `${siteUrl}/${locale}` : `${siteUrl}/${locale}/${page.slug}`,
+        url: `${siteUrl}${buildLocalizedPagePath(page.slug, {
+          basePath: contentRouting.articleBasePath,
+          permalinkStyle: contentRouting.articlePermalinkStyle,
+          localePrefix: locale
+        })}`,
         lastmod: page.updatedAt.toISOString().split('T')[0],
         changefreq: 'weekly' as const,
         priority: page.slug === 'home' ? 1.0 : 0.7

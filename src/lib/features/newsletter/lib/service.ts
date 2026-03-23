@@ -158,7 +158,7 @@ export const stripHtml = (value: string) =>
 const normalizeSiteUrl = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return 'https://example.com';
-  return trimmed.replace(/\/+$/, '');
+  return normalizeCanonicalSiteUrl(trimmed) || trimmed.replace(/\/+$/, '');
 };
 
 const toAbsoluteHttpUrl = (input: string): string => {

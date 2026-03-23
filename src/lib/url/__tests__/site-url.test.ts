@@ -12,7 +12,12 @@ vi.mock('@/lib/setup/runtime', () => ({
   sanitizeBaseUrl: mocks.sanitizeBaseUrl
 }));
 
-import { FALLBACK_SITE_URL, normalizeCanonicalSiteUrl, resolveSiteUrl } from '../site-url.ts';
+import {
+  FALLBACK_SITE_URL,
+  normalizeCanonicalSiteUrl,
+  resolveAlternateLocalePath,
+  resolveSiteUrl
+} from '../site-url.ts';
 
 describe('resolveSiteUrl', () => {
   const compileTimeSiteUrl = (import.meta.env.SITE_URL as string | undefined) || '';
@@ -106,5 +111,31 @@ describe('resolveSiteUrl', () => {
     const url = resolveSiteUrl(new Request('https://invalid.local/rss.xml'), '');
 
     expect(url).toBe(FALLBACK_SITE_URL);
+  });
+});
+
+describe('resolveAlternateLocalePath', () => {
+  it('prefers the canonical localized path when it differs from the request path', () => {
+    const path = resolveAlternateLocalePath({
+      canonicalUrl: 'https://www.adastro.no/en/articles',
+      siteBaseUrl: 'https://www.adastro.no/',
+      fallbackPathname: '/blog',
+      locales: ['en', 'nb'],
+      defaultLocale: 'en'
+    });
+
+    expect(path).toBe('/articles');
+  });
+
+  it('falls back to the request path for off-site canonicals', () => {
+    const path = resolveAlternateLocalePath({
+      canonicalUrl: 'https://external.example.com/en/articles',
+      siteBaseUrl: 'https://www.adastro.no/',
+      fallbackPathname: '/blog',
+      locales: ['en', 'nb'],
+      defaultLocale: 'en'
+    });
+
+    expect(path).toBe('/blog');
   });
 });

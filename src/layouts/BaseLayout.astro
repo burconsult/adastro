@@ -16,7 +16,7 @@ import { getThemeModuleById, getThemeModules } from "@/lib/themes/registry";
 import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
 import { getCoreLocalePacks } from "@/lib/i18n/catalog";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
-import { resolveSiteUrl } from "@/lib/url/site-url";
+import { resolveAlternateLocalePath, resolveSiteUrl } from "@/lib/url/site-url";
 
 type Props = {
   title?: string;
@@ -218,6 +218,13 @@ const computedUrl = new URL(computedRequestPath, siteBaseUrl).toString();
 const normalizedCanonicalUrl = typeof canonicalUrl === 'string' && canonicalUrl.trim().length > 0
   ? canonicalUrl.trim()
   : computedUrl;
+const alternatePathname = resolveAlternateLocalePath({
+  canonicalUrl: normalizedCanonicalUrl,
+  siteBaseUrl,
+  fallbackPathname: localizedPathname,
+  locales: siteLocaleConfig.locales,
+  defaultLocale: siteLocaleConfig.defaultLocale
+});
 const normalizedTitle = typeof title === 'string' && title.trim().length > 0
   ? title.trim()
   : siteIdentity.title;
@@ -353,11 +360,11 @@ const resolvedAlternateLinks = Array.isArray(alternateLinks) && alternateLinks.l
       ))
   : siteLocaleConfig.locales.map((locale) => ({
       locale,
-      href: new URL(buildLocalizedPath(localizedPathname, locale), siteBaseUrl).toString()
+      href: new URL(buildLocalizedPath(alternatePathname, locale), siteBaseUrl).toString()
     }));
 const resolvedXDefaultHref = typeof xDefaultHref === 'string' && xDefaultHref.trim().length > 0
   ? new URL(xDefaultHref.trim(), siteBaseUrl).toString()
-  : new URL(buildLocalizedPath(localizedPathname, siteLocaleConfig.defaultLocale), siteBaseUrl).toString();
+  : new URL(buildLocalizedPath(alternatePathname, siteLocaleConfig.defaultLocale), siteBaseUrl).toString();
 const alternateLocalePathMap = new Map(
   resolvedAlternateLinks.map((link) => {
     const parsed = new URL(link.href, siteBaseUrl);

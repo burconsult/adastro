@@ -40,6 +40,17 @@ describe('newsletter service', () => {
     expect(settings.siteUrl).toBe('https://adastrocms.vercel.app');
   });
 
+  it('normalizes the configured site url to the canonical production host', async () => {
+    const settings = await loadNewsletterRuntimeSettings({
+      getSettings: async () => ({
+        'site.title': 'AdAstro',
+        'site.url': 'https://adastro.no/'
+      })
+    } as any);
+
+    expect(settings.siteUrl).toBe('https://www.adastro.no');
+  });
+
   it('builds confirmation message with confirmation url token', () => {
     const settings: any = {
       siteTitle: 'AdAstro',
