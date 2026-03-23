@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
-import { getSiteContentRouting } from '@/lib/site-config';
+import { getSiteContentRouting, getSiteLocaleConfig } from '@/lib/site-config';
 import { getAvailableLocaleCodes, getCoreLocalePacks } from '@/lib/i18n/catalog';
-import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
+import { buildLocalizedPath, DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 import { getStorageBucketConfig } from '@/lib/storage/buckets';
 import { buildInvitePasswordSetupPath } from '@/lib/auth/access-policy';
 import {
@@ -126,10 +126,14 @@ const probeCoreSchemaReadiness = async (): Promise<{
 const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
   const checks: SetupCheck[] = [];
   const contentRouting = await getSiteContentRouting();
+  const siteLocaleConfig = await getSiteLocaleConfig();
   const availableLocales = Object.keys(getCoreLocalePacks()).sort((a, b) => a.localeCompare(b));
   let setupCompleted = false;
-  let defaultLocale = DEFAULT_LOCALE;
-  let activeLocales = [DEFAULT_LOCALE];
+  let defaultLocale = normalizeLocaleCode(siteLocaleConfig.defaultLocale, DEFAULT_LOCALE);
+  let activeLocales = ensureDefaultLocaleInList(
+    defaultLocale,
+    normalizeLocaleList(siteLocaleConfig.locales, defaultLocale)
+  );
 
   const supabaseUrl = (import.meta.env.SUPABASE_URL as string | undefined) || getRuntimeEnv('SUPABASE_URL');
   const supabasePublishableKey = (import.meta.env.SUPABASE_PUBLISHABLE_KEY as string | undefined) || getRuntimeEnv('SUPABASE_PUBLISHABLE_KEY');
@@ -434,9 +438,9 @@ const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
       adapter,
       deploymentTarget,
       siteUrl,
-      expectedAuthCallbackUrl: siteUrl ? `${siteUrl}/auth/callback` : null,
+      expectedAuthCallbackUrl: siteUrl ? `${siteUrl}${buildLocalizedPath('/auth/callback', defaultLocale)}` : null,
       expectedInviteRedirectUrl: siteUrl
-        ? `${siteUrl}/auth/callback?redirect=${encodeURIComponent(buildInvitePasswordSetupPath('admin'))}`
+        ? `${siteUrl}${buildLocalizedPath('/auth/callback', defaultLocale)}?redirect=${encodeURIComponent(buildInvitePasswordSetupPath('admin', { locale: defaultLocale, defaultLocale }))}`
         : null,
       supabaseDashboardUrl
     },

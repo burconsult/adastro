@@ -14,6 +14,7 @@ import {
   normalizeLocaleCode,
   normalizeLocaleList
 } from './i18n/locales.js';
+import { resetRuntimeConfigCaches } from './runtime-config-cache.js';
 
 export interface SiteIdentity {
   title: string;
@@ -821,8 +822,8 @@ export function resetSiteThemeCache(): void {
 }
 
 export function resetSiteIdentityCache(): void {
-  cachedIdentity = null;
-  loadingPromise = null;
+  cachedIdentity = new Map<string, SiteIdentity>();
+  loadingPromise = new Map<string, Promise<SiteIdentity>>();
 }
 
 export function resetSiteNavigationCache(): void {
@@ -870,6 +871,7 @@ export function resetAllSiteConfigCaches(): void {
   resetSiteContentPreferencesCache();
   resetSiteLocaleConfigCache();
   resetSiteCustomScriptsCache();
+  resetRuntimeConfigCaches();
 }
 
 export function getDefaultSiteIdentity(): SiteIdentity {

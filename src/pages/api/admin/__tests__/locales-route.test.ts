@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
-  ensureLocalizedSystemPages: vi.fn()
+  ensureLocalizedSystemPages: vi.fn(),
+  resetAllSiteConfigCaches: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -20,6 +21,10 @@ vi.mock('@/lib/services/settings-service', () => ({
 
 vi.mock('@/lib/services/system-pages', () => ({
   ensureLocalizedSystemPages: mocks.ensureLocalizedSystemPages
+}));
+
+vi.mock('@/lib/site-config', () => ({
+  resetAllSiteConfigCaches: mocks.resetAllSiteConfigCaches
 }));
 
 import { GET, PUT } from '../locales';
@@ -87,6 +92,7 @@ describe('admin locales api', () => {
       sourceLocale: 'en',
       fallbackSourceLocale: 'en'
     });
+    expect(mocks.resetAllSiteConfigCaches).toHaveBeenCalledTimes(1);
     expect(payload.defaultLocale).toBe('nb');
     expect(payload.activeLocales).toEqual(['nb', 'es']);
   });

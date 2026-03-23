@@ -7,6 +7,14 @@ import { resolveLegacyBlogPath } from './lib/routing/articles.js';
 import { supabaseAdmin } from './lib/supabase.js';
 import { buildLocalizedPath, DEFAULT_LOCALE, resolveLocalePath } from './lib/i18n/locales.js';
 import {
+  getContentRoutingRuntimeCache,
+  getLocaleConfigRuntimeCache,
+  getSetupCompletionRuntimeCache,
+  setContentRoutingRuntimeCache,
+  setLocaleConfigRuntimeCache,
+  setSetupCompletionRuntimeCache
+} from './lib/runtime-config-cache.js';
+import {
   hasRequiredSetupEnv,
   isMissingRelationError,
   normalizeBooleanSetting,
@@ -15,15 +23,8 @@ import {
 } from './lib/setup/runtime.js';
 
 const SETUP_COMPLETION_CACHE_TTL_MS = 5000;
-let setupCompletionCache: { completed: boolean; allowReentry: boolean; checkedAt: number } | null = null;
 const CONTENT_ROUTING_CACHE_TTL_MS = 30000;
-let contentRoutingCache:
-  | { articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress'; checkedAt: number }
-  | null = null;
 const LOCALE_CONFIG_CACHE_TTL_MS = 30000;
-let localeConfigCache:
-  | { defaultLocale: string; locales: string[]; checkedAt: number }
-  | null = null;
 
 const SETUP_ALLOWED_PREFIXES = [
   '/setup',
@@ -69,10 +70,11 @@ const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: 
   if (!hasRequiredSetupEnv()) return { completed: false, allowReentry: false };
 
   const now = Date.now();
-  if (setupCompletionCache && now - setupCompletionCache.checkedAt <= SETUP_COMPLETION_CACHE_TTL_MS) {
+  const cachedSetupCompletion = getSetupCompletionRuntimeCache();
+  if (cachedSetupCompletion && now - cachedSetupCompletion.checkedAt <= SETUP_COMPLETION_CACHE_TTL_MS) {
     return {
-      completed: setupCompletionCache.completed,
-      allowReentry: setupCompletionCache.allowReentry
+      completed: cachedSetupCompletion.completed,
+      allowReentry: cachedSetupCompletion.allowReentry
     };
   }
 
@@ -85,11 +87,11 @@ const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: 
     if (error) {
       const message = String(error.message || '').toLowerCase();
       if (isMissingRelationError(message)) {
-        setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+        setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
         return { completed: false, allowReentry: false };
       }
       console.warn('Setup completion check failed:', error.message);
-      setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+      setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
       return { completed: false, allowReentry: false };
     }
 
@@ -100,58 +102,62 @@ const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: 
     const completed = normalizeBooleanSetting(completionRow?.value);
     const allowReentry = normalizeBooleanSetting(allowReentryRow?.value);
 
-    setupCompletionCache = { completed, allowReentry, checkedAt: now };
+    setSetupCompletionRuntimeCache({ completed, allowReentry, checkedAt: now });
     return { completed, allowReentry };
   } catch (error) {
     console.warn('Setup completion check failed:', error);
-    setupCompletionCache = { completed: false, allowReentry: false, checkedAt: now };
+    setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
     return { completed: false, allowReentry: false };
   }
 };
 
 const getContentRoutingForRewrite = async (): Promise<{ articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress' }> => {
   const now = Date.now();
-  if (contentRoutingCache && now - contentRoutingCache.checkedAt <= CONTENT_ROUTING_CACHE_TTL_MS) {
+  const cachedContentRouting = getContentRoutingRuntimeCache();
+  if (cachedContentRouting && now - cachedContentRouting.checkedAt <= CONTENT_ROUTING_CACHE_TTL_MS) {
     return {
-      articleBasePath: contentRoutingCache.articleBasePath,
-      articlePermalinkStyle: contentRoutingCache.articlePermalinkStyle
+      articleBasePath: cachedContentRouting.articleBasePath,
+      articlePermalinkStyle: cachedContentRouting.articlePermalinkStyle
     };
   }
 
   const routing = await getSiteContentRouting({ refresh: true });
-  contentRoutingCache = {
+  setContentRoutingRuntimeCache({
     articleBasePath: routing.articleBasePath,
     articlePermalinkStyle: routing.articlePermalinkStyle,
     checkedAt: now
-  };
+  });
   return routing;
 };
 
 const getLocaleConfigForRequest = async (): Promise<{ defaultLocale: string; locales: string[] }> => {
   const now = Date.now();
-  if (localeConfigCache && now - localeConfigCache.checkedAt <= LOCALE_CONFIG_CACHE_TTL_MS) {
+  const cachedLocaleConfig = getLocaleConfigRuntimeCache();
+  if (cachedLocaleConfig && now - cachedLocaleConfig.checkedAt <= LOCALE_CONFIG_CACHE_TTL_MS) {
     return {
-      defaultLocale: localeConfigCache.defaultLocale,
-      locales: localeConfigCache.locales
+      defaultLocale: cachedLocaleConfig.defaultLocale,
+      locales: cachedLocaleConfig.locales
     };
   }
 
   try {
     const localeConfig = await getSiteLocaleConfig({ refresh: true });
-    localeConfigCache = {
+    const nextLocaleConfig = {
       defaultLocale: localeConfig.defaultLocale || DEFAULT_LOCALE,
       locales: localeConfig.locales.length > 0 ? localeConfig.locales : [DEFAULT_LOCALE],
       checkedAt: now
     };
-    return localeConfigCache;
+    setLocaleConfigRuntimeCache(nextLocaleConfig);
+    return nextLocaleConfig;
   } catch (error) {
     console.warn('Locale config lookup failed. Falling back to default locale.', error);
-    localeConfigCache = {
+    const fallbackLocaleConfig = {
       defaultLocale: DEFAULT_LOCALE,
       locales: [DEFAULT_LOCALE],
       checkedAt: now
     };
-    return localeConfigCache;
+    setLocaleConfigRuntimeCache(fallbackLocaleConfig);
+    return fallbackLocaleConfig;
   }
 };
 

@@ -7,7 +7,7 @@ import { getClientIp } from '../../../lib/security/request-guards.js';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const { email, password, redirect } = await request.json();
+    const { email, password, redirect, locale } = await request.json();
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const ip = getClientIp(request);
     const rateLimit = checkRateLimit({
@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const result = await authService.signIn({ email, password });
-    const redirectTo = resolveRoleSafeRedirect(result.user.role, redirect);
+    const redirectTo = resolveRoleSafeRedirect(result.user.role, redirect, { locale });
 
     return new Response(
       JSON.stringify({ 

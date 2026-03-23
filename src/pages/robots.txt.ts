@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { resolveSiteUrl } from '../lib/url/site-url.js';
 
 const DISALLOWED_PATHS = ['/admin', '/api', '/auth', '/setup', '/profile', '/mcp'];
+const LOCALE_DISALLOWED_PATHS = ['/auth', '/profile'];
 
 export const GET: APIRoute = async ({ request }) => {
   const siteUrl = resolveSiteUrl(request, import.meta.env.SITE).replace(/\/$/, '');
@@ -9,6 +10,9 @@ export const GET: APIRoute = async ({ request }) => {
 
   for (const path of DISALLOWED_PATHS) {
     lines.push(`Disallow: ${path}`);
+  }
+  for (const path of LOCALE_DISALLOWED_PATHS) {
+    lines.push(`Disallow: /*${path}`);
   }
 
   lines.push('', `Sitemap: ${siteUrl}/sitemap.xml`);

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   setUserRole: vi.fn(),
-  inviteUserByEmail: vi.fn()
+  inviteUserByEmail: vi.fn(),
+  getSiteLocaleConfig: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -25,6 +26,10 @@ vi.mock('@/lib/supabase', () => ({
       }
     }
   }
+}));
+
+vi.mock('@/lib/site-config', () => ({
+  getSiteLocaleConfig: mocks.getSiteLocaleConfig
 }));
 
 import { POST } from '../invite-user.ts';
@@ -49,6 +54,7 @@ describe('invite user api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAdmin.mockResolvedValue({ id: 'admin-1' });
+    mocks.getSiteLocaleConfig.mockResolvedValue({ defaultLocale: 'en', locales: ['en'] });
     mocks.inviteUserByEmail.mockResolvedValue({
       data: { user: { id: 'user-1' } },
       error: null
@@ -75,13 +81,14 @@ describe('invite user api', () => {
     expect(mocks.inviteUserByEmail).toHaveBeenCalledWith(
       'writer@example.com',
       expect.objectContaining({
-        redirectTo: `${expectedRedirectBase}/auth/callback?redirect=%2Fauth%2Freset-password%3Fnext%3D%252Fadmin%252Fposts`
+        redirectTo: `${expectedRedirectBase}/en/auth/callback?redirect=%2Fen%2Fauth%2Freset-password%3Fnext%3D%252Fadmin%252Fposts`
       })
     );
     expect(mocks.setUserRole).toHaveBeenCalledWith('user-1', 'author');
   });
 
   it('builds a profile redirect for invited reader users', async () => {
+    mocks.getSiteLocaleConfig.mockResolvedValueOnce({ defaultLocale: 'nb', locales: ['nb', 'en'] });
     const requestUrl = 'https://adastrocms.vercel.app/api/admin/invite-user';
     const request = new Request(requestUrl, {
       method: 'POST',
@@ -99,7 +106,7 @@ describe('invite user api', () => {
     expect(mocks.inviteUserByEmail).toHaveBeenCalledWith(
       'reader@example.com',
       expect.objectContaining({
-        redirectTo: `${expectedRedirectBase}/auth/callback?redirect=%2Fauth%2Freset-password%3Fnext%3D%252Fprofile`
+        redirectTo: `${expectedRedirectBase}/nb/auth/callback?redirect=%2Fnb%2Fauth%2Freset-password%3Fnext%3D%252Fnb%252Fprofile`
       })
     );
     expect(mocks.setUserRole).toHaveBeenCalledWith('user-1', 'reader');

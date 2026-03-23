@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitText = document.getElementById('submit-text');
   const submitLoading = document.getElementById('submit-loading');
   const statusEl = document.getElementById('forgot-password-status');
+  const redirectPath = form?.dataset?.redirectPath || '/auth/reset-password';
   const messagesEl = document.getElementById('auth-forgot-messages');
   const messages = (() => {
     if (!messagesEl?.textContent) return {};
@@ -53,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, redirectPath })
       });
       const payload = await response.json().catch(() => ({}));
 

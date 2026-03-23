@@ -5,6 +5,7 @@ import { getClientIp } from '@/lib/security/request-guards';
 import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabase';
 import { parseUserAgent } from '@/lib/analytics/user-agent';
 import { lookupCountryCode } from '@/lib/analytics/country-lookup';
+import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList, resolveLocalePath } from '@/lib/i18n/locales';
 
 const settingsService = new SettingsService();
 
@@ -37,7 +38,12 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const analyticsEnabled = Boolean(await settingsService.getSetting('analytics.enabled'));
+    const settings = await settingsService.getSettings([
+      'analytics.enabled',
+      'content.defaultLocale',
+      'content.locales'
+    ]);
+    const analyticsEnabled = Boolean(settings['analytics.enabled']);
     if (!analyticsEnabled) {
       return new Response(null, { status: 204 });
     }
@@ -54,11 +60,19 @@ export const POST: APIRoute = async ({ request }) => {
 
     const payload = await request.json().catch(() => ({}));
     const path = normalizePath(text(payload.path, 255));
+    const defaultLocale = normalizeLocaleCode(settings['content.defaultLocale'], DEFAULT_LOCALE);
+    const locales = ensureDefaultLocaleInList(
+      defaultLocale,
+      normalizeLocaleList(settings['content.locales'], defaultLocale)
+    );
+    const { pathnameWithoutLocale } = resolveLocalePath(path, locales, defaultLocale);
     if (
-      path.startsWith('/admin') ||
-      path.startsWith('/auth') ||
-      path.startsWith('/api') ||
-      path.startsWith('/setup')
+      pathnameWithoutLocale.startsWith('/admin') ||
+      pathnameWithoutLocale.startsWith('/auth') ||
+      pathnameWithoutLocale.startsWith('/api') ||
+      pathnameWithoutLocale.startsWith('/setup') ||
+      pathnameWithoutLocale.startsWith('/profile') ||
+      pathnameWithoutLocale.startsWith('/mcp')
     ) {
       return new Response(null, { status: 204 });
     }

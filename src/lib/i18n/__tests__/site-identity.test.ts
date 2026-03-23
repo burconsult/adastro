@@ -8,11 +8,12 @@ vi.mock('@/lib/services/settings-service.js', () => ({
   }))
 }));
 
-import { getSiteIdentity } from '@/lib/site-config.js';
+import { getSiteIdentity, resetSiteIdentityCache } from '@/lib/site-config.js';
 
 describe('site identity localization', () => {
   beforeEach(() => {
     getSettingsMock.mockReset();
+    resetSiteIdentityCache();
   });
 
   it('uses locale-specific identity overrides when present', async () => {
@@ -61,5 +62,41 @@ describe('site identity localization', () => {
       tagline: 'AdAstro - The Lightspeed CMS',
       logoUrl: '/logo.svg'
     });
+  });
+
+  it('recovers cleanly after cache resets', async () => {
+    getSettingsMock
+      .mockResolvedValueOnce({
+        'site.title': 'AdAstro',
+        'site.description': 'A practical, speed-first CMS built with Astro and Supabase.',
+        'site.tagline': 'AdAstro - The Lightspeed CMS',
+        'site.logoUrl': '/logo.svg'
+      })
+      .mockResolvedValueOnce({
+        'site.titleByLocale': {},
+        'site.descriptionByLocale': {},
+        'site.taglineByLocale': {}
+      });
+
+    await getSiteIdentity({ locale: 'en' });
+    resetSiteIdentityCache();
+
+    getSettingsMock
+      .mockResolvedValueOnce({
+        'site.title': 'AdAstro 1.2',
+        'site.description': 'Updated description.',
+        'site.tagline': 'Still lightspeed.',
+        'site.logoUrl': '/logo.svg'
+      })
+      .mockResolvedValueOnce({
+        'site.titleByLocale': {},
+        'site.descriptionByLocale': {},
+        'site.taglineByLocale': {}
+      });
+
+    const identity = await getSiteIdentity({ locale: 'en' });
+
+    expect(identity.title).toBe('AdAstro 1.2');
+    expect(identity.description).toBe('Updated description.');
   });
 });

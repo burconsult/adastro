@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { authService, requireAdmin } from '@/lib/auth/auth-helpers';
 import { buildInvitePasswordSetupPath, normalizeAppUserRole } from '@/lib/auth/access-policy';
+import { buildLocalizedPath } from '@/lib/i18n/locales';
+import { getSiteLocaleConfig } from '@/lib/site-config';
 import { ensureAuthorProfileForAuthUser } from '@/lib/auth/author-provisioning';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -40,9 +42,11 @@ export const POST: APIRoute = async ({ request }) => {
     const siteUrl = sanitizeSiteUrl(import.meta.env.SITE_URL as string | undefined);
     const requestOrigin = sanitizeSiteUrl(request.url);
     const redirectBase = siteUrl || requestOrigin;
-    const callbackPath = buildInvitePasswordSetupPath(normalizedRole);
+    const localeConfig = await getSiteLocaleConfig();
+    const defaultLocale = localeConfig.defaultLocale;
+    const callbackPath = buildInvitePasswordSetupPath(normalizedRole, { locale: defaultLocale, defaultLocale });
     const redirectTo = redirectBase
-      ? `${redirectBase}/auth/callback?redirect=${encodeURIComponent(callbackPath)}`
+      ? `${redirectBase}${buildLocalizedPath('/auth/callback', defaultLocale)}?redirect=${encodeURIComponent(callbackPath)}`
       : undefined;
 
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {

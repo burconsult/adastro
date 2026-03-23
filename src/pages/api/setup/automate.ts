@@ -18,7 +18,7 @@ import {
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
 import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 import { getCoreLocalePacks } from '@/lib/i18n/catalog';
-import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
+import { buildLocalizedPath, DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 
 type AutomationActionStatus = 'ok' | 'warn' | 'fail';
 
@@ -420,8 +420,9 @@ const bootstrapAdminUser = async (
   }
 
   if (!user && request.inviteAdminIfMissing) {
+    const inviteLocale = normalizeLocaleCode(request.defaultLocale, DEFAULT_LOCALE);
     const redirectTo = resolvedSiteUrl
-      ? `${resolvedSiteUrl}/auth/callback?redirect=${encodeURIComponent(buildInvitePasswordSetupPath('admin'))}`
+      ? `${resolvedSiteUrl}${buildLocalizedPath('/auth/callback', inviteLocale)}?redirect=${encodeURIComponent(buildInvitePasswordSetupPath('admin', { locale: inviteLocale, defaultLocale: inviteLocale }))}`
       : undefined;
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(rawEmail, {
       redirectTo

@@ -1,21 +1,24 @@
-import type { APIRoute } from 'astro'
-import { PostRepository } from '../../lib/database/repositories/post-repository.js'
+import type { APIRoute } from 'astro';
+import { PostRepository } from '../../lib/database/repositories/post-repository.js';
+import { DEFAULT_LOCALE, normalizeLocaleCode } from '../../lib/i18n/locales.js';
+import { getSiteLocaleConfig } from '../../lib/site-config.js';
 
-export async function getStaticPaths() {
-  const postRepository = new PostRepository()
-  const posts = await postRepository.findWithFilters({ status: 'published' })
-  return posts.map((post) => ({ params: { slug: post.slug } }))
-}
+export const prerender = false;
 
-const width = 1200
-const height = 630
+const width = 1200;
+const height = 630;
 
-export const GET: APIRoute = async ({ params }) => {
-  const { slug } = params
-  const postRepository = new PostRepository()
-  const post = typeof slug === 'string' ? await postRepository.findBySlug(slug) : null
-  const title = post?.title ?? 'My Blog'
-  const subtitle = post?.author?.name ? `by ${post.author.name}` : ''
+export const GET: APIRoute = async ({ params, request }) => {
+  const { slug } = params;
+  const postRepository = new PostRepository();
+  const localeConfig = await getSiteLocaleConfig();
+  const requestedLocale = normalizeLocaleCode(
+    new URL(request.url).searchParams.get('locale'),
+    localeConfig.defaultLocale || DEFAULT_LOCALE
+  );
+  const post = typeof slug === 'string' ? await postRepository.findBySlug(slug, requestedLocale) : null;
+  const title = post?.title ?? 'My Blog';
+  const subtitle = post?.author?.name ? `by ${post.author.name}` : '';
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -46,9 +49,9 @@ export const GET: APIRoute = async ({ params }) => {
       'Content-Type': 'image/svg+xml; charset=utf-8',
       'Cache-Control': 'public, max-age=31536000, immutable',
     },
-  })
-}
+  });
+};
 
 function escapeXml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

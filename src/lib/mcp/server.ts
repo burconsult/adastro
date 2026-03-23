@@ -18,8 +18,10 @@ import { isFeatureActive } from '@/lib/features/state';
 import { getFeatureMcpExtensions } from '@/lib/features/runtime';
 import type { PageSectionInput } from '@/lib/database/repositories/page-section-repository';
 import type { FeatureMcpToolRegistration } from '@/lib/features/types';
+import packageMetadata from '../../../package.json';
 
 type JsonRecord = Record<string, unknown>;
+const ADASTRO_VERSION = packageMetadata.version;
 
 type ToolResponse = {
   ok: boolean;
@@ -160,7 +162,7 @@ class DefaultAdAstroMcpToolDeps implements AdAstroMcpToolDeps {
 
     return {
       app: 'AdAstro',
-      version: '1.0.0',
+      version: ADASTRO_VERSION,
       siteTitle,
       siteUrl,
       setupCompleted: normalizeBooleanSetting(setupCompleted),
@@ -627,7 +629,7 @@ export async function createAdAstroMcpServer(
   options: AdAstroMcpServerOptions = {}
 ) {
   const server = new McpServer(
-    { name: 'adastro-mcp', version: '1.0.0' },
+    { name: 'adastro-mcp', version: ADASTRO_VERSION },
     {
       capabilities: { tools: {}, logging: {} },
       instructions: 'Use these tools to publish and administer AdAstro content safely. Prefer list/get tools before mutating tools.'

@@ -57,7 +57,28 @@ describe('forgot password api', () => {
     const expectedSiteUrl = (import.meta.env.SITE_URL as string | undefined)?.trim() || 'https://adastrocms.vercel.app';
     expect(mocks.resetPassword).toHaveBeenCalledWith(
       { email: 'reader@example.com' },
-      { siteUrl: expectedSiteUrl }
+      { siteUrl: expectedSiteUrl, redirectPath: '/auth/reset-password' }
+    );
+  });
+
+  it('passes localized reset targets through to the auth service', async () => {
+    const request = new Request('https://adastrocms.vercel.app/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'reader@example.com',
+        redirectPath: '/nb/auth/reset-password'
+      })
+    });
+
+    const response = await POST({ request } as any);
+    expect(response.status).toBe(200);
+    expect(mocks.resetPassword).toHaveBeenCalledWith(
+      { email: 'reader@example.com' },
+      {
+        siteUrl: (import.meta.env.SITE_URL as string | undefined)?.trim() || 'https://adastrocms.vercel.app',
+        redirectPath: '/nb/auth/reset-password'
+      }
     );
   });
 });

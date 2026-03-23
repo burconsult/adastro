@@ -17,8 +17,8 @@ const samplePayload = {
     adapter: 'vercel',
     deploymentTarget: 'vercel' as const,
     siteUrl: 'https://example.com',
-    expectedAuthCallbackUrl: 'https://example.com/auth/callback',
-    expectedInviteRedirectUrl: 'https://example.com/auth/callback?redirect=%2Fauth%2Freset-password%3Fnext%3D%252Fadmin',
+    expectedAuthCallbackUrl: 'https://example.com/en/auth/callback',
+    expectedInviteRedirectUrl: 'https://example.com/en/auth/callback?redirect=%2Fen%2Fauth%2Freset-password%3Fnext%3D%252Fadmin',
     supabaseDashboardUrl: 'https://supabase.com/dashboard/project/example'
   },
   contentRouting: {

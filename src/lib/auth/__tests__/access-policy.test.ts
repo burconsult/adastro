@@ -29,11 +29,13 @@ describe('auth access policy', () => {
     expect(resolveRoleSafeRedirect('author', '/admin/posts/edit/123')).toBe('/admin/posts/edit/123');
     expect(resolveRoleSafeRedirect('reader', '/admin')).toBe('/profile');
     expect(resolveRoleSafeRedirect('reader', 'https://evil.example')).toBe('/profile');
+    expect(resolveRoleSafeRedirect('reader', '/profile?tab=settings', { locale: 'nb' })).toBe('/nb/profile?tab=settings');
   });
 
   it('builds invite setup path with encoded next destination', () => {
     expect(buildInvitePasswordSetupPath('admin')).toBe('/auth/reset-password?next=%2Fadmin');
     expect(buildInvitePasswordSetupPath('author')).toBe('/auth/reset-password?next=%2Fadmin%2Fposts');
     expect(buildInvitePasswordSetupPath('reader')).toBe('/auth/reset-password?next=%2Fprofile');
+    expect(buildInvitePasswordSetupPath('reader', { locale: 'nb' })).toBe('/nb/auth/reset-password?next=%2Fnb%2Fprofile');
   });
 });

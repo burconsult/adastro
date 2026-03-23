@@ -1,6 +1,7 @@
 import { createSupabaseServerClient, supabase, supabaseAdmin, isSupabaseAdminConfigured } from '../supabase.js';
 import { DatabaseError, ValidationError } from '../database/connection.js';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
+import { sanitizeRedirectPath } from './redirects.js';
 
 const ACCESS_TOKEN_COOKIE = 'sb-access-token';
 
@@ -54,6 +55,7 @@ export interface ResetPasswordCredentials {
 
 export interface ResetPasswordOptions {
   siteUrl?: string;
+  redirectPath?: string;
 }
 
 export interface UpdatePasswordCredentials {
@@ -245,10 +247,11 @@ export class AuthService {
       const fallbackSiteUrl = configuredSiteUrl && configuredSiteUrl.trim().length > 0
         ? configuredSiteUrl.trim()
         : undefined;
+      const resetPasswordPath = sanitizeRedirectPath(options?.redirectPath, '/auth/reset-password');
       const redirectTo = typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/reset-password`
+        ? `${window.location.origin}${resetPasswordPath}`
         : fallbackSiteUrl
-          ? `${fallbackSiteUrl}/auth/reset-password`
+          ? `${fallbackSiteUrl}${resetPasswordPath}`
           : undefined;
 
       const { error } = await serverClient.auth.resetPasswordForEmail(credentials.email, {

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { authService } from '../../../lib/auth/auth-helpers.js';
+import { sanitizeRedirectPath } from '../../../lib/auth/redirects.js';
 import { checkRateLimit } from '../../../lib/security/rate-limit.js';
 import { getClientIp } from '../../../lib/security/request-guards.js';
 
@@ -28,6 +29,7 @@ export const POST: APIRoute = async ({ request }) => {
     const email = typeof payload?.email === 'string'
       ? payload.email.trim().toLowerCase()
       : '';
+    const redirectPath = sanitizeRedirectPath(payload?.redirectPath, '/auth/reset-password');
 
     if (!isValidEmail(email)) {
       return new Response(
@@ -59,7 +61,10 @@ export const POST: APIRoute = async ({ request }) => {
     try {
       await authService.resetPassword(
         { email },
-        { siteUrl: resolvePublicSiteUrl(request.url) }
+        {
+          siteUrl: resolvePublicSiteUrl(request.url),
+          redirectPath
+        }
       );
     } catch (error) {
       // Intentionally avoid leaking user-existence information.

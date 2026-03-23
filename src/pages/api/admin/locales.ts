@@ -5,6 +5,7 @@ import { DEFAULT_LOCALE, ensureDefaultLocaleInList, isValidLocaleCode, normalize
 import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing/articles';
 import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 import { SettingsService } from '@/lib/services/settings-service';
+import { resetAllSiteConfigCaches } from '@/lib/site-config';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 const toJson = (payload: unknown, status = 200) => (
@@ -136,6 +137,7 @@ export const PUT: APIRoute = async ({ request }) => {
       'site.descriptionByLocale': siteIdentityByLocale.description ?? currentSettings['site.descriptionByLocale'] ?? {},
       'site.taglineByLocale': siteIdentityByLocale.tagline ?? currentSettings['site.taglineByLocale'] ?? {}
     }, admin.id);
+    resetAllSiteConfigCaches();
 
     const payload = await buildPayload();
     return toJson(payload);

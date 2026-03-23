@@ -65,4 +65,35 @@ describe('auth login api', () => {
     expect(payload.redirect).toBe('/admin/posts');
     expect(payload.user.role).toBe('author');
   });
+
+  it('keeps reader fallback redirects locale-aware', async () => {
+    mocks.signIn.mockResolvedValueOnce({
+      user: {
+        id: 'user-2',
+        email: 'reader@example.com',
+        role: 'reader'
+      },
+      session: {
+        access_token: 'token-2',
+        expires_in: 3600
+      }
+    });
+
+    const request = new Request('https://adastrocms.vercel.app/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'reader@example.com',
+        password: 'StrongPass123!',
+        redirect: '/admin',
+        locale: 'nb'
+      })
+    });
+
+    const response = await POST({ request } as any);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.redirect).toBe('/nb/profile');
+  });
 });

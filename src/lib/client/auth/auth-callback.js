@@ -1,6 +1,7 @@
 const message = document.getElementById('callback-message');
 const root = document.getElementById('auth-callback-root');
 const redirectTarget = root?.getAttribute('data-redirect-target') || '/profile';
+const resetPasswordPath = root?.getAttribute('data-reset-password-path') || '/auth/reset-password';
 const messagesEl = document.getElementById('auth-callback-messages');
 const messages = (() => {
   if (!messagesEl?.textContent) return {};
@@ -41,14 +42,22 @@ const setMessage = (text) => {
   }
 };
 
+const hasPathname = (value, expectedPathname) => {
+  try {
+    return new URL(value, window.location.origin).pathname === expectedPathname;
+  } catch {
+    return false;
+  }
+};
+
 const shouldForcePasswordReset = (authFlowType === 'invite' || authFlowType === 'recovery')
-  && !redirectTarget.startsWith('/auth/reset-password');
+  && !hasPathname(redirectTarget, new URL(resetPasswordPath, window.location.origin).pathname);
 const resolveNextTarget = () => {
   if (!shouldForcePasswordReset) {
     return redirectTarget;
   }
 
-  return `/auth/reset-password?next=${encodeURIComponent(redirectTarget)}`;
+  return `${resetPasswordPath}?next=${encodeURIComponent(redirectTarget)}`;
 };
 
 if (errorParam) {

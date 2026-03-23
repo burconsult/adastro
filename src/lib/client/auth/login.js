@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const redirect = form?.dataset?.redirect || '/admin';
+  const locale = form?.dataset?.locale || '';
   const messagesEl = document.getElementById('auth-login-messages');
   const messages = (() => {
     if (!messagesEl?.textContent) return {};
@@ -63,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, password, redirect }),
+          body: JSON.stringify({ email, password, redirect, locale }),
         });
 
         const result = await response.json();
