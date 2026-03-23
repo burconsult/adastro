@@ -362,6 +362,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     setHeader('Cache-Control', HTML_BROWSER_CACHE_CONTROL);
     setHeader('CDN-Cache-Control', HTML_CDN_CACHE_CONTROL);
     setHeader('Vercel-CDN-Cache-Control', HTML_VERCEL_CDN_CACHE_CONTROL);
+    setHeader('Vary', 'Cookie');
   }
 
   const csp = [
