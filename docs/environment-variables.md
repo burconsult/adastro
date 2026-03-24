@@ -72,19 +72,29 @@ AWS_SES_SMTP_PORT=587          # optional override
 ```
 
 Newsletter sending behavior, templates, consent copy, and provider choice are configured in Admin after activation.
+AdAstro now emits `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers for newsletter deliveries automatically.
+Signed unsubscribe links use `SUPABASE_SECRET_KEY` by default. Set `NEWSLETTER_SIGNING_SECRET` only if you want a dedicated newsletter signing secret:
+
+```bash
+NEWSLETTER_SIGNING_SECRET=    # optional override for signed unsubscribe links
+```
 
 ## AI Feature (Optional)
 
 Only set keys for providers you actually enable:
 
 ```bash
+AI_GATEWAY_API_KEY=
+AI_GATEWAY_BASE_URL=
 OPENAI_API_KEY=
 GOOGLE_GENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ELEVENLABS_API_KEY=
 ```
 
-Provider/model selection and capability settings are managed in Admin after the AI feature is activated.
+`AI_GATEWAY_API_KEY` is the default path for text and image generation on new installs.
+`AI_GATEWAY_BASE_URL` is optional and only needed if you want to override the default Vercel AI Gateway endpoint.
+Provider/model selection, per-modality defaults, and audio voice selection are managed in Admin after the AI feature is activated.
 
 ## CDN / Image Delivery (Advanced, Optional)
 

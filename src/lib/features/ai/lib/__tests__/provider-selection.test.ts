@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const resetEnv = () => {
+  delete process.env.AI_GATEWAY_API_KEY;
   delete process.env.OPENAI_API_KEY;
   delete process.env.GOOGLE_GENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
@@ -24,6 +25,15 @@ describe('AI provider configuration', () => {
     expect(ai.getConfiguredProviders()).toEqual(['openai']);
 
     const provider = ai.getProvider('openai');
+    expect(provider).toBeTruthy();
+  });
+
+  it('detects Gateway provider when API key is set', async () => {
+    process.env.AI_GATEWAY_API_KEY = 'gateway-key';
+    const ai = await import('../index.js');
+    expect(ai.getConfiguredProviders()).toEqual(['gateway']);
+
+    const provider = ai.getProvider('gateway');
     expect(provider).toBeTruthy();
   });
 

@@ -1,20 +1,26 @@
 import { getAuthenticatedUser, requireAdmin } from '@/lib/auth/auth-helpers';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 import { getClientIp } from '@/lib/security/request-guards';
-import { getFeatureRecaptchaConfig, verifyRecaptchaToken } from '@/lib/security/recaptcha';
-import { normalizeFeatureFlag } from '@/lib/features/flags';
-import { SettingsService } from '@/lib/services/settings-service';
-import { supabaseAdmin } from '@/lib/supabase';
 import type { FeatureApiHandler, FeatureApiModule } from '../types.js';
-import { DEFAULT_LOCALE, normalizeLocaleCode } from '@/lib/i18n/locales';
+import { loadCommentsRuntimeConfig, toPublicCommentsStatus } from './lib/config-service.js';
+import {
+  CommentsFeatureError,
+  getCommentsAdminStatus,
+  listApprovedComments,
+  listCommentQueue,
+  submitComment,
+  updateCommentModerationStatus
+} from './lib/comment-service.js';
+import {
+  COMMENT_QUEUE_FILTER_VALUES,
+  COMMENT_STATUS_VALUES,
+  type CommentQueueFilter,
+  type CommentStatus
+} from './lib/types.js';
 
-const settingsService = new SettingsService();
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const MAX_NAME_LENGTH = 120;
 const MAX_EMAIL_LENGTH = 200;
 const MAX_CONTENT_LENGTH = 4000;
-
-type CommentStatus = 'pending' | 'approved' | 'rejected';
 
 const json = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), {
@@ -27,131 +33,23 @@ const methodNotAllowed = () => json({ error: 'Method not allowed' }, 405);
 const sanitizeText = (value: unknown, maxLength: number) =>
   (typeof value === 'string' ? value.trim() : '').slice(0, maxLength);
 
-const fallbackAuthorNameFromEmail = (email: string) => {
-  const localPart = email.split('@')[0] || '';
-  const normalized = localPart.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!normalized || normalized.length < 2) {
-    return 'Member';
+const errorResponse = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof CommentsFeatureError) {
+    return json({ error: error.message }, error.statusCode);
   }
 
-  return normalized
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, MAX_NAME_LENGTH);
-};
-
-const resolveAuthenticatedAuthorName = async (authUserId: string, email: string) => {
-  const { data: author } = await supabaseAdmin
-    .from('authors')
-    .select('name')
-    .eq('auth_user_id', authUserId)
-    .limit(1)
-    .maybeSingle();
-
-  const authorName = sanitizeText(author?.name, MAX_NAME_LENGTH);
-  if (authorName.length >= 2) {
-    return authorName;
-  }
-
-  const { data: profile } = await supabaseAdmin
-    .from('user_profiles')
-    .select('full_name')
-    .eq('auth_user_id', authUserId)
-    .limit(1)
-    .maybeSingle();
-
-  const fullName = sanitizeText(profile?.full_name, MAX_NAME_LENGTH);
-  if (fullName.length >= 2) {
-    return fullName;
-  }
-
-  return fallbackAuthorNameFromEmail(email);
-};
-
-const resolvePublishedPostId = async (input: { slug?: string; postId?: string; locale?: string }) => {
-  const slug = sanitizeText(input.slug, 255);
-  const postId = sanitizeText(input.postId, 64);
-  const locale = normalizeLocaleCode(input.locale, DEFAULT_LOCALE);
-
-  if (!slug && !postId) {
-    return null;
-  }
-
-  let query = supabaseAdmin
-    .from('posts')
-    .select('id, status')
-    .eq('status', 'published')
-    .limit(1);
-
-  if (postId) {
-    query = query.eq('id', postId);
-  } else {
-    query = query.eq('slug', slug);
-    if (locale) {
-      query = query.eq('locale', locale);
-    }
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) {
-    return null;
-  }
-
-  return data.id as string;
-};
-
-const isCommentsEnabled = async () => {
-  const enabled = await settingsService.getSetting('features.comments.enabled');
-  return normalizeFeatureFlag(enabled, false);
-};
-
-const getSpamSettings = async () => {
-  const settings = await settingsService.getSettings([
-    'features.comments.maxLinks',
-    'features.comments.minSecondsToSubmit',
-    'features.comments.blockedTerms'
-  ]);
-
-  const maxLinksRaw = Number(settings['features.comments.maxLinks']);
-  const minSecondsRaw = Number(settings['features.comments.minSecondsToSubmit']);
-  const blockedTermsRaw = Array.isArray(settings['features.comments.blockedTerms'])
-    ? settings['features.comments.blockedTerms']
-    : [];
-
-  return {
-    maxLinks: Number.isFinite(maxLinksRaw) ? Math.max(0, Math.min(20, maxLinksRaw)) : 3,
-    minSecondsToSubmit: Number.isFinite(minSecondsRaw) ? Math.max(0, Math.min(120, minSecondsRaw)) : 2,
-    blockedTerms: blockedTermsRaw
-      .map((term: unknown) => sanitizeText(term, 80).toLowerCase())
-      .filter(Boolean)
-  };
-};
-
-const shouldModerateComments = async () => {
-  const enabled = await settingsService.getSetting('features.comments.moderation');
-  return normalizeFeatureFlag(enabled, true);
-};
-
-const requiresAuthenticatedComments = async () => {
-  const enabled = await settingsService.getSetting('features.comments.authenticatedOnly');
-  return normalizeFeatureFlag(enabled, false);
+  console.error(fallbackMessage, error);
+  return json({ error: fallbackMessage }, 500);
 };
 
 const listHandler: FeatureApiHandler = async ({ request }) => {
   if (request.method !== 'GET') return methodNotAllowed();
 
   try {
-    if (!(await isCommentsEnabled())) {
+    const config = await loadCommentsRuntimeConfig();
+    if (!config.enabled) {
       return json({ enabled: false, comments: [], recaptcha: { enabled: false } });
     }
-
-    const recaptcha = await getFeatureRecaptchaConfig({
-      settingsService,
-      featureSettingKey: 'features.comments.recaptcha.enabled'
-    });
-    const authenticatedOnly = await requiresAuthenticatedComments();
 
     const url = new URL(request.url);
     const slug = sanitizeText(url.searchParams.get('slug'), 255);
@@ -161,54 +59,15 @@ const listHandler: FeatureApiHandler = async ({ request }) => {
     if (!slug && !postIdInput) {
       return json({ error: 'postId or slug is required' }, 400);
     }
-    const postId = await resolvePublishedPostId({ slug, postId: postIdInput, locale });
-    if (!postId) {
-      return json({
-        enabled: true,
-        recaptcha: {
-          enabled: recaptcha.enabled,
-          required: recaptcha.required,
-          configured: recaptcha.configured,
-          minScore: recaptcha.minScore,
-          siteKey: recaptcha.enabled ? recaptcha.siteKey : undefined
-        },
-        authenticatedOnly,
-        comments: []
-      });
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('comments')
-      .select('id, author_name, content, created_at')
-      .eq('post_id', postId)
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (error) {
-      return json({ error: 'Failed to load comments' }, 500);
-    }
+    const publicStatus = toPublicCommentsStatus(config);
+    const { comments } = await listApprovedComments({ slug, postId: postIdInput, locale });
 
     return json({
-      enabled: true,
-      recaptcha: {
-        enabled: recaptcha.enabled,
-        required: recaptcha.required,
-        configured: recaptcha.configured,
-        minScore: recaptcha.minScore,
-        siteKey: recaptcha.enabled ? recaptcha.siteKey : undefined
-      },
-      authenticatedOnly,
-      comments: (data || []).map((item) => ({
-        id: item.id,
-        authorName: item.author_name,
-        content: item.content,
-        createdAt: item.created_at
-      }))
+      ...publicStatus,
+      comments
     });
   } catch (error) {
-    console.error('Comments list failed:', error);
-    return json({ error: 'Failed to load comments' }, 500);
+    return errorResponse(error, 'Failed to load comments');
   }
 };
 
@@ -216,7 +75,8 @@ const submitHandler: FeatureApiHandler = async ({ request }) => {
   if (request.method !== 'POST') return methodNotAllowed();
 
   try {
-    if (!(await isCommentsEnabled())) {
+    const config = await loadCommentsRuntimeConfig();
+    if (!config.enabled) {
       return json({ error: 'Comments are disabled' }, 403);
     }
 
@@ -232,7 +92,6 @@ const submitHandler: FeatureApiHandler = async ({ request }) => {
     const elapsedMs = Number(payload.elapsedMs);
     const authenticatedUser = await getAuthenticatedUser(request);
     const ip = getClientIp(request);
-    const authenticatedOnly = await requiresAuthenticatedComments();
 
     const rateLimit = checkRateLimit({
       key: authenticatedUser?.id
@@ -254,102 +113,31 @@ const submitHandler: FeatureApiHandler = async ({ request }) => {
     if (!slug && !postIdInput) {
       return json({ error: 'postId or slug is required' }, 400);
     }
-    if (authenticatedOnly && !authenticatedUser) {
+    if (config.authenticatedOnly && !authenticatedUser) {
       return json({ error: 'Sign in to comment.' }, 401);
     }
-    const postId = await resolvePublishedPostId({ slug, postId: postIdInput, locale });
-    if (!postId) {
-      return json({ error: 'Post not found' }, 404);
-    }
-
-    let authorName = providedAuthorName;
-    let authorEmail = providedAuthorEmail;
-
-    if (authenticatedUser) {
-      const normalizedEmail = sanitizeText(authenticatedUser.email, MAX_EMAIL_LENGTH).toLowerCase();
-      if (!EMAIL_RE.test(normalizedEmail)) {
-        return json({ error: 'Authenticated user email is invalid' }, 400);
-      }
-
-      authorEmail = normalizedEmail;
-      authorName = await resolveAuthenticatedAuthorName(authenticatedUser.id, normalizedEmail);
-    }
-
-    if (!authorName || authorName.length < 2) {
-      return json({ error: 'Name is required' }, 400);
-    }
-    if (!EMAIL_RE.test(authorEmail)) {
-      return json({ error: 'Valid email is required' }, 400);
-    }
-    if (!content || content.length < 2) {
-      return json({ error: 'Comment content is required' }, 400);
-    }
-
-    const spamSettings = await getSpamSettings();
-    const recaptcha = await getFeatureRecaptchaConfig({
-      settingsService,
-      featureSettingKey: 'features.comments.recaptcha.enabled'
+    const result = await submitComment({
+      slug,
+      postId: postIdInput,
+      locale,
+      authorName: providedAuthorName,
+      authorEmail: providedAuthorEmail,
+      content,
+      website,
+      recaptchaToken,
+      elapsedMs,
+      ip,
+      authenticatedUser,
+      config
     });
-
-    if (website) {
-      return json({ success: true, status: 'pending' });
-    }
-
-    if (
-      Number.isFinite(elapsedMs)
-      && elapsedMs < spamSettings.minSecondsToSubmit * 1000
-    ) {
-      return json({ error: 'Comment submitted too quickly. Please try again.' }, 400);
-    }
-    if (recaptcha.required && !recaptcha.configured) {
-      return json({ error: 'Comment protection is enabled but not configured. Please contact the site admin.' }, 503);
-    }
-    if (recaptcha.enabled) {
-      const verification = await verifyRecaptchaToken({
-        token: recaptchaToken,
-        secretKey: recaptcha.secretKey,
-        expectedAction: 'comment_submit',
-        minScore: recaptcha.minScore,
-        remoteIp: ip
-      });
-      if (!verification.ok) {
-        return json({ error: 'Anti-spam verification failed. Please try again.' }, 400);
-      }
-    }
-
-    const linkCount = (content.match(/(?:https?:\/\/|www\.)/gi) || []).length;
-    const normalizedContent = content.toLowerCase();
-    const hasBlockedTerm = spamSettings.blockedTerms.some((term) => normalizedContent.includes(term));
-
-    const moderationEnabled = await shouldModerateComments();
-    const status: CommentStatus = moderationEnabled || linkCount > spamSettings.maxLinks || hasBlockedTerm
-      ? 'pending'
-      : 'approved';
-
-    const { data, error } = await supabaseAdmin
-      .from('comments')
-      .insert({
-        post_id: postId,
-        author_name: authorName,
-        author_email: authorEmail,
-        content,
-        status
-      })
-      .select('id, status')
-      .single();
-
-    if (error || !data) {
-      return json({ error: 'Failed to submit comment' }, 500);
-    }
 
     return json({
       success: true,
-      id: data.id,
-      status: data.status
+      id: result.id,
+      status: result.status
     });
   } catch (error) {
-    console.error('Comment submit failed:', error);
-    return json({ error: 'Failed to submit comment' }, 500);
+    return errorResponse(error, 'Failed to submit comment');
   }
 };
 
@@ -358,35 +146,28 @@ const queueHandler: FeatureApiHandler = async ({ request }) => {
 
   try {
     await requireAdmin(request);
-
-    const { data, error } = await supabaseAdmin
-      .from('comments')
-      .select('id, post_id, author_name, author_email, content, status, created_at, posts:post_id (title, slug)')
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (error) {
-      return json({ error: 'Failed to load comment queue' }, 500);
+    const config = await loadCommentsRuntimeConfig();
+    if (!config.enabled) {
+      return json({ error: 'Comments are disabled' }, 403);
     }
+    const url = new URL(request.url);
+    const statusParam = sanitizeText(url.searchParams.get('status'), 20);
+    const limitParam = Number(url.searchParams.get('limit'));
+    const offsetParam = Number(url.searchParams.get('offset'));
+    const status: CommentQueueFilter = COMMENT_QUEUE_FILTER_VALUES.includes(statusParam as CommentQueueFilter)
+      ? (statusParam as CommentQueueFilter)
+      : 'all';
+    const limit = Number.isFinite(limitParam) ? Math.max(1, Math.min(200, Math.round(limitParam))) : 200;
+    const offset = Number.isFinite(offsetParam) ? Math.max(0, Math.round(offsetParam)) : 0;
+    const queue = await listCommentQueue({ status, limit, offset });
 
     return json({
-      comments: (data || []).map((item: any) => ({
-        id: item.id,
-        postId: item.post_id,
-        authorName: item.author_name,
-        authorEmail: item.author_email,
-        content: item.content,
-        status: item.status,
-        createdAt: item.created_at,
-        post: item.posts
-          ? {
-              title: item.posts.title,
-              slug: item.posts.slug
-            }
-          : null
-      }))
+      ...queue
     });
   } catch (error) {
+    if (error instanceof CommentsFeatureError) {
+      return json({ error: error.message }, error.statusCode);
+    }
     return json({ error: 'Admin access required' }, 403);
   }
 };
@@ -396,26 +177,45 @@ const moderateHandler: FeatureApiHandler = async ({ request }) => {
 
   try {
     await requireAdmin(request);
+    const config = await loadCommentsRuntimeConfig();
+    if (!config.enabled) {
+      return json({ error: 'Comments are disabled' }, 403);
+    }
     const payload = await request.json().catch(() => ({}));
     const commentId = sanitizeText(payload.id, 64);
     const status = sanitizeText(payload.status, 20) as CommentStatus;
 
     if (!commentId) return json({ error: 'Comment id is required' }, 400);
-    if (!['approved', 'rejected', 'pending'].includes(status)) {
+    if (!COMMENT_STATUS_VALUES.includes(status)) {
       return json({ error: 'Invalid status' }, 400);
     }
 
-    const { error } = await supabaseAdmin
-      .from('comments')
-      .update({ status })
-      .eq('id', commentId);
-
-    if (error) {
-      return json({ error: 'Failed to update comment status' }, 500);
-    }
+    await updateCommentModerationStatus({ commentId, status });
 
     return json({ success: true });
   } catch (error) {
+    if (error instanceof CommentsFeatureError) {
+      return json({ error: error.message }, error.statusCode);
+    }
+    return json({ error: 'Admin access required' }, 403);
+  }
+};
+
+const statusHandler: FeatureApiHandler = async ({ request }) => {
+  if (request.method !== 'GET') return methodNotAllowed();
+
+  try {
+    await requireAdmin(request);
+    const config = await loadCommentsRuntimeConfig();
+    if (!config.enabled) {
+      return json({ error: 'Comments are disabled' }, 403);
+    }
+
+    return json(await getCommentsAdminStatus(config));
+  } catch (error) {
+    if (error instanceof CommentsFeatureError) {
+      return json({ error: error.message }, error.statusCode);
+    }
     return json({ error: 'Admin access required' }, 403);
   }
 };
@@ -425,6 +225,7 @@ export const COMMENTS_FEATURE_API: FeatureApiModule = {
     list: listHandler,
     submit: submitHandler,
     queue: queueHandler,
-    moderate: moderateHandler
+    moderate: moderateHandler,
+    status: statusHandler
   }
 };

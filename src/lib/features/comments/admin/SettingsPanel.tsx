@@ -16,6 +16,7 @@ export const CommentsSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   const minSecondsSetting = getSetting('features.comments.minSecondsToSubmit');
   const blockedTermsSetting = getSetting('features.comments.blockedTerms');
   const commentsEnabled = normalizeFeatureFlag(getValue('features.comments.enabled'), false);
+  const authenticatedOnly = normalizeFeatureFlag(getValue('features.comments.authenticatedOnly'), false);
 
   if (!enabledSetting && !moderationSetting) {
     return null;
@@ -38,6 +39,11 @@ export const CommentsSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
         <>
           {moderationSetting && renderSetting(moderationSetting)}
           {authenticatedOnlySetting && renderSetting(authenticatedOnlySetting)}
+          {!authenticatedOnly && (
+            <div className="rounded-md border border-amber-300/50 bg-amber-100/60 p-3 text-xs text-amber-900">
+              Guest comments are currently allowed. That increases spam, impersonation, and moderation risk. Keep moderation and reCAPTCHA enabled if you allow unauthenticated submissions.
+            </div>
+          )}
           {recaptchaSetting && renderSetting(recaptchaSetting)}
           {recaptchaSetting && (
             <p className="text-xs text-muted-foreground">

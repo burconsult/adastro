@@ -19,6 +19,7 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
   const [loading, setLoading] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [metaLoaded, setMetaLoaded] = useState(false);
+  const [metaError, setMetaError] = useState<string | null>(null);
   const [requireConsentCheckbox, setRequireConsentCheckbox] = useState(true);
   const [consentLabel, setConsentLabel] = useState('I agree to receive email updates and can unsubscribe at any time.');
   const [consent, setConsent] = useState(false);
@@ -49,13 +50,17 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
         const response = await fetch('/api/features/newsletter/meta');
         if (!response.ok) {
           if (!cancelled) {
-            setEnabled(false);
+            setEnabled(true);
+            setSignupFooterEnabled(true);
+            setSignupModalEnabled(false);
+            setMetaError('Newsletter signup is temporarily unavailable right now.');
             setMetaLoaded(true);
           }
           return;
         }
         const payload = await response.json().catch(() => ({}));
         if (!cancelled) {
+          setMetaError(null);
           setEnabled(normalizeFeatureFlag(payload.enabled, false));
           setRequireConsentCheckbox(normalizeFeatureFlag(payload.requireConsentCheckbox, true));
           setConsentLabel(typeof payload.consentLabel === 'string' && payload.consentLabel.trim().length > 0
@@ -70,7 +75,10 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
         }
       } catch {
         if (!cancelled) {
-          setEnabled(false);
+          setEnabled(true);
+          setSignupFooterEnabled(true);
+          setSignupModalEnabled(false);
+          setMetaError('Newsletter signup is temporarily unavailable right now.');
           setMetaLoaded(true);
         }
       }
@@ -114,13 +122,13 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
     );
   }
 
-  if (!enabled || (!signupFooterEnabled && !signupModalEnabled)) {
+  if ((!enabled && !metaError) || (!signupFooterEnabled && !signupModalEnabled && !metaError)) {
     return null;
   }
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (loading) return;
+    if (loading || metaError) return;
 
     try {
       setLoading(true);
@@ -190,8 +198,12 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
               maxLength={200}
               required
             />
-            <button type="submit" className={`btn ${inverse ? 'btn-outline border-background/40 text-background hover:bg-background/20' : 'btn-primary'} min-w-[6.5rem]`} disabled={loading}>
-              {loading ? 'Joining…' : 'Join'}
+            <button
+              type="submit"
+              className={`btn ${inverse ? 'btn-outline border-background/40 text-background hover:bg-background/20' : 'btn-primary'} min-w-[6.5rem]`}
+              disabled={loading || Boolean(metaError)}
+            >
+              {loading ? 'Joining…' : metaError ? 'Unavailable' : 'Join'}
             </button>
           </form>
           {requireConsentCheckbox && (
@@ -211,6 +223,7 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
               This list uses double opt-in. You will confirm by email before receiving updates.
             </p>
           )}
+          {metaError && <p className="mt-2 text-xs text-destructive">{metaError}</p>}
           {message && <p className={`mt-2 text-xs ${inverse ? 'text-background' : 'text-success'}`}>{message}</p>}
           {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
         </section>
@@ -264,8 +277,8 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
                 >
                   Not now
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Joining…' : 'Join Newsletter'}
+                <button type="submit" className="btn btn-primary" disabled={loading || Boolean(metaError)}>
+                  {loading ? 'Joining…' : metaError ? 'Unavailable' : 'Join Newsletter'}
                 </button>
               </div>
             </form>
@@ -274,6 +287,7 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({ tone = 'defa
                 Double opt-in is enabled. You will confirm from your inbox before receiving updates.
               </p>
             )}
+            {metaError && <p className="text-xs text-destructive">{metaError}</p>}
             {message && <p className="text-xs text-success">{message}</p>}
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>

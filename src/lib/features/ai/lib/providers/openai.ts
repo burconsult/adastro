@@ -1,29 +1,25 @@
 import OpenAI from 'openai';
+import { getEnv } from '../../../../env.js';
 import {
-  DEFAULT_OPENAI_AUDIO_MODEL,
-  DEFAULT_OPENAI_IMAGE_MODEL,
-  DEFAULT_OPENAI_MODEL,
+  DEFAULT_AUDIO_MODELS,
+  DEFAULT_IMAGE_MODELS,
+  DEFAULT_TEXT_MODELS,
   getApiTimeoutMs
 } from '../config.js';
-import { getEnv } from '../../../../env.js';
 import type {
-  AiProvider,
   AiAudioProvider,
   AiImageProvider,
-  AiProviderKey,
+  AiProviderId,
+  AiTextProvider,
   GenerateAudioOptions,
   GenerateAudioResponse,
-  GenerateContentOptions,
-  GenerateContentResponse,
   GenerateImageOptions,
-  GenerateImageResponse
+  GenerateImageResponse,
+  GenerateTextOptions,
+  GenerateTextResponse
 } from '../types.js';
 
-const providerKey: AiProviderKey = 'openai';
-
-if (!getEnv('OPENAI_API_KEY')) {
-  console.warn('⚠️  OPENAI_API_KEY is not set. OpenAI provider is disabled.');
-}
+const providerKey: AiProviderId = 'openai';
 
 let client: OpenAI | null = null;
 
@@ -40,6 +36,7 @@ function getClient(): OpenAI {
       dangerouslyAllowBrowser: false
     });
   }
+
   return client;
 }
 
@@ -87,16 +84,20 @@ const toLegacyOpenAiImageSize = (size: string): string => {
   return size;
 };
 
-export class OpenAiProvider implements AiProvider {
-  async generate(options: GenerateContentOptions): Promise<GenerateContentResponse> {
+export class OpenAiTextProvider implements AiTextProvider {
+  async generateText(options: GenerateTextOptions): Promise<GenerateTextResponse> {
     const {
       prompt,
       system,
-      model = DEFAULT_OPENAI_MODEL,
+      model = DEFAULT_TEXT_MODELS.openai,
       temperature = 0.7,
       maxOutputTokens = 800,
       responseFormat
     } = options;
+
+    if (!model) {
+      throw new Error('OpenAI text generation model is not configured.');
+    }
 
     const input = [] as OpenAI.Input[];
     if (system) {
@@ -110,15 +111,14 @@ export class OpenAiProvider implements AiProvider {
       max_output_tokens: maxOutputTokens
     } as const;
 
-    const candidateModels = [model, 'gpt-4o-mini', 'gpt-4o'].filter((candidate, index, arr) => (
-      typeof candidate === 'string' && candidate.trim().length > 0 && arr.indexOf(candidate) === index
-    ));
+    const candidateModels = [model, 'gpt-4o-mini', 'gpt-4o']
+      .filter((candidate, index, arr) => typeof candidate === 'string' && candidate.trim().length > 0 && arr.indexOf(candidate) === index);
 
     let response: OpenAI.Responses.Response | null = null;
     let lastError: unknown = null;
 
     for (const candidateModel of candidateModels) {
-      const paramAttempts: Array<{ includeTemperature: boolean; includeResponseFormat: boolean }> = [
+      const paramAttempts = [
         { includeTemperature: true, includeResponseFormat: Boolean(responseFormat) },
         { includeTemperature: false, includeResponseFormat: Boolean(responseFormat) },
         { includeTemperature: true, includeResponseFormat: false },
@@ -138,8 +138,7 @@ export class OpenAiProvider implements AiProvider {
           break;
         } catch (error) {
           lastError = error;
-          const retryableParamError = shouldRetryWithoutResponseFormat(error) || shouldRetryWithoutTemperature(error);
-          if (retryableParamError) {
+          if (shouldRetryWithoutResponseFormat(error) || shouldRetryWithoutTemperature(error)) {
             continue;
           }
           if (candidateModel !== model && shouldRetryWithFallbackModel(error)) {
@@ -159,19 +158,16 @@ export class OpenAiProvider implements AiProvider {
       throw (lastError instanceof Error ? lastError : new Error('OpenAI text generation failed.'));
     }
 
-    const text = response.output_text ?? '';
-    const usage = response.usage
-      ? {
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-          totalTokens: response.usage.total_tokens
-        }
-      : undefined;
-
     return {
-      text,
+      text: response.output_text ?? '',
       provider: providerKey,
-      usage,
+      usage: response.usage
+        ? {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+            totalTokens: response.usage.total_tokens
+          }
+        : undefined,
       model: typeof response.model === 'string' && response.model ? response.model : model,
       raw: response
     };
@@ -180,7 +176,12 @@ export class OpenAiProvider implements AiProvider {
 
 export class OpenAiImageProvider implements AiImageProvider {
   async generateImage(options: GenerateImageOptions): Promise<GenerateImageResponse> {
-    const { prompt, model = DEFAULT_OPENAI_IMAGE_MODEL, size = '1024x1024' } = options;
+    const { prompt, model = DEFAULT_IMAGE_MODELS.openai, size = '1024x1024' } = options;
+
+    if (!model) {
+      throw new Error('OpenAI image generation model is not configured.');
+    }
+
     const candidateModels = [model, 'gpt-image-1', 'gpt-image-1-mini']
       .filter((candidate, index, arr) => arr.indexOf(candidate) === index);
 
@@ -247,7 +248,6 @@ export class OpenAiImageProvider implements AiImageProvider {
     }
 
     const image = response.data?.[0];
-
     const base64Payload = image && (
       (typeof (image as any).b64_json === 'string' && (image as any).b64_json)
       || (typeof (image as any).base64 === 'string' && (image as any).base64)
@@ -286,9 +286,13 @@ export class OpenAiAudioProvider implements AiAudioProvider {
     const {
       text,
       voice = 'alloy',
-      model = DEFAULT_OPENAI_AUDIO_MODEL,
+      model = DEFAULT_AUDIO_MODELS.openai,
       speed
     } = options;
+
+    if (!model) {
+      throw new Error('OpenAI audio generation model is not configured.');
+    }
 
     const response = await getClient().audio.speech.create({
       model,
@@ -307,8 +311,4 @@ export class OpenAiAudioProvider implements AiAudioProvider {
       voice
     };
   }
-}
-
-export function isOpenAiConfigured(): boolean {
-  return Boolean(getEnv('OPENAI_API_KEY'));
 }

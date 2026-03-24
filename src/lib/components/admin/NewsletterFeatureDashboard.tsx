@@ -8,6 +8,18 @@ import {
   DialogTitle,
 } from '@/lib/components/ui/dialog';
 import { AdminLoadingState } from './ListingPrimitives';
+import {
+  NEWSLETTER_DEFAULT_SETTINGS_STATE,
+  NEWSLETTER_PROVIDER_ENV_HINTS,
+  NEWSLETTER_PROVIDER_LABELS,
+  NEWSLETTER_SETTING_KEYS,
+  parseNewsletterSettingsState,
+  serializeNewsletterSettingsState
+} from '@/lib/features/newsletter/lib/shared-config.js';
+import type {
+  NewsletterAdminStatus,
+  NewsletterSettingsState
+} from '@/lib/features/newsletter/lib/types.js';
 
 type DashboardTab = 'creator' | 'settings';
 
@@ -34,84 +46,6 @@ type CampaignPreview = {
   articlesCount?: number;
 };
 
-type NewsletterSettingsState = {
-  enabled: boolean;
-  provider: 'console' | 'resend' | 'ses';
-  fromName: string;
-  fromEmail: string;
-  replyTo: string;
-  sendWelcomeEmail: boolean;
-  requireDoubleOptIn: boolean;
-  requireConsentCheckbox: boolean;
-  signupFooterEnabled: boolean;
-  signupModalEnabled: boolean;
-  signupModalDelaySeconds: number;
-  consentLabel: string;
-  complianceFooterHtml: string;
-  maxRecipientsPerCampaign: number;
-  subscriptionSubject: string;
-  subscriptionHtml: string;
-  confirmationSubject: string;
-  confirmationHtml: string;
-  newPostSubject: string;
-  newPostHtml: string;
-  campaignSubject: string;
-  campaignHtml: string;
-};
-
-const SETTINGS_KEYS = [
-  'features.newsletter.enabled',
-  'features.newsletter.provider',
-  'features.newsletter.fromName',
-  'features.newsletter.fromEmail',
-  'features.newsletter.replyTo',
-  'features.newsletter.sendWelcomeEmail',
-  'features.newsletter.requireDoubleOptIn',
-  'features.newsletter.requireConsentCheckbox',
-  'features.newsletter.signupFooterEnabled',
-  'features.newsletter.signupModalEnabled',
-  'features.newsletter.signupModalDelaySeconds',
-  'features.newsletter.consentLabel',
-  'features.newsletter.complianceFooterHtml',
-  'features.newsletter.maxRecipientsPerCampaign',
-  'features.newsletter.templates.subscriptionSubject',
-  'features.newsletter.templates.subscriptionHtml',
-  'features.newsletter.templates.confirmationSubject',
-  'features.newsletter.templates.confirmationHtml',
-  'features.newsletter.templates.newPostSubject',
-  'features.newsletter.templates.newPostHtml',
-  'features.newsletter.templates.campaignSubject',
-  'features.newsletter.templates.campaignHtml'
-] as const;
-
-const DEFAULT_SETTINGS: NewsletterSettingsState = {
-  enabled: false,
-  provider: 'console',
-  fromName: 'AdAstro',
-  fromEmail: 'newsletter@example.com',
-  replyTo: '',
-  sendWelcomeEmail: true,
-  requireDoubleOptIn: false,
-  requireConsentCheckbox: true,
-  signupFooterEnabled: true,
-  signupModalEnabled: false,
-  signupModalDelaySeconds: 12,
-  consentLabel: 'I agree to receive email updates and can unsubscribe at any time.',
-  complianceFooterHtml:
-    '<p style="font-size:12px;color:#666">Unsubscribe: <a href="{{unsubscribeUrl}}">{{unsubscribeUrl}}</a></p>',
-  maxRecipientsPerCampaign: 1000,
-  subscriptionSubject: 'Welcome to {{siteTitle}}',
-  subscriptionHtml: '<p>Thanks for subscribing to {{siteTitle}}.</p>',
-  confirmationSubject: 'Confirm your subscription to {{siteTitle}}',
-  confirmationHtml: '<p>Confirm your subscription: <a href="{{confirmUrl}}">Confirm</a></p>',
-  newPostSubject: 'New post on {{siteTitle}}: {{postTitle}}',
-  newPostHtml:
-    '<p><strong>{{postTitle}}</strong></p><p><a href="{{postUrl}}">Read the post</a></p>',
-  campaignSubject: '{{siteTitle}} update',
-  campaignHtml:
-    '<div><p>{{introHtml}}</p>{{articleCardsHtml}}<p><a href="{{unsubscribeUrl}}">Unsubscribe</a></p></div>',
-};
-
 const requestJson = async (url: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, unknown>) => {
   const response = await fetch(url, {
     method,
@@ -125,34 +59,22 @@ const requestJson = async (url: string, method: 'GET' | 'POST' = 'GET', body?: R
   return payload;
 };
 
-const boolValue = (value: unknown, fallback: boolean) => {
-  if (typeof value === 'boolean') return value;
-  return fallback;
-};
-
-const stringValue = (value: unknown, fallback = '') =>
-  (typeof value === 'string' ? value : fallback);
-
-const numberValue = (value: unknown, fallback: number) => {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
-};
-
 const excerptText = (value: string) =>
   value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
 
 export default function NewsletterFeatureDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('creator');
-  const [settings, setSettings] = useState<NewsletterSettingsState>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<NewsletterSettingsState>(NEWSLETTER_DEFAULT_SETTINGS_STATE);
   const [campaignSubject, setCampaignSubject] = useState('');
   const [campaignIntroHtml, setCampaignIntroHtml] = useState('');
-  const [campaignTemplateHtml, setCampaignTemplateHtml] = useState(DEFAULT_SETTINGS.campaignHtml);
+  const [campaignTemplateHtml, setCampaignTemplateHtml] = useState(NEWSLETTER_DEFAULT_SETTINGS_STATE.campaignHtml);
   const [campaignArticles, setCampaignArticles] = useState<CampaignArticle[]>([]);
   const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [testEmail, setTestEmail] = useState('');
   const [preview, setPreview] = useState<CampaignPreview | null>(null);
+  const [status, setStatus] = useState<NewsletterAdminStatus | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -172,44 +94,19 @@ export default function NewsletterFeatureDashboard() {
         setLoading(true);
         setError(null);
 
-        const [settingsPayload, mediaPayload] = await Promise.all([
-          requestJson(`/api/admin/settings?keys=${encodeURIComponent(SETTINGS_KEYS.join(','))}`),
+        const [settingsPayload, statusPayload, mediaPayload] = await Promise.all([
+          requestJson(`/api/admin/settings?keys=${encodeURIComponent(NEWSLETTER_SETTING_KEYS.join(','))}`),
+          requestJson('/api/features/newsletter/admin-status'),
           requestJson('/api/admin/media?mimeType=image&limit=24')
         ]);
 
         if (cancelled) return;
 
-        const nextSettings: NewsletterSettingsState = {
-          enabled: boolValue(settingsPayload['features.newsletter.enabled'], DEFAULT_SETTINGS.enabled),
-          provider: (
-            ['console', 'resend', 'ses'].includes(String(settingsPayload['features.newsletter.provider']))
-              ? settingsPayload['features.newsletter.provider']
-              : DEFAULT_SETTINGS.provider
-          ) as NewsletterSettingsState['provider'],
-          fromName: stringValue(settingsPayload['features.newsletter.fromName'], DEFAULT_SETTINGS.fromName),
-          fromEmail: stringValue(settingsPayload['features.newsletter.fromEmail'], DEFAULT_SETTINGS.fromEmail),
-          replyTo: stringValue(settingsPayload['features.newsletter.replyTo'], DEFAULT_SETTINGS.replyTo),
-          sendWelcomeEmail: boolValue(settingsPayload['features.newsletter.sendWelcomeEmail'], DEFAULT_SETTINGS.sendWelcomeEmail),
-          requireDoubleOptIn: boolValue(settingsPayload['features.newsletter.requireDoubleOptIn'], DEFAULT_SETTINGS.requireDoubleOptIn),
-          requireConsentCheckbox: boolValue(settingsPayload['features.newsletter.requireConsentCheckbox'], DEFAULT_SETTINGS.requireConsentCheckbox),
-          signupFooterEnabled: boolValue(settingsPayload['features.newsletter.signupFooterEnabled'], DEFAULT_SETTINGS.signupFooterEnabled),
-          signupModalEnabled: boolValue(settingsPayload['features.newsletter.signupModalEnabled'], DEFAULT_SETTINGS.signupModalEnabled),
-          signupModalDelaySeconds: Math.max(1, Math.min(120, numberValue(settingsPayload['features.newsletter.signupModalDelaySeconds'], DEFAULT_SETTINGS.signupModalDelaySeconds))),
-          consentLabel: stringValue(settingsPayload['features.newsletter.consentLabel'], DEFAULT_SETTINGS.consentLabel),
-          complianceFooterHtml: stringValue(settingsPayload['features.newsletter.complianceFooterHtml'], DEFAULT_SETTINGS.complianceFooterHtml),
-          maxRecipientsPerCampaign: Math.max(1, numberValue(settingsPayload['features.newsletter.maxRecipientsPerCampaign'], DEFAULT_SETTINGS.maxRecipientsPerCampaign)),
-          subscriptionSubject: stringValue(settingsPayload['features.newsletter.templates.subscriptionSubject'], DEFAULT_SETTINGS.subscriptionSubject),
-          subscriptionHtml: stringValue(settingsPayload['features.newsletter.templates.subscriptionHtml'], DEFAULT_SETTINGS.subscriptionHtml),
-          confirmationSubject: stringValue(settingsPayload['features.newsletter.templates.confirmationSubject'], DEFAULT_SETTINGS.confirmationSubject),
-          confirmationHtml: stringValue(settingsPayload['features.newsletter.templates.confirmationHtml'], DEFAULT_SETTINGS.confirmationHtml),
-          newPostSubject: stringValue(settingsPayload['features.newsletter.templates.newPostSubject'], DEFAULT_SETTINGS.newPostSubject),
-          newPostHtml: stringValue(settingsPayload['features.newsletter.templates.newPostHtml'], DEFAULT_SETTINGS.newPostHtml),
-          campaignSubject: stringValue(settingsPayload['features.newsletter.templates.campaignSubject'], DEFAULT_SETTINGS.campaignSubject),
-          campaignHtml: stringValue(settingsPayload['features.newsletter.templates.campaignHtml'], DEFAULT_SETTINGS.campaignHtml),
-        };
+        const nextSettings = parseNewsletterSettingsState(settingsPayload as Record<string, unknown>);
 
         setSettings(nextSettings);
         setCampaignTemplateHtml(nextSettings.campaignHtml);
+        setStatus(statusPayload as NewsletterAdminStatus);
 
         if (nextSettings.enabled) {
           try {
@@ -265,40 +162,36 @@ export default function NewsletterFeatureDashboard() {
 
   const composedIntroHtml = useMemo(() => `${campaignIntroHtml}${imageGalleryHtml}`, [campaignIntroHtml, imageGalleryHtml]);
 
+  const refreshStatus = async () => {
+    const nextStatus = await requestJson('/api/features/newsletter/admin-status');
+    setStatus(nextStatus as NewsletterAdminStatus);
+  };
+
   const saveSettings = async () => {
     try {
       setBusy(true);
       setError(null);
       setSuccess(null);
 
-      const payload = {
-        'features.newsletter.enabled': settings.enabled,
-        'features.newsletter.provider': settings.provider,
-        'features.newsletter.fromName': settings.fromName,
-        'features.newsletter.fromEmail': settings.fromEmail,
-        'features.newsletter.replyTo': settings.replyTo,
-        'features.newsletter.sendWelcomeEmail': settings.sendWelcomeEmail,
-        'features.newsletter.requireDoubleOptIn': settings.requireDoubleOptIn,
-        'features.newsletter.requireConsentCheckbox': settings.requireConsentCheckbox,
-        'features.newsletter.signupFooterEnabled': settings.signupFooterEnabled,
-        'features.newsletter.signupModalEnabled': settings.signupModalEnabled,
-        'features.newsletter.signupModalDelaySeconds': settings.signupModalDelaySeconds,
-        'features.newsletter.consentLabel': settings.consentLabel,
-        'features.newsletter.complianceFooterHtml': settings.complianceFooterHtml,
-        'features.newsletter.maxRecipientsPerCampaign': settings.maxRecipientsPerCampaign,
-        'features.newsletter.templates.subscriptionSubject': settings.subscriptionSubject,
-        'features.newsletter.templates.subscriptionHtml': settings.subscriptionHtml,
-        'features.newsletter.templates.confirmationSubject': settings.confirmationSubject,
-        'features.newsletter.templates.confirmationHtml': settings.confirmationHtml,
-        'features.newsletter.templates.newPostSubject': settings.newPostSubject,
-        'features.newsletter.templates.newPostHtml': settings.newPostHtml,
-        'features.newsletter.templates.campaignSubject': settings.campaignSubject,
-        'features.newsletter.templates.campaignHtml': settings.campaignHtml,
-      };
-
-      await requestJson('/api/admin/settings', 'PUT', { settings: payload });
+      await requestJson('/api/admin/settings', 'PUT', {
+        settings: serializeNewsletterSettingsState(settings)
+      });
       setSuccess('Newsletter settings saved.');
       setCampaignTemplateHtml(settings.campaignHtml);
+      await refreshStatus();
+      if (settings.enabled) {
+        const articlesPayload = await requestJson('/api/features/newsletter/articles');
+        const articles = Array.isArray(articlesPayload?.articles) ? articlesPayload.articles as CampaignArticle[] : [];
+        setCampaignArticles(articles);
+        setSelectedArticleIds((prev) => {
+          const existing = new Set(articles.map((article) => article.id));
+          const kept = prev.filter((id) => existing.has(id));
+          return kept.length > 0 ? kept : articles.slice(0, 3).map((article) => article.id);
+        });
+      } else {
+        setCampaignArticles([]);
+        setSelectedArticleIds([]);
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Failed to save settings.');
     } finally {
@@ -347,7 +240,9 @@ export default function NewsletterFeatureDashboard() {
       articleIds: selectedArticleIds,
     });
 
-    setSuccess(`Campaign sent: ${payload.delivered ?? 0} delivered, ${payload.failed ?? 0} failed.`);
+    await refreshStatus();
+    const warning = typeof payload?.warning === 'string' ? ` ${payload.warning}` : '';
+    setSuccess(`Campaign sent: ${payload.delivered ?? 0} delivered, ${payload.failed ?? 0} failed.${warning}`);
   };
 
   const runCreatorAction = async (action: () => Promise<void>, fallbackMessage: string) => {
@@ -398,6 +293,81 @@ export default function NewsletterFeatureDashboard() {
       {success && (
         <div className="rounded-md border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">
           {success}
+        </div>
+      )}
+
+      {status && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <div className="card p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">Feature Status</h3>
+                <p className="text-xs text-muted-foreground">
+                  Provider: {NEWSLETTER_PROVIDER_LABELS[status.provider]} · Site URL: {status.siteUrl}
+                </p>
+              </div>
+              <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${status.providerConfigured ? 'bg-success/10 text-success' : 'bg-amber-100 text-amber-900'}`}>
+                {status.providerConfigured ? 'Provider configured' : 'Provider env missing'}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {NEWSLETTER_PROVIDER_ENV_HINTS[status.provider]}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Subscribers</div>
+                <div className="mt-1 text-xl font-semibold">{status.subscribers.subscribed}</div>
+                <div className="text-xs text-muted-foreground">
+                  {status.subscribers.pending} pending · {status.subscribers.unsubscribed} unsubscribed
+                </div>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Campaigns</div>
+                <div className="mt-1 text-xl font-semibold">{status.campaigns.total}</div>
+                <div className="text-xs text-muted-foreground">
+                  {status.campaigns.completed} completed · {status.campaigns.failed} failed
+                </div>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Delivery</div>
+                <div className="mt-1 text-xl font-semibold">{status.maxRecipientsPerCampaign}</div>
+                <div className="text-xs text-muted-foreground">
+                  Max recipients per manual send
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">Recent Campaigns</h3>
+              <p className="text-xs text-muted-foreground">
+                Latest audited sends from the newsletter feature.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {status.recentCampaigns.length > 0 ? status.recentCampaigns.map((campaign) => (
+                <div key={campaign.id} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{campaign.subject}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {campaign.templateKey} · {NEWSLETTER_PROVIDER_LABELS[campaign.provider]}
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {campaign.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    {campaign.deliveredCount} delivered · {campaign.failedCount} failed · {campaign.recipientsCount} recipients
+                  </div>
+                </div>
+              )) : (
+                <p className="text-xs text-muted-foreground">No campaign history yet.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -600,10 +570,15 @@ export default function NewsletterFeatureDashboard() {
                   }
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="console">Console</option>
-                  <option value="resend">Resend</option>
-                  <option value="ses">Amazon SES</option>
+                  {Object.entries(NEWSLETTER_PROVIDER_LABELS).map(([providerId, label]) => (
+                    <option key={providerId} value={providerId}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
+                <p className="text-[11px] text-muted-foreground">
+                  {NEWSLETTER_PROVIDER_ENV_HINTS[settings.provider]}
+                </p>
               </label>
               <label className="space-y-1 text-xs font-medium text-foreground">
                 <span>From name</span>

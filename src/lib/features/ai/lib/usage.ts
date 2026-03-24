@@ -1,6 +1,7 @@
 import { SettingsService } from '@/lib/services/settings-service.js';
 import { supabaseAdmin } from '@/lib/supabase.js';
 import { normalizeFeatureFlag } from '@/lib/features/flags';
+import { ensureAiSettingsUpgraded } from './settings-upgrade.js';
 import type { AiCapability, AiProviderId } from './types.js';
 
 type UsageEventPayload = {
@@ -27,10 +28,10 @@ type UsageRollup = {
 const settingsService = new SettingsService();
 
 const usageCapSettings = {
-  enabled: 'features.ai.usageCaps.enabled',
-  seo: 'features.ai.usageCaps.seoDailyRequests',
-  image: 'features.ai.usageCaps.imageDailyRequests',
-  audio: 'features.ai.usageCaps.audioDailyRequests'
+  enabled: 'features.ai.limits.enabled',
+  seo: 'features.ai.limits.seoDailyRequests',
+  image: 'features.ai.limits.imageDailyRequests',
+  audio: 'features.ai.limits.audioDailyRequests'
 } as const;
 
 const toNumber = (value: unknown, fallback = 0): number => {
@@ -70,6 +71,7 @@ const aggregateRollup = (rows: Array<Record<string, unknown>>): UsageRollup => {
 const readUsageRows = async (filter: {
   sinceIso: string;
   authUserId?: string;
+  authorId?: string;
   capability?: AiCapability;
 }) => {
   let query = (supabaseAdmin as any)
@@ -79,6 +81,9 @@ const readUsageRows = async (filter: {
 
   if (filter.authUserId) {
     query = query.eq('auth_user_id', filter.authUserId);
+  }
+  if (filter.authorId) {
+    query = query.eq('author_id', filter.authorId);
   }
   if (filter.capability) {
     query = query.eq('capability', filter.capability);
@@ -95,13 +100,16 @@ export const checkUsageCap = async (params: {
   operation: 'seo' | 'image' | 'audio';
   capability: AiCapability;
   authUserId?: string;
+  authorId?: string;
 }): Promise<{ allowed: boolean; limit?: number; used?: number; retryAt?: string }> => {
   const authUserId = params.authUserId?.trim();
-  if (!authUserId) {
+  const authorId = params.authorId?.trim();
+  if (!authUserId && !authorId) {
     return { allowed: true };
   }
 
   try {
+    await ensureAiSettingsUpgraded(settingsService);
     const settings = await settingsService.getSettings([
       usageCapSettings.enabled,
       usageCapSettings.seo,
@@ -123,6 +131,7 @@ export const checkUsageCap = async (params: {
     const rows = await readUsageRows({
       sinceIso,
       authUserId,
+      authorId: authUserId ? undefined : authorId,
       capability: params.capability
     });
     const used = aggregateRollup(rows).requests;

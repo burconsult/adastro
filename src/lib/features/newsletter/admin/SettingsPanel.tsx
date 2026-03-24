@@ -1,5 +1,6 @@
 import React from 'react';
 import type { FeatureSettingsPanelProps } from '../../types.js';
+import { NEWSLETTER_PROVIDER_ENV_HINTS } from '../lib/shared-config.js';
 
 export const NewsletterSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   getSetting,
@@ -16,6 +17,8 @@ export const NewsletterSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   const requireDoubleOptInSetting = getSetting('features.newsletter.requireDoubleOptIn');
   const requireConsentCheckboxSetting = getSetting('features.newsletter.requireConsentCheckbox');
   const signupFooterEnabledSetting = getSetting('features.newsletter.signupFooterEnabled');
+  const signupModalEnabledSetting = getSetting('features.newsletter.signupModalEnabled');
+  const signupModalDelaySetting = getSetting('features.newsletter.signupModalDelaySeconds');
   const consentLabelSetting = getSetting('features.newsletter.consentLabel');
   const complianceFooterSetting = getSetting('features.newsletter.complianceFooterHtml');
   const maxRecipientsSetting = getSetting('features.newsletter.maxRecipientsPerCampaign');
@@ -42,13 +45,12 @@ export const NewsletterSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
       {renderSetting(enabledSetting)}
       {providerSetting && renderSetting(providerSetting)}
       <div className="rounded-md border border-border/70 bg-muted/40 p-3 text-xs text-muted-foreground">
-        {provider === 'resend' && 'Provider env required: RESEND_API_KEY.'}
-        {provider === 'ses' && 'Provider env required: AWS_SES_REGION, AWS_SES_SMTP_USER, AWS_SES_SMTP_PASS (optional: AWS_SES_SMTP_HOST, AWS_SES_SMTP_PORT).'}
-        {provider !== 'resend' && provider !== 'ses' && 'Provider mode: console (no external email provider configured).'}
+        {NEWSLETTER_PROVIDER_ENV_HINTS[provider as keyof typeof NEWSLETTER_PROVIDER_ENV_HINTS]
+          || NEWSLETTER_PROVIDER_ENV_HINTS.console}
       </div>
       <div className="rounded-md border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
         Frontend signup display can be configured independently for the footer form and the delayed modal popup.
-        Add provider API keys in your host environment variables (Vercel/Netlify), then redeploy before switching provider from console.
+        Outbound emails use signed unsubscribe links; set `NEWSLETTER_SIGNING_SECRET` only if you want to override the default fallback to `SUPABASE_SECRET_KEY`.
       </div>
       {fromNameSetting && renderSetting(fromNameSetting)}
       {fromEmailSetting && renderSetting(fromEmailSetting)}
@@ -57,6 +59,8 @@ export const NewsletterSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
       {requireDoubleOptInSetting && renderSetting(requireDoubleOptInSetting)}
       {requireConsentCheckboxSetting && renderSetting(requireConsentCheckboxSetting)}
       {signupFooterEnabledSetting && renderSetting(signupFooterEnabledSetting)}
+      {signupModalEnabledSetting && renderSetting(signupModalEnabledSetting)}
+      {signupModalDelaySetting && renderSetting(signupModalDelaySetting)}
       {consentLabelSetting && renderSetting(consentLabelSetting)}
       {complianceFooterSetting && renderSetting(complianceFooterSetting)}
       {maxRecipientsSetting && renderSetting(maxRecipientsSetting)}

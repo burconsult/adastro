@@ -1,35 +1,18 @@
-import { getDefaultImageProvider } from './config.js';
-import { GeminiImageProvider } from './providers/gemini.js';
-import { OpenAiImageProvider } from './providers/openai.js';
+import { DEFAULT_IMAGE_PROVIDER } from './config.js';
+import { generateImage as runImageGeneration } from './execution.js';
 import { getConfiguredImageProviders as getConfiguredImageProvidersFromCatalog } from './provider-catalog.js';
-import type { AiImageProvider, AiImageProviderKey, GenerateImageOptions, GenerateImageResponse } from './types.js';
+import { getImageProvider as getRegistryImageProvider } from './provider-registry.js';
+import type { AiProviderId, GenerateImageOptions, GenerateImageResponse } from './types.js';
 
-const providers: Partial<Record<AiImageProviderKey, AiImageProvider>> = {};
-
-export function getImageProvider(key: AiImageProviderKey): AiImageProvider {
-  if (key === 'openai') {
-    if (!providers.openai) {
-      providers.openai = new OpenAiImageProvider();
-    }
-    return providers.openai;
-  }
-
-  if (key === 'gemini') {
-    if (!providers.gemini) {
-      providers.gemini = new GeminiImageProvider();
-    }
-    return providers.gemini;
-  }
-
-  throw new Error(`Unsupported image provider: ${key}`);
+export function getImageProvider(key: AiProviderId) {
+  return getRegistryImageProvider(key);
 }
 
-export function getConfiguredImageProviders(): AiImageProviderKey[] {
+export function getConfiguredImageProviders(): AiProviderId[] {
   return getConfiguredImageProvidersFromCatalog();
 }
 
 export async function generateImage(options: GenerateImageOptions): Promise<GenerateImageResponse> {
-  const providerKey = options.provider ?? getDefaultImageProvider();
-  const provider = getImageProvider(providerKey);
-  return provider.generateImage({ ...options, provider: providerKey });
+  const providerKey = options.provider ?? DEFAULT_IMAGE_PROVIDER;
+  return runImageGeneration({ ...options, provider: providerKey });
 }

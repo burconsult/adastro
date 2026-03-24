@@ -77,7 +77,7 @@ export const AiPostEditorTools: React.FC<PostEditorExtensionProps> = ({
     const loadConfig = async () => {
       try {
         const [settingsResponse, statusResponse] = await Promise.all([
-          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.enableImages,features.ai.enableAudio,features.ai.imageSize,features.ai.imageAspectRatio,features.ai.imageResolution,features.ai.defaultProvider.image,features.ai.defaultProvider.audio'),
+          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.tools.image.enabled,features.ai.tools.audio.enabled,features.ai.capabilities.image.defaultSize,features.ai.capabilities.image.defaultAspectRatio,features.ai.capabilities.image.defaultResolution,features.ai.capabilities.image.defaultProvider,features.ai.capabilities.audio.defaultProvider'),
           fetch('/api/features/ai/status')
         ]);
 
@@ -89,8 +89,8 @@ export const AiPostEditorTools: React.FC<PostEditorExtensionProps> = ({
         const statusAvailable = statusResponse.ok;
         const status = statusAvailable ? await statusResponse.json() : null;
         const aiSuiteEnabled = normalizeFeatureFlag(settings['features.ai.enabled'], false);
-        const configuredImageProvider = settings['features.ai.defaultProvider.image'] || 'openai';
-        const configuredAudioProvider = settings['features.ai.defaultProvider.audio'] || 'openai';
+        const configuredImageProvider = settings['features.ai.capabilities.image.defaultProvider'] || 'gateway';
+        const configuredAudioProvider = settings['features.ai.capabilities.audio.defaultProvider'] || 'elevenlabs';
         const imageProviders = Array.isArray(status?.imageProviders) ? status.imageProviders : [];
         const audioProviders = Array.isArray(status?.audioProviders) ? status.audioProviders : [];
         const imageProvider = imageProviders.includes(configuredImageProvider)
@@ -99,8 +99,8 @@ export const AiPostEditorTools: React.FC<PostEditorExtensionProps> = ({
         const audioProvider = audioProviders.includes(configuredAudioProvider)
           ? configuredAudioProvider
           : (audioProviders[0] || configuredAudioProvider);
-        const imageToggleEnabled = normalizeFeatureFlag(settings['features.ai.enableImages'], true);
-        const audioToggleEnabled = normalizeFeatureFlag(settings['features.ai.enableAudio'], true);
+        const imageToggleEnabled = normalizeFeatureFlag(settings['features.ai.tools.image.enabled'], true);
+        const audioToggleEnabled = normalizeFeatureFlag(settings['features.ai.tools.audio.enabled'], false);
         const hasImageProvider = imageProviders.length > 0 || !statusAvailable;
         const hasAudioProvider = audioProviders.length > 0 || !statusAvailable;
 
@@ -108,9 +108,9 @@ export const AiPostEditorTools: React.FC<PostEditorExtensionProps> = ({
 
         setAiEnabled(aiSuiteEnabled);
         setAiImageProvider(imageProvider);
-        setAiImageSize(normalizeOpenAiImageSize(settings['features.ai.imageSize'] || '1024x1024'));
-        setAiImageAspectRatio(settings['features.ai.imageAspectRatio'] || '1:1');
-        setAiImageResolution(settings['features.ai.imageResolution'] || '1K');
+        setAiImageSize(normalizeOpenAiImageSize(settings['features.ai.capabilities.image.defaultSize'] || '1024x1024'));
+        setAiImageAspectRatio(settings['features.ai.capabilities.image.defaultAspectRatio'] || '1:1');
+        setAiImageResolution(settings['features.ai.capabilities.image.defaultResolution'] || '1K');
         setImageCapabilityEnabled(imageToggleEnabled);
         setAudioCapabilityEnabled(audioToggleEnabled);
         setImageProviderReady(hasImageProvider);

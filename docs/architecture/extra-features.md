@@ -36,7 +36,7 @@ Naming conventions
 - Feature id: lowercase slug (`ai`, `comments`, `newsletter`).
 - Settings key prefix: `features.<feature>.*`
 - Master toggle: `features.<feature>.enabled`
-- Capability toggles: `features.<feature>.<capability>` (ex: `features.ai.enableSeo`)
+- Tool/capability toggles: `features.<feature>.tools.<tool>.enabled` when a feature exposes independent actions (ex: `features.ai.tools.seo.enabled`)
 - Category: `extras` (shown as "Extra Features" in settings UI)
 
 Runtime gating rules

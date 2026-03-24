@@ -1,21 +1,12 @@
 import { getEnv } from '../../../../env.js';
-import { DEFAULT_ANTHROPIC_MODEL, getApiTimeoutMs } from '../config.js';
-import type {
-  AiProvider,
-  AiProviderKey,
-  GenerateContentOptions,
-  GenerateContentResponse
-} from '../types.js';
+import { DEFAULT_TEXT_MODELS, getApiTimeoutMs } from '../config.js';
+import type { AiProviderId, AiTextProvider, GenerateTextOptions, GenerateTextResponse } from '../types.js';
 
-const providerKey: AiProviderKey = 'anthropic';
-const apiKey = getEnv('ANTHROPIC_API_KEY');
+const providerKey: AiProviderId = 'anthropic';
 
-if (!apiKey) {
-  console.warn('⚠️  ANTHROPIC_API_KEY is not set. Anthropic provider is disabled.');
-}
-
-export class AnthropicProvider implements AiProvider {
-  async generate(options: GenerateContentOptions): Promise<GenerateContentResponse> {
+export class AnthropicTextProvider implements AiTextProvider {
+  async generateText(options: GenerateTextOptions): Promise<GenerateTextResponse> {
+    const apiKey = getEnv('ANTHROPIC_API_KEY');
     if (!apiKey) {
       throw new Error('Anthropic provider is not configured. Set ANTHROPIC_API_KEY.');
     }
@@ -23,10 +14,14 @@ export class AnthropicProvider implements AiProvider {
     const {
       prompt,
       system,
-      model = DEFAULT_ANTHROPIC_MODEL,
+      model = DEFAULT_TEXT_MODELS.anthropic,
       temperature = 0.7,
       maxOutputTokens = 800
     } = options;
+
+    if (!model) {
+      throw new Error('Anthropic text generation model is not configured.');
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -69,8 +64,4 @@ export class AnthropicProvider implements AiProvider {
       raw: data
     };
   }
-}
-
-export function isAnthropicConfigured(): boolean {
-  return Boolean(apiKey);
 }

@@ -1,25 +1,28 @@
 import { getEnv } from '../../../../env.js';
-import { DEFAULT_ELEVENLABS_MODEL, DEFAULT_ELEVENLABS_VOICE_ID, getApiTimeoutMs } from '../config.js';
-import type { AiAudioProvider, AiAudioProviderKey, GenerateAudioOptions, GenerateAudioResponse } from '../types.js';
+import { DEFAULT_AUDIO_MODELS, DEFAULT_AUDIO_VOICES, getApiTimeoutMs } from '../config.js';
+import type { AiAudioProvider, AiProviderId, GenerateAudioOptions, GenerateAudioResponse } from '../types.js';
 
-const providerKey: AiAudioProviderKey = 'elevenlabs';
-const apiKey = getEnv('ELEVENLABS_API_KEY');
+const providerKey: AiProviderId = 'elevenlabs';
 
-if (!apiKey) {
-  console.warn('⚠️  ELEVENLABS_API_KEY is not set. ElevenLabs provider is disabled.');
-}
-
-export class ElevenLabsProvider implements AiAudioProvider {
+export class ElevenLabsAudioProvider implements AiAudioProvider {
   async generateAudio(options: GenerateAudioOptions): Promise<GenerateAudioResponse> {
+    const apiKey = getEnv('ELEVENLABS_API_KEY');
     if (!apiKey) {
       throw new Error('ElevenLabs provider is not configured. Set ELEVENLABS_API_KEY.');
     }
 
     const {
       text,
-      voice = DEFAULT_ELEVENLABS_VOICE_ID,
-      model = DEFAULT_ELEVENLABS_MODEL
+      voice = DEFAULT_AUDIO_VOICES.elevenlabs,
+      model = DEFAULT_AUDIO_MODELS.elevenlabs
     } = options;
+
+    if (!voice) {
+      throw new Error('ElevenLabs voice is not configured.');
+    }
+    if (!model) {
+      throw new Error('ElevenLabs audio generation model is not configured.');
+    }
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
       method: 'POST',
@@ -52,8 +55,4 @@ export class ElevenLabsProvider implements AiAudioProvider {
       voice
     };
   }
-}
-
-export function isElevenLabsConfigured(): boolean {
-  return Boolean(apiKey);
 }

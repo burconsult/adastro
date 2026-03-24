@@ -81,7 +81,8 @@ export const NewsletterPostEditorPanel: React.FC<PostEditorExtensionProps> = ({
   const sendToSubscribers = async () => {
     if (!postId) return;
     const payload = await requestJson('/api/features/newsletter/send-post', { postId });
-    notify(`Post campaign sent: ${payload.delivered ?? 0} delivered, ${payload.failed ?? 0} failed.`, 'success');
+    const warning = typeof payload?.warning === 'string' ? ` ${payload.warning}` : '';
+    notify(`Post campaign sent: ${payload.delivered ?? 0} delivered, ${payload.failed ?? 0} failed.${warning}`, 'success');
   };
 
   const runAction = async (action: () => Promise<void>, fallbackError: string) => {

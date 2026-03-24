@@ -24,6 +24,7 @@ if (!global.fetch) {
 
 const suppressedWarnSnippets = [
   'Multiple GoTrueClient instances detected',
+  'AI_GATEWAY_API_KEY is not set',
   'OPENAI_API_KEY is not set',
   'GOOGLE_GENAI_API_KEY is not set',
   'ANTHROPIC_API_KEY is not set',

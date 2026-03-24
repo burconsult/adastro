@@ -112,4 +112,24 @@ describe('CommentsSection', () => {
     expect(payload.authorEmail).toBe('jane@example.com');
     expect(payload.content).toBe('Signed-in user comment');
   });
+
+  it('keeps the section visible when loading comments fails', async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/api/features/comments/list')) {
+        return Promise.resolve(jsonResponse({ error: 'boom' }, 500));
+      }
+
+      if (url === '/api/profile?optional=1') {
+        return Promise.resolve(jsonResponse({ error: 'Authentication required' }, 401));
+      }
+
+      return Promise.reject(new Error(`Unhandled request: ${url}`));
+    });
+
+    render(<CommentsSection slug="hello-world" />);
+
+    expect(await screen.findByRole('heading', { name: 'Comments' })).toBeInTheDocument();
+    expect(await screen.findByText('Failed to load comments')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Post comment' })).toBeInTheDocument();
+  });
 });

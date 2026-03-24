@@ -92,8 +92,8 @@ const FEATURE_FIXTURES = [
     migrations: [],
     uninstallSqlPath: null,
     use: () => {
-      setSetting('features.ai.defaultProvider.text', 'gemini');
-      const value = getSettingJsonText('features.ai.defaultProvider.text');
+      setSetting('features.ai.capabilities.text.defaultProvider', 'gemini');
+      const value = getSettingJsonText('features.ai.capabilities.text.defaultProvider');
       assert(value === 'gemini', 'ai: usage probe should persist provider change.');
       return 1;
     }

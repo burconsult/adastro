@@ -7,15 +7,14 @@ interface AiStatus {
   textProviders?: string[];
   imageProviders?: string[];
   audioProviders?: string[];
+  defaults?: Record<string, any>;
+  tools?: Record<string, boolean>;
   capabilityProviders?: Record<string, string[]>;
 }
 
 interface AiModelRegistryResponse {
   registry?: Record<string, any>;
   active?: Record<string, any>;
-}
-
-interface AiProviderCatalogResponse {
   providers?: Array<{
     id: string;
     label: string;
@@ -23,9 +22,40 @@ interface AiProviderCatalogResponse {
     docsUrl: string;
     pricingUrl?: string;
     configured?: boolean;
-    capabilities?: Record<string, { supported: boolean; implemented: boolean; supportsModelDiscovery?: boolean }>;
-    discoveredModels?: { models?: string[]; source?: string; error?: string; updatedAt?: string };
+    executionMode?: string;
+    capabilities?: Record<string, { supported: boolean; implemented: boolean; supportsModelDiscovery?: boolean; supportsVoiceDiscovery?: boolean }>;
+    discoveredModels?: {
+      models?: Array<{ id: string; name?: string; capabilities?: string[] }>;
+      source?: string;
+      error?: string;
+      updatedAt?: string;
+    };
+    discoveredVoices?: { voices?: Array<{ id: string; name: string }>; source?: string; error?: string; updatedAt?: string };
   }>;
+}
+
+interface AiDiscoveredModel {
+  id: string;
+  name?: string;
+  capabilities?: string[];
+}
+
+interface AiProviderCatalogEntry {
+  id: string;
+  label: string;
+  envKey: string;
+  docsUrl: string;
+  pricingUrl?: string;
+  configured?: boolean;
+  executionMode?: string;
+  capabilities?: Record<string, { supported: boolean; implemented: boolean; supportsModelDiscovery?: boolean; supportsVoiceDiscovery?: boolean }>;
+  discoveredModels?: {
+    models?: AiDiscoveredModel[];
+    source?: string;
+    error?: string;
+    updatedAt?: string;
+  };
+  discoveredVoices?: { voices?: Array<{ id: string; name: string }>; source?: string; error?: string; updatedAt?: string };
 }
 
 interface AiUsageResponse {
@@ -49,6 +79,44 @@ interface AiUsageResponse {
 
 type AiSettingsTab = 'controls' | 'models' | 'usage';
 
+const getRegistryModelsFor = (
+  registry: Record<string, any>,
+  provider: string,
+  capability: 'text' | 'image' | 'audio'
+): string[] => {
+  const providerRegistry = registry?.[provider];
+  const bucket = providerRegistry?.[capability];
+  return Array.isArray(bucket?.models) ? bucket.models : [];
+};
+
+const getRegistryVoicesFor = (registry: Record<string, any>, provider: string): string[] => {
+  const voices = registry?.[provider]?.audio?.voices;
+  if (!Array.isArray(voices)) return [];
+  return voices
+    .map((voice: any) => {
+      if (typeof voice === 'string') return voice;
+      if (voice && typeof voice.id === 'string') return voice.id;
+      return null;
+    })
+    .filter((voice): voice is string => Boolean(voice));
+};
+
+const providerLabel = (provider: string) => {
+  if (provider === 'gateway') return 'Vercel AI Gateway';
+  if (provider === 'openai') return 'OpenAI';
+  if (provider === 'gemini') return 'Gemini';
+  if (provider === 'anthropic') return 'Anthropic';
+  if (provider === 'elevenlabs') return 'ElevenLabs';
+  return provider;
+};
+
+const matchesCapabilityFromModelId = (provider: string, capability: 'text' | 'image' | 'audio', modelId: string) => {
+  const normalized = modelId.toLowerCase();
+  if (capability === 'image') return normalized.includes('image') || normalized.includes('dall') || normalized.includes('imagen');
+  if (capability === 'audio') return normalized.includes('tts') || normalized.startsWith('tts-') || provider === 'elevenlabs';
+  return !normalized.includes('image') && !normalized.includes('tts');
+};
+
 export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   getSetting,
   getValue,
@@ -56,12 +124,11 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   t
 }) => {
   const aiEnabled = normalizeFeatureFlag(getValue('features.ai.enabled'), false);
-  const seoEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.enableSeo'), true);
-  const imageEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.enableImages'), true);
-  const audioEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.enableAudio'), true);
+  const seoEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.seo.enabled'), true);
+  const imageEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.image.enabled'), true);
+  const audioEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.audio.enabled'), false);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [aiModels, setAiModels] = useState<AiModelRegistryResponse | null>(null);
-  const [aiCatalog, setAiCatalog] = useState<AiProviderCatalogResponse | null>(null);
   const [aiUsage, setAiUsage] = useState<AiUsageResponse | null>(null);
   const [aiModelsError, setAiModelsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AiSettingsTab>('controls');
@@ -70,7 +137,6 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     if (!aiEnabled) {
       setAiStatus(null);
       setAiModels(null);
-      setAiCatalog(null);
       setAiUsage(null);
       setAiModelsError(null);
       setActiveTab('controls');
@@ -80,22 +146,19 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     let cancelled = false;
     const loadAiData = async () => {
       try {
-        const [statusResponse, modelsResponse, catalogResponse, usageResponse] = await Promise.all([
+        const [statusResponse, modelsResponse, usageResponse] = await Promise.all([
           fetch('/api/features/ai/status'),
-          fetch('/api/features/ai/models'),
-          fetch('/api/features/ai/catalog'),
+          fetch('/api/features/ai/models?sync=true'),
           fetch('/api/features/ai/usage?days=30')
         ]);
 
         const statusPayload = statusResponse.ok ? await statusResponse.json() : null;
         const modelPayload = modelsResponse.ok ? await modelsResponse.json() : null;
-        const catalogPayload = catalogResponse.ok ? await catalogResponse.json() : null;
         const usagePayload = usageResponse.ok ? await usageResponse.json() : null;
 
         if (!cancelled) {
           setAiStatus(statusPayload);
           setAiModels(modelPayload);
-          setAiCatalog(catalogPayload);
           setAiUsage(usagePayload);
           setAiModelsError(modelsResponse.ok ? null : 'Unable to load AI model settings.');
         }
@@ -103,7 +166,6 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
         if (!cancelled) {
           setAiStatus(null);
           setAiModels(null);
-          setAiCatalog(null);
           setAiUsage(null);
           setAiModelsError(aiError instanceof Error ? aiError.message : 'Unable to load AI status.');
         }
@@ -117,15 +179,16 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     };
   }, [aiEnabled]);
 
-  const textDefaultProvider = getValue('features.ai.defaultProvider.text') || 'openai';
-  const imageDefaultProvider = getValue('features.ai.defaultProvider.image') || 'openai';
-  const audioDefaultProvider = getValue('features.ai.defaultProvider.audio') || 'openai';
+  const textDefaultProvider = getValue('features.ai.capabilities.text.defaultProvider') || 'gateway';
+  const imageDefaultProvider = getValue('features.ai.capabilities.image.defaultProvider') || 'gateway';
+  const audioDefaultProvider = getValue('features.ai.capabilities.audio.defaultProvider') || 'elevenlabs';
 
-  const textProviders = Array.isArray(aiStatus?.textProviders) ? aiStatus?.textProviders ?? [] : [];
-  const imageProviders = Array.isArray(aiStatus?.imageProviders) ? aiStatus?.imageProviders ?? [] : [];
-  const audioProviders = Array.isArray(aiStatus?.audioProviders) ? aiStatus?.audioProviders ?? [] : [];
+  const textProviders = Array.isArray(aiStatus?.textProviders) ? aiStatus.textProviders ?? [] : [];
+  const imageProviders = Array.isArray(aiStatus?.imageProviders) ? aiStatus.imageProviders ?? [] : [];
+  const audioProviders = Array.isArray(aiStatus?.audioProviders) ? aiStatus.audioProviders ?? [] : [];
 
   const providerEnvMap: Record<string, string> = {
+    gateway: 'AI_GATEWAY_API_KEY',
     openai: 'OPENAI_API_KEY',
     gemini: 'GOOGLE_GENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
@@ -143,7 +206,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
 
     if (textProviders.length === 0 && imageProviders.length === 0 && audioProviders.length === 0) {
       warnings.push(
-        `No AI provider keys detected. Add API keys (${Object.values(providerEnvMap).join(', ')}) in your host environment variables (Vercel/Netlify project settings), then redeploy.`
+        `No AI provider keys detected. Add API keys (${Object.values(providerEnvMap).join(', ')}) in your host environment variables, then redeploy.`
       );
       return warnings;
     }
@@ -151,19 +214,19 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     if (seoEnabled && textProviders.length === 0) {
       warnings.push('SEO generation is enabled but no text providers are configured.');
     } else if (seoEnabled && !textProviders.includes(textDefaultProvider)) {
-      warnings.push(`Default text provider (${textDefaultProvider}) is not configured. Set ${providerEnvMap[textDefaultProvider] || 'the matching API key'}.`);
+      warnings.push(`Default text provider (${providerLabel(textDefaultProvider)}) is not configured. Set ${providerEnvMap[textDefaultProvider] || 'the matching API key'}.`);
     }
 
     if (imageEnabled && imageProviders.length === 0) {
       warnings.push('Image generation is enabled but no image providers are configured.');
     } else if (imageEnabled && !imageProviders.includes(imageDefaultProvider)) {
-      warnings.push(`Default image provider (${imageDefaultProvider}) is not configured. Set ${providerEnvMap[imageDefaultProvider] || 'the matching API key'}.`);
+      warnings.push(`Default image provider (${providerLabel(imageDefaultProvider)}) is not configured. Set ${providerEnvMap[imageDefaultProvider] || 'the matching API key'}.`);
     }
 
     if (audioEnabled && audioProviders.length === 0) {
       warnings.push('Audio narration is enabled but no audio providers are configured.');
     } else if (audioEnabled && !audioProviders.includes(audioDefaultProvider)) {
-      warnings.push(`Default audio provider (${audioDefaultProvider}) is not configured. Set ${providerEnvMap[audioDefaultProvider] || 'the matching API key'}.`);
+      warnings.push(`Default audio provider (${providerLabel(audioDefaultProvider)}) is not configured. Set ${providerEnvMap[audioDefaultProvider] || 'the matching API key'}.`);
     }
 
     return warnings;
@@ -182,17 +245,56 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   ]);
 
   const registry = aiModels?.registry ?? {};
+  const providers: AiProviderCatalogEntry[] = Array.isArray(aiModels?.providers) ? aiModels.providers : [];
+
+  const getProviderOptionsFor = (
+    capability: 'text' | 'image' | 'audio',
+    fallback: string[]
+  ): string[] => {
+    const dynamicOptions = providers
+      .filter((provider) => provider.capabilities?.[capability]?.implemented)
+      .map((provider) => provider.id);
+    return dynamicOptions.length > 0 ? dynamicOptions : fallback;
+  };
+
+  const getDiscoveredModelsFor = (provider: string, capability: 'text' | 'image' | 'audio'): string[] => {
+    const providerEntry = providers.find((entry) => entry.id === provider);
+    const discoveredEntries = Array.isArray(providerEntry?.discoveredModels?.models)
+      ? providerEntry?.discoveredModels?.models ?? []
+      : [];
+    const bucketModels = getRegistryModelsFor(registry, provider, capability);
+    const filteredDiscovered = discoveredEntries
+      .filter((model) => {
+        if (Array.isArray(model.capabilities) && model.capabilities.length > 0) {
+          return model.capabilities.includes(capability);
+        }
+        return matchesCapabilityFromModelId(provider, capability, model.id);
+      })
+      .map((model) => model.id);
+    return [...new Set([...filteredDiscovered, ...bucketModels])];
+  };
+
+  const getDiscoveredVoicesFor = (provider: string): string[] => {
+    const providerEntry = providers.find((entry) => entry.id === provider);
+    const discovered = Array.isArray(providerEntry?.discoveredVoices?.voices)
+      ? providerEntry?.discoveredVoices?.voices?.map((voice) => voice.id) ?? []
+      : [];
+    return [...new Set([...discovered, ...getRegistryVoicesFor(registry, provider)])];
+  };
+
   const optionMap: Record<string, string[] | undefined> = {
-    'features.ai.model.text.openai': registry?.openai?.text?.models,
-    'features.ai.model.text.gemini': registry?.gemini?.text?.models,
-    'features.ai.model.text.anthropic': registry?.anthropic?.text?.models,
-    'features.ai.model.image.openai': registry?.openai?.image?.models,
-    'features.ai.model.image.gemini': registry?.gemini?.image?.models,
-    'features.ai.model.audio.openai': registry?.openai?.audio?.models,
-    'features.ai.model.audio.elevenlabs': registry?.elevenlabs?.audio?.models,
-    'features.ai.imageSize': registry?.openai?.image?.sizes,
-    'features.ai.imageAspectRatio': registry?.gemini?.image?.aspectRatios,
-    'features.ai.imageResolution': registry?.gemini?.image?.resolutions
+    'features.ai.capabilities.text.defaultProvider': getProviderOptionsFor('text', ['gateway', 'openai', 'gemini', 'anthropic']),
+    'features.ai.capabilities.image.defaultProvider': getProviderOptionsFor('image', ['gateway', 'openai', 'gemini']),
+    'features.ai.capabilities.audio.defaultProvider': getProviderOptionsFor('audio', ['elevenlabs', 'openai']),
+    'features.ai.capabilities.text.defaultModel': getDiscoveredModelsFor(String(textDefaultProvider), 'text'),
+    'features.ai.capabilities.image.defaultModel': getDiscoveredModelsFor(String(imageDefaultProvider), 'image'),
+    'features.ai.capabilities.audio.defaultModel': getDiscoveredModelsFor(String(audioDefaultProvider), 'audio'),
+    'features.ai.capabilities.audio.defaultVoice': audioDefaultProvider === 'elevenlabs'
+      ? getDiscoveredVoicesFor('elevenlabs')
+      : undefined,
+    'features.ai.capabilities.image.defaultSize': registry?.openai?.image?.sizes || registry?.gateway?.image?.sizes,
+    'features.ai.capabilities.image.defaultAspectRatio': registry?.gemini?.image?.aspectRatios,
+    'features.ai.capabilities.image.defaultResolution': registry?.gemini?.image?.resolutions
   };
 
   const renderGroup = (keys: string[], options?: { disabled?: boolean }) => (
@@ -212,24 +314,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     </div>
   );
 
-  const renderModelList = (label: string, models?: string[]) => (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      {models && models.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {models.map((model) => (
-            <span key={model} className="badge badge-secondary text-xs">
-              {model}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-muted-foreground">No models reported.</p>
-      )}
-    </div>
-  );
-
-  const providerCatalog = Array.isArray(aiCatalog?.providers) ? aiCatalog.providers : [];
+  const providerCatalog = providers;
   const usageSummary = aiUsage?.summary;
   const usageTotals = usageSummary?.totals;
   const capabilityUsage = usageSummary?.byCapability ?? {};
@@ -284,7 +369,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
           )
         ) : (
           <div className="rounded-md border border-border/60 bg-muted/50 p-3 text-xs text-muted-foreground">
-            AI tools are disabled. Enable the suite to configure providers and models.
+            AI tools are disabled. Enable the suite to configure per-capability providers and models.
           </div>
         )}
       </div>
@@ -294,32 +379,53 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="card p-4 space-y-4">
               <div>
-                <h3 className="text-base font-semibold">{t('settings.features.ai.capabilities.title', 'Capabilities')}</h3>
-                <p className="text-xs text-muted-foreground">{t('settings.features.ai.capabilities.description', 'Turn on the AI surfaces you want available.')}</p>
+                <h3 className="text-base font-semibold">Capabilities</h3>
+                <p className="text-xs text-muted-foreground">Turn on the AI surfaces you want available.</p>
               </div>
-              {renderGroup(['features.ai.enableSeo', 'features.ai.enableImages', 'features.ai.enableAudio'], { disabled: !aiEnabled })}
+              {renderGroup(['features.ai.tools.seo.enabled', 'features.ai.tools.image.enabled', 'features.ai.tools.audio.enabled'], { disabled: !aiEnabled })}
             </div>
 
             <div className="card p-4 space-y-4">
               <div>
-                <h3 className="text-base font-semibold">{t('settings.features.ai.providers.title', 'Providers')}</h3>
-                <p className="text-xs text-muted-foreground">{t('settings.features.ai.providers.description', 'Select defaults for text, image, and audio generation.')}</p>
+                <h3 className="text-base font-semibold">Per-Capability Providers</h3>
+                <p className="text-xs text-muted-foreground">Choose the default provider independently for text, image, and audio.</p>
               </div>
-              {renderGroup(['features.ai.defaultProvider.text', 'features.ai.defaultProvider.image', 'features.ai.defaultProvider.audio'], { disabled: !aiEnabled })}
+              {renderGroup([
+                'features.ai.capabilities.text.defaultProvider',
+                'features.ai.capabilities.image.defaultProvider',
+                'features.ai.capabilities.audio.defaultProvider'
+              ], { disabled: !aiEnabled })}
             </div>
           </div>
 
-          <div className="card p-4 space-y-4">
-            <div>
-              <h3 className="text-base font-semibold">{t('settings.features.ai.images.title', 'Image Generation')}</h3>
-              <p className="text-xs text-muted-foreground">{t('settings.features.ai.images.description', 'Choose output dimensions for each provider family.')}</p>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="card p-4 space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Image Defaults</h3>
+                <p className="text-xs text-muted-foreground">Use OpenAI-compatible size settings or Gemini image controls depending on provider.</p>
+              </div>
+              {renderGroup([
+                'features.ai.capabilities.image.defaultSize',
+                'features.ai.capabilities.image.defaultAspectRatio',
+                'features.ai.capabilities.image.defaultResolution'
+              ], { disabled: !aiEnabled })}
             </div>
-            {renderGroup(['features.ai.imageSize', 'features.ai.imageAspectRatio', 'features.ai.imageResolution'], { disabled: !aiEnabled })}
+
+            <div className="card p-4 space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Provider Health</h3>
+                <p className="text-xs text-muted-foreground">Current capability availability from configured env keys.</p>
+              </div>
+              <div className="space-y-2 text-xs">
+                <p>Text providers: {textProviders.length > 0 ? textProviders.map(providerLabel).join(', ') : 'none'}</p>
+                <p>Image providers: {imageProviders.length > 0 ? imageProviders.map(providerLabel).join(', ') : 'none'}</p>
+                <p>Audio providers: {audioProviders.length > 0 ? audioProviders.map(providerLabel).join(', ') : 'none'}</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-md border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-            AI content tools appear in Post Editor and Media only while this feature is active.
-            Use the Features catalog page to deactivate and fully hide AI UI surfaces.
+            Text, image, and audio defaults are independent. Mixed provider modality support is expected and supported.
           </div>
         </>
       )}
@@ -329,43 +435,46 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="card p-4 space-y-4">
               <div>
-                <h3 className="text-base font-semibold">{t('settings.features.ai.models.title', 'Models')}</h3>
-                <p className="text-xs text-muted-foreground">{t('settings.features.ai.models.description', 'Pin the exact model for each provider.')}</p>
+                <h3 className="text-base font-semibold">Active Defaults</h3>
+                <p className="text-xs text-muted-foreground">Pin the current model for each capability and set the default audio voice.</p>
               </div>
               {renderGroup([
-                'features.ai.model.text.openai',
-                'features.ai.model.text.gemini',
-                'features.ai.model.text.anthropic',
-                'features.ai.model.image.openai',
-                'features.ai.model.image.gemini',
-                'features.ai.model.audio.openai',
-                'features.ai.model.audio.elevenlabs'
+                'features.ai.capabilities.text.defaultModel',
+                'features.ai.capabilities.image.defaultModel',
+                'features.ai.capabilities.audio.defaultModel',
+                'features.ai.capabilities.audio.defaultVoice'
               ], { disabled: !aiEnabled })}
-              <div className="pt-2">
-                {renderGroup(['features.ai.voice.openai', 'features.ai.voice.elevenlabs'], { disabled: !aiEnabled })}
-              </div>
             </div>
 
             <div className="card p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-semibold">{t('settings.features.ai.registry.title', 'Model Registry')}</h3>
-                  <p className="text-xs text-muted-foreground">{t('settings.features.ai.registry.description', 'Built-in and provider model catalogs.')}</p>
+                  <h3 className="text-base font-semibold">Discovered Catalog</h3>
+                  <p className="text-xs text-muted-foreground">Registry fallbacks plus remote provider discovery when available.</p>
                 </div>
                 {aiModelsError && (
                   <span className="text-xs text-destructive">{aiModelsError}</span>
                 )}
               </div>
-              <div className="space-y-4">
-                {renderModelList('OpenAI', registry?.openai?.text?.models)}
-                {renderModelList('Gemini', registry?.gemini?.text?.models)}
-                {renderModelList('Anthropic', registry?.anthropic?.text?.models)}
-                {renderModelList('Image (OpenAI)', registry?.openai?.image?.models)}
-                {renderModelList('Image (Gemini)', registry?.gemini?.image?.models)}
-                {renderModelList('Audio', [
-                  ...(registry?.openai?.audio?.models ?? []),
-                  ...(registry?.elevenlabs?.audio?.models ?? [])
-                ])}
+              <div className="space-y-4 text-xs">
+                <div>
+                  <p className="font-semibold">Text ({providerLabel(String(textDefaultProvider))})</p>
+                  <p className="text-muted-foreground">{getDiscoveredModelsFor(String(textDefaultProvider), 'text').slice(0, 8).join(', ') || 'No models reported.'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Image ({providerLabel(String(imageDefaultProvider))})</p>
+                  <p className="text-muted-foreground">{getDiscoveredModelsFor(String(imageDefaultProvider), 'image').slice(0, 8).join(', ') || 'No models reported.'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Audio ({providerLabel(String(audioDefaultProvider))})</p>
+                  <p className="text-muted-foreground">{getDiscoveredModelsFor(String(audioDefaultProvider), 'audio').slice(0, 8).join(', ') || 'No models reported.'}</p>
+                </div>
+                {audioDefaultProvider === 'elevenlabs' && (
+                  <div>
+                    <p className="font-semibold">ElevenLabs Voices</p>
+                    <p className="text-muted-foreground">{getDiscoveredVoicesFor('elevenlabs').slice(0, 8).join(', ') || 'No voices reported.'}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -373,7 +482,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
           <div className="card p-4 space-y-4">
             <div>
               <h3 className="text-base font-semibold">Provider Catalog</h3>
-              <p className="text-xs text-muted-foreground">Capability map, env keys, and docs/pricing links for each provider.</p>
+              <p className="text-xs text-muted-foreground">Capability map, env keys, discovery health, and docs/pricing links for each provider.</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {providerCatalog.length > 0 ? providerCatalog.map((provider) => {
@@ -381,6 +490,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                   .filter(([, capability]) => capability?.implemented)
                   .map(([name]) => name);
                 const discovered = provider.discoveredModels?.models ?? [];
+                const discoveredVoices = provider.discoveredVoices?.voices ?? [];
                 return (
                   <div key={provider.id} className="rounded-md border border-border/60 p-3 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
@@ -390,6 +500,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                       </span>
                     </div>
                     <p className="text-muted-foreground">Env key: {provider.envKey}</p>
+                    <p className="text-muted-foreground">Execution: {provider.executionMode || 'direct'}</p>
                     <p className="text-muted-foreground">
                       Capabilities: {capabilityChips.length > 0 ? capabilityChips.join(', ') : 'none'}
                     </p>
@@ -402,8 +513,14 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                     {discovered.length > 0 && (
                       <p className="text-muted-foreground">Discovered models: {discovered.slice(0, 6).join(', ')}{discovered.length > 6 ? '…' : ''}</p>
                     )}
+                    {discoveredVoices.length > 0 && (
+                      <p className="text-muted-foreground">Discovered voices: {discoveredVoices.slice(0, 4).map((voice) => voice.name).join(', ')}</p>
+                    )}
                     {provider.discoveredModels?.error && (
                       <p className="text-amber-700">{provider.discoveredModels.error}</p>
+                    )}
+                    {provider.discoveredVoices?.error && (
+                      <p className="text-amber-700">{provider.discoveredVoices.error}</p>
                     )}
                   </div>
                 );
@@ -423,10 +540,10 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
               <p className="text-xs text-muted-foreground">Optional per-user daily limits. Set 0 to keep unlimited.</p>
             </div>
             {renderGroup([
-              'features.ai.usageCaps.enabled',
-              'features.ai.usageCaps.seoDailyRequests',
-              'features.ai.usageCaps.imageDailyRequests',
-              'features.ai.usageCaps.audioDailyRequests'
+              'features.ai.limits.enabled',
+              'features.ai.limits.seoDailyRequests',
+              'features.ai.limits.imageDailyRequests',
+              'features.ai.limits.audioDailyRequests'
             ], { disabled: !aiEnabled })}
           </div>
 

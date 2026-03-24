@@ -171,7 +171,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug, postId, 
       setAuthenticatedOnly(normalizeFeatureFlag(payload?.authenticatedOnly, false));
       setComments(Array.isArray(payload.comments) ? payload.comments : []);
     } catch (loadError) {
-      setEnabled(false);
+      setEnabled((current) => current ?? true);
       setError(loadError instanceof Error ? loadError.message : msg('loadFailed'));
     } finally {
       setLoading(false);
@@ -306,7 +306,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ slug, postId, 
     }
   };
 
-  if (enabled !== true) {
+  if (enabled === false) {
     return null;
   }
 

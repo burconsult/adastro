@@ -1,10 +1,12 @@
 import type { FeatureServerModule } from '../types.js';
+import { NEWSLETTER_FEATURE_MCP_EXTENSION } from './mcp.js';
 import { NEWSLETTER_PROFILE_API_EXTENSION } from './profile-api.js';
 
 export const NEWSLETTER_FEATURE_SERVER_MODULE: FeatureServerModule = {
   id: 'newsletter',
   server: {
-    profileApi: NEWSLETTER_PROFILE_API_EXTENSION
+    profileApi: NEWSLETTER_PROFILE_API_EXTENSION,
+    mcp: NEWSLETTER_FEATURE_MCP_EXTENSION
   },
   loadApi: async () => (await import('./api.js')).NEWSLETTER_FEATURE_API
 };

@@ -69,3 +69,4 @@ release/
 
 # Supabase CLI metadata (generated in older/newer CLI combinations)
 infra/supabase/supabase/
+.vercel

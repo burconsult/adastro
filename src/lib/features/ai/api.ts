@@ -1,30 +1,27 @@
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { ValidationError } from '@/lib/database/connection';
+import { normalizeFeatureFlag } from '@/lib/features/flags';
+import { mediaManager } from '@/lib/services/media-manager';
+import { checkRateLimit } from '@/lib/security/rate-limit';
+import { getClientIp } from '@/lib/security/request-guards';
+
 import { generateSeoMetadata } from './lib/seo.js';
 import { generateImage } from './lib/image.js';
 import { generateAudio } from './lib/audio.js';
-import { getConfiguredProviders } from './lib/index.js';
-import { getConfiguredImageProviders } from './lib/image.js';
-import { getConfiguredAudioProviders } from './lib/audio.js';
+import { aiConfigService } from './lib/config-service.js';
 import { AI_MODEL_REGISTRY } from './lib/model-registry.js';
 import {
   AI_PROVIDER_CATALOG,
   discoverAllProviderModels,
+  discoverProviderVoices,
   getConfiguredProvidersByCapability,
   getProviderCatalog,
   isProviderConfigured
 } from './lib/provider-catalog.js';
 import { checkUsageCap, getUsageSummary, recordUsageEvent } from './lib/usage.js';
-import { normalizeFeatureFlag } from '@/lib/features/flags';
-import { SettingsService } from '@/lib/services/settings-service';
-import { mediaManager } from '@/lib/services/media-manager';
-import { checkRateLimit } from '@/lib/security/rate-limit';
-import { getClientIp } from '@/lib/security/request-guards';
-import type { AiAudioProviderKey, AiImageProviderKey, AiProviderKey } from './lib/types.js';
+import type { AiProviderId } from './lib/types.js';
 import type { FeatureApiHandler, FeatureApiModule } from '../types.js';
 import { z } from 'zod';
-
-const settingsService = new SettingsService();
 
 const json = (payload: unknown, status = 200) => new Response(JSON.stringify(payload), {
   status,
@@ -37,14 +34,15 @@ const ALLOWED_IMAGE_SIZES = ['1024x1024', '1792x1024', '1024x1792'] as const;
 const ALLOWED_IMAGE_SIZES_WITH_LEGACY = [...ALLOWED_IMAGE_SIZES, '1536x1024', '1024x1536'] as const;
 const ALLOWED_ASPECT_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] as const;
 const ALLOWED_IMAGE_RESOLUTIONS = ['1K', '2K', '4K'] as const;
+const AI_PROVIDER_IDS = ['gateway', 'openai', 'gemini', 'anthropic', 'elevenlabs'] as const;
 
 const seoPayloadSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(180, 'Title is too long'),
   excerpt: z.string().trim().max(2_000, 'Excerpt is too long').optional().default(''),
   content: z.string().max(120_000, 'Content is too long').optional().default(''),
   tags: z.array(z.string().trim().min(1).max(80)).max(20, 'Too many tags').optional().default([]),
-  provider: z.enum(['openai', 'gemini', 'anthropic']).optional(),
-  model: z.string().trim().min(1).max(120).optional()
+  provider: z.enum(AI_PROVIDER_IDS).optional(),
+  model: z.string().trim().min(1).max(160).optional()
 }).strict();
 
 const imagePayloadSchema = z.object({
@@ -53,8 +51,8 @@ const imagePayloadSchema = z.object({
   excerpt: z.string().trim().max(2_000).optional().default(''),
   tags: z.array(z.string().trim().min(1).max(80)).max(20).optional().default([]),
   style: z.string().trim().max(120).optional(),
-  provider: z.enum(['openai', 'gemini']).optional(),
-  model: z.string().trim().min(1).max(120).optional(),
+  provider: z.enum(AI_PROVIDER_IDS).optional(),
+  model: z.string().trim().min(1).max(160).optional(),
   size: z.enum(ALLOWED_IMAGE_SIZES_WITH_LEGACY).optional(),
   aspectRatio: z.enum(ALLOWED_ASPECT_RATIOS).optional(),
   resolution: z.enum(ALLOWED_IMAGE_RESOLUTIONS).optional()
@@ -66,9 +64,9 @@ const imagePayloadSchema = z.object({
 const audioPayloadSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(180, 'Title is too long'),
   content: z.string().min(1, 'Content is required').max(120_000, 'Content is too long'),
-  provider: z.enum(['openai', 'elevenlabs']).optional(),
+  provider: z.enum(AI_PROVIDER_IDS).optional(),
   voice: z.string().trim().min(1).max(120).optional(),
-  model: z.string().trim().min(1).max(120).optional(),
+  model: z.string().trim().min(1).max(160).optional(),
   speed: z.number().min(0.25, 'Speed must be at least 0.25').max(2, 'Speed must be 2.0 or lower').optional()
 }).strict();
 
@@ -93,67 +91,6 @@ const normalizeOpenAiSize = (value: string | undefined) => {
   if (value === '1536x1024') return '1792x1024';
   if (value === '1024x1536') return '1024x1792';
   return value;
-};
-
-const getAllowedModels = (type: 'text' | 'image' | 'audio', provider: string): string[] => {
-  const providerConfig = (AI_MODEL_REGISTRY as Record<string, any>)[provider];
-  const models = providerConfig?.[type]?.models;
-  if (!Array.isArray(models)) return [];
-  return models.filter((model): model is string => typeof model === 'string' && model.trim().length > 0);
-};
-
-const resolveProvider = <T extends string>(
-  kind: 'text' | 'image' | 'audio',
-  configuredProviders: T[],
-  requestedProvider: T | undefined,
-  defaultProvider: unknown
-): { provider?: T; response?: Response } => {
-  if (configuredProviders.length === 0) {
-    return {
-      response: json({ error: `No AI ${kind} providers are configured. Add a provider API key first.` }, 400)
-    };
-  }
-
-  if (requestedProvider) {
-    if (!configuredProviders.includes(requestedProvider)) {
-      return {
-        response: json({ error: `Provider "${requestedProvider}" is not configured for AI ${kind}.` }, 400)
-      };
-    }
-    return { provider: requestedProvider };
-  }
-
-  const fallback = typeof defaultProvider === 'string' ? defaultProvider as T : undefined;
-  if (fallback && configuredProviders.includes(fallback)) {
-    return { provider: fallback };
-  }
-
-  return { provider: configuredProviders[0] };
-};
-
-const resolveModel = (
-  type: 'text' | 'image' | 'audio',
-  provider: string,
-  requestedModel: string | undefined,
-  defaultModel: unknown
-): { model?: string; response?: Response } => {
-  const normalizedRequestedModel = typeof requestedModel === 'string' ? requestedModel.trim() : '';
-  if (normalizedRequestedModel) {
-    const allowedModels = getAllowedModels(type, provider);
-    if (allowedModels.length > 0 && !allowedModels.includes(normalizedRequestedModel)) {
-      return {
-        response: json({ error: `Model "${normalizedRequestedModel}" is not supported by provider "${provider}".` }, 400)
-      };
-    }
-    return { model: normalizedRequestedModel };
-  }
-
-  const normalizedDefaultModel = typeof defaultModel === 'string' ? defaultModel.trim() : '';
-  if (normalizedDefaultModel.length > 0) {
-    return { model: normalizedDefaultModel };
-  }
-
-  return { model: getAllowedModels(type, provider)[0] };
 };
 
 const applyAiRateLimit = (
@@ -190,6 +127,39 @@ const parsePayload = async <T extends z.ZodTypeAny>(request: Request, schema: T)
   };
 };
 
+const asProvider = (value: unknown): AiProviderId | undefined => {
+  if (value === 'gateway' || value === 'openai' || value === 'gemini' || value === 'anthropic' || value === 'elevenlabs') {
+    return value;
+  }
+  return undefined;
+};
+
+const getAiClientErrorStatus = (message: string): number | null => {
+  const normalized = message.trim();
+
+  if (
+    normalized === 'AI tools are disabled' ||
+    normalized === 'SEO generation is disabled' ||
+    normalized === 'AI image generation is disabled' ||
+    normalized === 'AI audio generation is disabled'
+  ) {
+    return 403;
+  }
+
+  if (
+    /No AI (text|image|audio|video) providers are configured/i.test(normalized) ||
+    /Provider ".*" is not configured for AI/i.test(normalized) ||
+    /Model ".*" is not supported by provider/i.test(normalized) ||
+    /(Gateway|OpenAI|Gemini|Anthropic|ElevenLabs) provider is not configured/i.test(normalized) ||
+    /(text|image|audio) generation model is not configured/i.test(normalized) ||
+    /ElevenLabs voice is not configured/i.test(normalized)
+  ) {
+    return 400;
+  }
+
+  return null;
+};
+
 const handleAiError = (error: unknown, operation: string, fallbackMessage: string): Response => {
   if (error instanceof ValidationError) {
     const status = error.message === 'Authentication required' ? 401 : 403;
@@ -207,6 +177,12 @@ const handleAiError = (error: unknown, operation: string, fallbackMessage: strin
       .trim()
       .slice(0, 400)
     : '';
+  const clientStatus = sanitizedDetail ? getAiClientErrorStatus(sanitizedDetail) : null;
+
+  if (clientStatus) {
+    console.warn(`${operation} rejected: ${sanitizedDetail}`);
+    return json({ error: sanitizedDetail || fallbackMessage }, clientStatus);
+  }
 
   return json(
     sanitizedDetail
@@ -251,79 +227,46 @@ const seoHandler: FeatureApiHandler = async ({ request }) => {
     }
     const payload = parsedPayload.data;
 
-    const settings = await settingsService.getSettings([
-      'features.ai.enabled',
-      'features.ai.enableSeo',
-      'features.ai.defaultProvider.text',
-      'features.ai.model.text.openai',
-      'features.ai.model.text.gemini',
-      'features.ai.model.text.anthropic'
-    ]);
-
-    if (!normalizeFeatureFlag(settings['features.ai.enabled'], false)) {
-      return json({ error: 'AI tools are disabled' }, 403);
-    }
-
-    if (!normalizeFeatureFlag(settings['features.ai.enableSeo'], true)) {
-      return json({ error: 'SEO generation is disabled' }, 403);
-    }
-
+    const config = await aiConfigService.assertFeatureEnabled('seo');
     const usageCapBlocked = await enforceUsageCap('seo', 'text', user.id);
     if (usageCapBlocked) {
       return usageCapBlocked;
     }
 
-    const configuredProviders = getConfiguredProviders();
-    const providerResult = resolveProvider<AiProviderKey>(
+    const selection = await aiConfigService.resolveCapabilitySelection(
+      config,
       'text',
-      configuredProviders,
-      payload.provider,
-      settings['features.ai.defaultProvider.text']
+      asProvider(payload.provider),
+      payload.model
     );
-    if (providerResult.response) {
-      return providerResult.response;
-    }
-    const provider = providerResult.provider as AiProviderKey;
-
-    const modelResult = resolveModel(
-      'text',
-      provider,
-      payload.model,
-      provider === 'gemini'
-        ? settings['features.ai.model.text.gemini']
-        : provider === 'anthropic'
-          ? settings['features.ai.model.text.anthropic']
-          : settings['features.ai.model.text.openai']
-    );
-    if (modelResult.response) {
-      return modelResult.response;
-    }
-    const model = modelResult.model;
 
     const seoMetadata = await generateSeoMetadata({
       title: payload.title,
       excerpt: payload.excerpt,
       content: payload.content,
       tags: payload.tags,
-      provider,
-      model
+      provider: selection.provider,
+      model: selection.model
     });
 
     await recordUsageEvent({
       capability: 'text',
       operation: 'seo',
-      provider,
-      model,
+      provider: selection.provider,
+      model: selection.model,
       authUserId: user.id,
       authorId: user.authorId,
       metadata: {
         hasExcerpt: Boolean(payload.excerpt),
-        contentLength: payload.content.length,
         tagCount: payload.tags.length
       }
     });
 
-    return json({ seoMetadata, provider });
+    return json({
+      seoMetadata,
+      provider: selection.provider,
+      model: selection.model
+    });
   } catch (error) {
     return handleAiError(error, 'AI SEO generation', 'Failed to generate SEO metadata');
   }
@@ -334,7 +277,7 @@ const imageHandler: FeatureApiHandler = async ({ request }) => {
 
   try {
     const user = await requireAuthor(request);
-    const rateLimited = applyAiRateLimit(request, 'image', user.id, 8, 10 * 60 * 1000);
+    const rateLimited = applyAiRateLimit(request, 'image', user.id, 10, 10 * 60 * 1000);
     if (rateLimited) {
       return rateLimited;
     }
@@ -345,89 +288,44 @@ const imageHandler: FeatureApiHandler = async ({ request }) => {
     }
     const payload = parsedPayload.data;
 
-    const settings = await settingsService.getSettings([
-      'features.ai.enabled',
-      'features.ai.enableImages',
-      'features.ai.defaultProvider.image',
-      'features.ai.imageSize',
-      'features.ai.imageAspectRatio',
-      'features.ai.imageResolution',
-      'features.ai.model.image.openai',
-      'features.ai.model.image.gemini'
-    ]);
-
-    if (!normalizeFeatureFlag(settings['features.ai.enabled'], false)) {
-      return json({ error: 'AI tools are disabled' }, 403);
-    }
-
-    if (!normalizeFeatureFlag(settings['features.ai.enableImages'], true)) {
-      return json({ error: 'Image generation is disabled' }, 403);
-    }
-
+    const config = await aiConfigService.assertFeatureEnabled('image');
     const usageCapBlocked = await enforceUsageCap('image', 'image', user.id);
     if (usageCapBlocked) {
       return usageCapBlocked;
     }
 
-    const configuredImageProviders = getConfiguredImageProviders();
-    const providerResult = resolveProvider<AiImageProviderKey>(
+    const selection = await aiConfigService.resolveCapabilitySelection(
+      config,
       'image',
-      configuredImageProviders,
-      payload.provider,
-      settings['features.ai.defaultProvider.image']
+      asProvider(payload.provider),
+      payload.model
     );
-    if (providerResult.response) {
-      return providerResult.response;
-    }
-    const provider = providerResult.provider as AiImageProviderKey;
 
-    const modelResult = resolveModel(
-      'image',
-      provider,
-      payload.model,
-      provider === 'gemini'
-        ? settings['features.ai.model.image.gemini']
-        : settings['features.ai.model.image.openai']
-    );
-    if (modelResult.response) {
-      return modelResult.response;
-    }
-    const model = modelResult.model;
-
-    const normalizedSizeCandidate = normalizeOpenAiSize(payload.size || settings['features.ai.imageSize']);
+    const prompt = payload.prompt || buildImagePrompt(payload.title || 'Untitled', payload.excerpt, payload.tags, payload.style);
+    const normalizedSizeCandidate = normalizeOpenAiSize(payload.size || config.capabilities.image.defaultSize);
     const normalizedSize = ALLOWED_IMAGE_SIZES.includes((normalizedSizeCandidate || '') as typeof ALLOWED_IMAGE_SIZES[number])
       ? normalizedSizeCandidate
       : '1024x1024';
-    const aspectRatioCandidate = payload.aspectRatio || settings['features.ai.imageAspectRatio'];
-    const normalizedAspectRatio = ALLOWED_ASPECT_RATIOS.includes((aspectRatioCandidate || '') as typeof ALLOWED_ASPECT_RATIOS[number])
-      ? aspectRatioCandidate
-      : '1:1';
-    const resolutionCandidate = payload.resolution || settings['features.ai.imageResolution'];
-    const normalizedResolution = ALLOWED_IMAGE_RESOLUTIONS.includes((resolutionCandidate || '') as typeof ALLOWED_IMAGE_RESOLUTIONS[number])
-      ? resolutionCandidate
-      : '1K';
+    const normalizedAspectRatio = payload.aspectRatio || config.capabilities.image.defaultAspectRatio;
+    const normalizedResolution = payload.resolution || config.capabilities.image.defaultResolution;
 
-    const prompt = payload.prompt || buildImagePrompt(payload.title || '', payload.excerpt, payload.tags, payload.style);
     const image = await generateImage({
       prompt,
-      provider,
-      model,
+      provider: selection.provider,
+      model: selection.model,
       size: normalizedSize,
-      resolution: normalizedResolution,
-      aspectRatio: normalizedAspectRatio
+      aspectRatio: normalizedAspectRatio as any,
+      resolution: normalizedResolution as any
     });
 
-    const slugBase = (payload.title || payload.prompt || 'image').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-    const filename = `ai-${slugBase || 'image'}.png`;
+    const baseName = (payload.title || prompt).slice(0, 80).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const filename = `ai-${Date.now()}-${baseName || 'image'}.png`;
     const file = new File([image.data], filename, { type: image.mimeType });
-    const altText = payload.title
-      ? `AI-generated image for "${payload.title}"`
-      : 'AI-generated image';
 
     const result = await mediaManager.uploadMedia({
       file,
-      altText,
-      caption: payload.style ? `Generated in ${payload.style} style.` : undefined,
+      altText: payload.title ? `AI-generated image for "${payload.title}"` : 'AI-generated image',
+      caption: payload.style ? `Generated in ${payload.style} style.` : 'AI-generated image',
       uploadedBy: user.authorId
     });
 
@@ -448,8 +346,7 @@ const imageHandler: FeatureApiHandler = async ({ request }) => {
     return json({
       media: result.public ?? result.original,
       provider: image.provider,
-      model: image.model,
-      prompt
+      model: image.model
     });
   } catch (error) {
     return handleAiError(error, 'AI image generation', 'Failed to generate image');
@@ -461,7 +358,7 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
 
   try {
     const user = await requireAuthor(request);
-    const rateLimited = applyAiRateLimit(request, 'audio', user.id, 6, 10 * 60 * 1000);
+    const rateLimited = applyAiRateLimit(request, 'audio', user.id, 10, 10 * 60 * 1000);
     if (rateLimited) {
       return rateLimited;
     }
@@ -472,60 +369,19 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
     }
     const payload = parsedPayload.data;
 
-    const settings = await settingsService.getSettings([
-      'features.ai.enabled',
-      'features.ai.enableAudio',
-      'features.ai.defaultProvider.audio',
-      'features.ai.model.audio.openai',
-      'features.ai.model.audio.elevenlabs',
-      'features.ai.voice.openai',
-      'features.ai.voice.elevenlabs'
-    ]);
-
-    if (!normalizeFeatureFlag(settings['features.ai.enabled'], false)) {
-      return json({ error: 'AI tools are disabled' }, 403);
-    }
-
-    if (!normalizeFeatureFlag(settings['features.ai.enableAudio'], true)) {
-      return json({ error: 'Audio generation is disabled' }, 403);
-    }
-
+    const config = await aiConfigService.assertFeatureEnabled('audio');
     const usageCapBlocked = await enforceUsageCap('audio', 'audio', user.id);
     if (usageCapBlocked) {
       return usageCapBlocked;
     }
 
-    const configuredAudioProviders = getConfiguredAudioProviders();
-    const providerResult = resolveProvider<AiAudioProviderKey>(
+    const selection = await aiConfigService.resolveCapabilitySelection(
+      config,
       'audio',
-      configuredAudioProviders,
-      payload.provider,
-      settings['features.ai.defaultProvider.audio']
-    );
-    if (providerResult.response) {
-      return providerResult.response;
-    }
-    const provider = providerResult.provider as AiAudioProviderKey;
-
-    const modelResult = resolveModel(
-      'audio',
-      provider,
+      asProvider(payload.provider),
       payload.model,
-      provider === 'elevenlabs'
-        ? settings['features.ai.model.audio.elevenlabs']
-        : settings['features.ai.model.audio.openai']
+      payload.voice
     );
-    if (modelResult.response) {
-      return modelResult.response;
-    }
-    const model = modelResult.model;
-
-    const voice = typeof payload.voice === 'string' && payload.voice.trim().length > 0
-      ? payload.voice.trim()
-      : provider === 'elevenlabs'
-        ? settings['features.ai.voice.elevenlabs']
-        : settings['features.ai.voice.openai'];
-    const speed = payload.speed;
 
     const plainText = stripHtml(payload.content);
     const trimmed = plainText.slice(0, 4000);
@@ -535,10 +391,10 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
 
     const audio = await generateAudio({
       text: trimmed,
-      provider,
-      voice,
-      model,
-      speed
+      provider: selection.provider,
+      voice: selection.voice,
+      model: selection.model,
+      speed: payload.speed
     });
 
     const filename = `ai-${Date.now()}-${payload.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.mp3`;
@@ -559,7 +415,7 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
       authUserId: user.id,
       authorId: user.authorId,
       metadata: {
-        voice: audio.voice ?? voice,
+        voice: audio.voice ?? selection.voice,
         textLength: trimmed.length
       }
     });
@@ -580,14 +436,15 @@ const statusHandler: FeatureApiHandler = async ({ request }) => {
 
   try {
     await requireAuthor(request);
-
-    const settings = await settingsService.getSettings(['features.ai.enabled']);
+    const config = await aiConfigService.getRuntimeConfig();
 
     return json({
-      aiEnabled: normalizeFeatureFlag(settings['features.ai.enabled'], false),
-      textProviders: getConfiguredProviders(),
-      imageProviders: getConfiguredImageProviders(),
-      audioProviders: getConfiguredAudioProviders(),
+      aiEnabled: config.enabled,
+      textProviders: getConfiguredProvidersByCapability('text'),
+      imageProviders: getConfiguredProvidersByCapability('image'),
+      audioProviders: getConfiguredProvidersByCapability('audio'),
+      defaults: config.capabilities,
+      tools: config.tools,
       capabilityProviders: {
         text: getConfiguredProvidersByCapability('text'),
         image: getConfiguredProvidersByCapability('image'),
@@ -608,48 +465,35 @@ const modelsHandler: FeatureApiHandler = async ({ request }) => {
     const url = new URL(request.url);
     const shouldSync = ['1', 'true', 'yes'].includes((url.searchParams.get('sync') || '').toLowerCase());
     const forceRefresh = ['1', 'true', 'yes'].includes((url.searchParams.get('force') || '').toLowerCase());
-
-    const settings = await settingsService.getSettings([
-      'features.ai.model.text.openai',
-      'features.ai.model.text.gemini',
-      'features.ai.model.text.anthropic',
-      'features.ai.model.image.openai',
-      'features.ai.model.image.gemini',
-      'features.ai.model.audio.openai',
-      'features.ai.model.audio.elevenlabs',
-      'features.ai.voice.openai',
-      'features.ai.voice.elevenlabs'
-    ]);
+    const config = await aiConfigService.getRuntimeConfig();
 
     const discovery = shouldSync ? await discoverAllProviderModels({ forceRefresh }) : undefined;
+    const elevenlabsVoices = shouldSync ? await discoverProviderVoices('elevenlabs', { forceRefresh }) : undefined;
     const providers = getProviderCatalog().map((entry) => ({
       ...entry,
       configured: isProviderConfigured(entry.id),
       discoveredModels: discovery?.[entry.id]
+        ? {
+            models: discovery[entry.id].models,
+            source: discovery[entry.id].source,
+            error: discovery[entry.id].error,
+            updatedAt: discovery[entry.id].updatedAt
+          }
+        : undefined,
+      discoveredVoices: entry.id === 'elevenlabs' && elevenlabsVoices
+        ? {
+            voices: elevenlabsVoices.voices,
+            source: elevenlabsVoices.source,
+            error: elevenlabsVoices.error,
+            updatedAt: elevenlabsVoices.updatedAt
+          }
+        : undefined
     }));
 
     return json({
       registry: AI_MODEL_REGISTRY,
       providers,
-      active: {
-        openai: {
-          text: settings['features.ai.model.text.openai'],
-          image: settings['features.ai.model.image.openai'],
-          audio: settings['features.ai.model.audio.openai'],
-          voice: settings['features.ai.voice.openai']
-        },
-        gemini: {
-          text: settings['features.ai.model.text.gemini'],
-          image: settings['features.ai.model.image.gemini']
-        },
-        anthropic: {
-          text: settings['features.ai.model.text.anthropic']
-        },
-        elevenlabs: {
-          audio: settings['features.ai.model.audio.elevenlabs'],
-          voice: settings['features.ai.voice.elevenlabs']
-        }
-      }
+      active: config.capabilities
     });
   } catch (error) {
     return handleAiError(error, 'AI models', 'Unable to load AI models');
@@ -664,23 +508,45 @@ const catalogHandler: FeatureApiHandler = async ({ request }) => {
     const url = new URL(request.url);
     const shouldSync = ['1', 'true', 'yes'].includes((url.searchParams.get('sync') || '').toLowerCase());
     const forceRefresh = ['1', 'true', 'yes'].includes((url.searchParams.get('force') || '').toLowerCase());
+    const config = await aiConfigService.getRuntimeConfig();
 
     const discoveredModels = shouldSync ? await discoverAllProviderModels({ forceRefresh }) : undefined;
+    const elevenlabsVoices = shouldSync ? await discoverProviderVoices('elevenlabs', { forceRefresh }) : undefined;
+
     const providers = getProviderCatalog().map((provider) => ({
       ...provider,
       configured: isProviderConfigured(provider.id),
       discoveredModels: discoveredModels?.[provider.id]
+        ? {
+            models: discoveredModels[provider.id].models,
+            source: discoveredModels[provider.id].source,
+            error: discoveredModels[provider.id].error,
+            updatedAt: discoveredModels[provider.id].updatedAt
+          }
+        : undefined,
+      discoveredVoices: provider.id === 'elevenlabs' && elevenlabsVoices
+        ? {
+            voices: elevenlabsVoices.voices,
+            source: elevenlabsVoices.source,
+            error: elevenlabsVoices.error,
+            updatedAt: elevenlabsVoices.updatedAt
+          }
+        : undefined
     }));
 
     return json({
       providers,
+      defaults: config.capabilities,
+      tools: config.tools,
       capabilityProviders: {
         text: getConfiguredProvidersByCapability('text'),
         image: getConfiguredProvidersByCapability('image'),
         audio: getConfiguredProvidersByCapability('audio'),
         video: getConfiguredProvidersByCapability('video')
       },
-      configuredEnvKeys: providers.filter((provider) => provider.configured).map((provider) => AI_PROVIDER_CATALOG[provider.id].envKey)
+      configuredEnvKeys: providers
+        .filter((provider) => provider.configured)
+        .map((provider) => AI_PROVIDER_CATALOG[provider.id].envKey)
     });
   } catch (error) {
     return handleAiError(error, 'AI provider catalog', 'Unable to load AI provider catalog');
@@ -694,23 +560,16 @@ const usageHandler: FeatureApiHandler = async ({ request }) => {
     await requireAuthor(request);
     const url = new URL(request.url);
     const days = Number.parseInt(url.searchParams.get('days') || '30', 10);
-
-    const caps = await settingsService.getSettings([
-      'features.ai.usageCaps.enabled',
-      'features.ai.usageCaps.seoDailyRequests',
-      'features.ai.usageCaps.imageDailyRequests',
-      'features.ai.usageCaps.audioDailyRequests'
-    ]);
-
+    const config = await aiConfigService.getRuntimeConfig();
     const summary = await getUsageSummary(days);
 
     return json({
       summary,
       caps: {
-        enabled: normalizeFeatureFlag(caps['features.ai.usageCaps.enabled'], false),
-        seoDailyRequests: caps['features.ai.usageCaps.seoDailyRequests'],
-        imageDailyRequests: caps['features.ai.usageCaps.imageDailyRequests'],
-        audioDailyRequests: caps['features.ai.usageCaps.audioDailyRequests']
+        enabled: normalizeFeatureFlag(config.limits.enabled, false),
+        seoDailyRequests: config.limits.seoDailyRequests,
+        imageDailyRequests: config.limits.imageDailyRequests,
+        audioDailyRequests: config.limits.audioDailyRequests
       }
     });
   } catch (error) {

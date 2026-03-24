@@ -10,7 +10,16 @@ export const AI_SETTINGS: SettingDefinition[] = [
     defaultValue: false
   },
   {
-    key: 'features.ai.enableSeo',
+    key: 'features.ai.configVersion',
+    displayName: 'AI Config Version',
+    description: 'Internal AI settings version.',
+    type: 'number',
+    category: 'extras',
+    defaultValue: 2,
+    adminSurface: 'hidden'
+  },
+  {
+    key: 'features.ai.tools.seo.enabled',
     displayName: 'Enable AI SEO',
     description: 'Allow AI-generated SEO metadata.',
     type: 'boolean',
@@ -18,7 +27,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     defaultValue: true
   },
   {
-    key: 'features.ai.enableImages',
+    key: 'features.ai.tools.image.enabled',
     displayName: 'Enable AI Images',
     description: 'Allow AI-generated featured images.',
     type: 'boolean',
@@ -26,7 +35,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     defaultValue: true
   },
   {
-    key: 'features.ai.enableAudio',
+    key: 'features.ai.tools.audio.enabled',
     displayName: 'Enable AI Audio',
     description: 'Allow AI-generated audio narration.',
     type: 'boolean',
@@ -34,7 +43,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     defaultValue: false
   },
   {
-    key: 'features.ai.usageCaps.enabled',
+    key: 'features.ai.limits.enabled',
     displayName: 'Enable AI Usage Caps',
     description: 'Apply daily request caps per capability and user.',
     type: 'boolean',
@@ -42,7 +51,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     defaultValue: false
   },
   {
-    key: 'features.ai.usageCaps.seoDailyRequests',
+    key: 'features.ai.limits.seoDailyRequests',
     displayName: 'SEO Requests Per User / Day',
     description: 'Set to 0 for unlimited.',
     type: 'number',
@@ -51,7 +60,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     validation: { min: 0, max: 10000 }
   },
   {
-    key: 'features.ai.usageCaps.imageDailyRequests',
+    key: 'features.ai.limits.imageDailyRequests',
     displayName: 'Image Requests Per User / Day',
     description: 'Set to 0 for unlimited.',
     type: 'number',
@@ -60,7 +69,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     validation: { min: 0, max: 10000 }
   },
   {
-    key: 'features.ai.usageCaps.audioDailyRequests',
+    key: 'features.ai.limits.audioDailyRequests',
     displayName: 'Audio Requests Per User / Day',
     description: 'Set to 0 for unlimited.',
     type: 'number',
@@ -69,127 +78,87 @@ export const AI_SETTINGS: SettingDefinition[] = [
     validation: { min: 0, max: 10000 }
   },
   {
-    key: 'features.ai.defaultProvider.text',
+    key: 'features.ai.capabilities.text.defaultProvider',
     displayName: 'Default Text Provider',
     description: 'Provider used for AI text generation.',
     type: 'string',
     category: 'extras',
-    defaultValue: 'openai',
-    validation: { options: ['openai', 'gemini', 'anthropic'] }
+    defaultValue: 'gateway',
+    validation: { options: ['gateway', 'openai', 'gemini', 'anthropic'] }
   },
   {
-    key: 'features.ai.defaultProvider.image',
+    key: 'features.ai.capabilities.text.defaultModel',
+    displayName: 'Default Text Model',
+    description: 'Default model used for AI text generation.',
+    type: 'string',
+    category: 'extras',
+    defaultValue: 'openai/gpt-4o-mini'
+  },
+  {
+    key: 'features.ai.capabilities.image.defaultProvider',
     displayName: 'Default Image Provider',
     description: 'Provider used for AI image generation.',
     type: 'string',
     category: 'extras',
-    defaultValue: 'openai',
-    validation: { options: ['openai', 'gemini'] }
+    defaultValue: 'gateway',
+    validation: { options: ['gateway', 'openai', 'gemini'] }
   },
   {
-    key: 'features.ai.imageSize',
-    displayName: 'OpenAI Image Size',
-    description: 'Pixel size used for OpenAI image generation.',
+    key: 'features.ai.capabilities.image.defaultModel',
+    displayName: 'Default Image Model',
+    description: 'Default model used for AI image generation.',
+    type: 'string',
+    category: 'extras',
+    defaultValue: 'openai/gpt-image-1'
+  },
+  {
+    key: 'features.ai.capabilities.image.defaultSize',
+    displayName: 'Default Image Size',
+    description: 'Pixel size used for OpenAI-compatible image generation.',
     type: 'string',
     category: 'extras',
     defaultValue: '1024x1024',
     validation: { options: ['1024x1024', '1792x1024', '1024x1792'] }
   },
   {
-    key: 'features.ai.imageAspectRatio',
-    displayName: 'Gemini Aspect Ratio',
-    description: 'Aspect ratio for Gemini image generation.',
+    key: 'features.ai.capabilities.image.defaultAspectRatio',
+    displayName: 'Default Image Aspect Ratio',
+    description: 'Aspect ratio for providers that support image aspect controls.',
     type: 'string',
     category: 'extras',
     defaultValue: '1:1',
     validation: { options: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] }
   },
   {
-    key: 'features.ai.imageResolution',
-    displayName: 'Gemini Image Resolution',
-    description: 'Resolution for Gemini image preview models (1K, 2K, 4K).',
+    key: 'features.ai.capabilities.image.defaultResolution',
+    displayName: 'Default Image Resolution',
+    description: 'Resolution for providers that support image resolution controls.',
     type: 'string',
     category: 'extras',
     defaultValue: '1K',
     validation: { options: ['1K', '2K', '4K'] }
   },
   {
-    key: 'features.ai.defaultProvider.audio',
+    key: 'features.ai.capabilities.audio.defaultProvider',
     displayName: 'Default Audio Provider',
     description: 'Provider used for AI audio generation.',
     type: 'string',
     category: 'extras',
-    defaultValue: 'openai',
+    defaultValue: 'elevenlabs',
     validation: { options: ['openai', 'elevenlabs'] }
   },
   {
-    key: 'features.ai.model.text.openai',
-    displayName: 'OpenAI Text Model',
-    description: 'Model used for OpenAI text generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'gpt-4o-mini'
-  },
-  {
-    key: 'features.ai.model.text.gemini',
-    displayName: 'Gemini Text Model',
-    description: 'Model used for Gemini text generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'gemini-2.5-flash'
-  },
-  {
-    key: 'features.ai.model.text.anthropic',
-    displayName: 'Anthropic Text Model',
-    description: 'Model used for Anthropic text generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'claude-3-5-sonnet-20240620'
-  },
-  {
-    key: 'features.ai.model.image.openai',
-    displayName: 'OpenAI Image Model',
-    description: 'Model used for OpenAI image generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'gpt-image-1'
-  },
-  {
-    key: 'features.ai.model.image.gemini',
-    displayName: 'Gemini Image Model',
-    description: 'Model used for Gemini image generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'gemini-2.5-flash-image'
-  },
-  {
-    key: 'features.ai.model.audio.openai',
-    displayName: 'OpenAI Audio Model',
-    description: 'Model used for OpenAI audio generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'gpt-4o-mini-tts'
-  },
-  {
-    key: 'features.ai.model.audio.elevenlabs',
-    displayName: 'ElevenLabs Audio Model',
-    description: 'Model used for ElevenLabs audio generation.',
+    key: 'features.ai.capabilities.audio.defaultModel',
+    displayName: 'Default Audio Model',
+    description: 'Default model used for AI audio generation.',
     type: 'string',
     category: 'extras',
     defaultValue: 'eleven_turbo_v2'
   },
   {
-    key: 'features.ai.voice.openai',
-    displayName: 'OpenAI Voice',
-    description: 'Default voice used for OpenAI audio generation.',
-    type: 'string',
-    category: 'extras',
-    defaultValue: 'alloy'
-  },
-  {
-    key: 'features.ai.voice.elevenlabs',
-    displayName: 'ElevenLabs Voice ID',
-    description: 'Default voice ID for ElevenLabs audio generation.',
+    key: 'features.ai.capabilities.audio.defaultVoice',
+    displayName: 'Default Audio Voice',
+    description: 'Default voice used for AI audio generation.',
     type: 'string',
     category: 'extras',
     defaultValue: 'EXAVITQu4vr4xnSDxMaL'

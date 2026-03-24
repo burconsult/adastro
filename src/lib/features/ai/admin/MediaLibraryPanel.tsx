@@ -36,7 +36,7 @@ export const AiMediaLibraryPanel: React.FC<MediaLibraryExtensionProps> = ({
     const loadConfig = async () => {
       try {
         const [settingsResponse, statusResponse] = await Promise.all([
-          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.enableImages,features.ai.imageSize,features.ai.imageAspectRatio,features.ai.imageResolution,features.ai.defaultProvider.image'),
+          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.tools.image.enabled,features.ai.capabilities.image.defaultSize,features.ai.capabilities.image.defaultAspectRatio,features.ai.capabilities.image.defaultResolution,features.ai.capabilities.image.defaultProvider'),
           fetch('/api/features/ai/status')
         ]);
 
@@ -48,10 +48,10 @@ export const AiMediaLibraryPanel: React.FC<MediaLibraryExtensionProps> = ({
         const statusAvailable = statusResponse.ok;
         const status = statusAvailable ? await statusResponse.json() : null;
         const aiSuiteEnabled = normalizeFeatureFlag(settings['features.ai.enabled'], false);
-        const provider = settings['features.ai.defaultProvider.image'] || 'openai';
+        const provider = settings['features.ai.capabilities.image.defaultProvider'] || 'gateway';
         const imageProviders = Array.isArray(status?.imageProviders) ? status.imageProviders : [];
         const enabled = aiSuiteEnabled
-          && normalizeFeatureFlag(settings['features.ai.enableImages'], true)
+          && normalizeFeatureFlag(settings['features.ai.tools.image.enabled'], true)
           && (imageProviders.includes(provider) || !statusAvailable);
 
         if (cancelled) return;
@@ -59,9 +59,9 @@ export const AiMediaLibraryPanel: React.FC<MediaLibraryExtensionProps> = ({
         setAiEnabled(aiSuiteEnabled);
         setImageEnabled(enabled);
         setImageProvider(provider);
-        setImageSize(normalizeOpenAiImageSize(settings['features.ai.imageSize'] || '1024x1024'));
-        setImageAspectRatio(settings['features.ai.imageAspectRatio'] || '1:1');
-        setImageResolution(settings['features.ai.imageResolution'] || '1K');
+        setImageSize(normalizeOpenAiImageSize(settings['features.ai.capabilities.image.defaultSize'] || '1024x1024'));
+        setImageAspectRatio(settings['features.ai.capabilities.image.defaultAspectRatio'] || '1:1');
+        setImageResolution(settings['features.ai.capabilities.image.defaultResolution'] || '1K');
       } catch (error) {
         if (!cancelled) {
           console.warn('Failed to load AI settings', error);
@@ -170,7 +170,9 @@ export const AiMediaLibraryPanel: React.FC<MediaLibraryExtensionProps> = ({
   const showImageResolution = imageProvider === 'gemini';
   const showImageAspectRatio = imageProvider === 'gemini';
   const showImageSize = imageProvider !== 'gemini';
-  const providerLabel = imageProvider === 'openai'
+  const providerLabel = imageProvider === 'gateway'
+    ? 'Vercel AI Gateway'
+    : imageProvider === 'openai'
     ? 'OpenAI'
     : imageProvider === 'gemini'
       ? 'Gemini'

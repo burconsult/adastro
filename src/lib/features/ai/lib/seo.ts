@@ -1,6 +1,6 @@
 import { generateContent } from './index.js';
 import type { SEOMetadata } from '../../../types/index.js';
-import type { AiProviderKey } from './types.js';
+import type { AiProviderId } from './types.js';
 
 const clamp = (value: string, max: number) => value.slice(0, max).trim();
 
@@ -19,7 +19,7 @@ export interface GenerateSeoInput {
   excerpt?: string;
   content?: string;
   tags?: string[];
-  provider?: AiProviderKey;
+  provider?: AiProviderId;
   model?: string;
 }
 
@@ -54,10 +54,10 @@ export async function generateSeoMetadata(input: GenerateSeoInput): Promise<SEOM
       model,
       temperature: 0.4,
       maxOutputTokens: 400,
-      responseFormat: provider === 'openai' ? 'json_object' : undefined
+      responseFormat: provider === 'openai' || provider === 'gateway' ? 'json_object' : undefined
     });
   } catch (error) {
-    if (provider === 'openai') {
+    if (provider === 'openai' || provider === 'gateway') {
       response = await generateContent({
         prompt,
         system,

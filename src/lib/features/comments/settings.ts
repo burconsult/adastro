@@ -19,8 +19,8 @@ export const COMMENTS_SETTINGS: SettingDefinition[] = [
   },
   {
     key: 'features.comments.authenticatedOnly',
-    displayName: 'Members Only Comments',
-    description: 'Only allow signed-in users to submit comments.',
+    displayName: 'Require Sign-In to Comment',
+    description: 'Turn this on to block guest comments. Leaving it off allows unauthenticated comments and increases spam and impersonation risk.',
     type: 'boolean',
     category: 'extras',
     defaultValue: false

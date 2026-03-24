@@ -25,7 +25,7 @@ export const AiSeoActions: React.FC<SeoActionsProps> = ({
     const loadConfig = async () => {
       try {
         const [settingsResponse, statusResponse] = await Promise.all([
-          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.enableSeo,features.ai.defaultProvider.text'),
+          fetch('/api/admin/settings?keys=features.ai.enabled,features.ai.tools.seo.enabled,features.ai.capabilities.text.defaultProvider'),
           fetch('/api/features/ai/status')
         ]);
 
@@ -37,8 +37,8 @@ export const AiSeoActions: React.FC<SeoActionsProps> = ({
         const statusAvailable = statusResponse.ok;
         const status = statusAvailable ? await statusResponse.json() : null;
         const aiEnabled = normalizeFeatureFlag(settings['features.ai.enabled'], false);
-        const seoEnabled = normalizeFeatureFlag(settings['features.ai.enableSeo'], true);
-        const defaultProvider = settings['features.ai.defaultProvider.text'] || 'openai';
+        const seoEnabled = normalizeFeatureFlag(settings['features.ai.tools.seo.enabled'], true);
+        const defaultProvider = settings['features.ai.capabilities.text.defaultProvider'] || 'gateway';
         const textProviders = Array.isArray(status?.textProviders) ? status.textProviders : [];
         const providerReady = textProviders.includes(defaultProvider) || !statusAvailable;
 
