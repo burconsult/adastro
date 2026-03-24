@@ -22,14 +22,14 @@ export default function AdminMobileNav({
   const activeItem = items.find((item) => item.isActive) ?? items[0];
 
   return (
-    <nav aria-label="Admin mobile navigation" className="border-b border-border bg-background/70 lg:hidden">
+    <nav aria-label="Admin mobile navigation" className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground lg:hidden">
       <details className="group px-4 py-2 sm:px-6">
-        <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground transition-colors group-open:bg-muted/50">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-sidebar-border bg-sidebar/80 px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors group-open:bg-sidebar-accent group-open:text-sidebar-accent-foreground">
           <span className="inline-flex items-center gap-2">
             {activeItem?.icon}
             <span>{activeItem?.label ?? 'Navigation'}</span>
           </span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+          <ChevronDown className="h-4 w-4 text-sidebar-foreground/70 transition-transform group-open:rotate-180" aria-hidden="true" />
         </summary>
         <div className="mt-2 grid gap-2 pb-2">
           {items.map((item) => (
@@ -41,8 +41,8 @@ export default function AdminMobileNav({
                 item.parentHref ? 'ml-4 text-xs' : ''
               } ${
                 item.isActive
-                  ? 'border-primary/25 bg-primary/10 text-foreground'
-                  : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground'
+                  ? 'border-sidebar-primary/30 bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                  : 'border-transparent text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               }`}
             >
               {item.icon}

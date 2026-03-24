@@ -1,13 +1,12 @@
 import type { APIRoute } from 'astro';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 import { getThemeModules } from '../../../../lib/themes/registry.js';
 import { SettingsService } from '../../../../lib/services/settings-service.js';
 
 const settingsService = new SettingsService();
-const INSTALLED_THEME_ROOT = join(fileURLToPath(new URL('../../../../../', import.meta.url)), 'src/lib/themes/installed');
+const INSTALLED_THEME_ROOT = join(process.cwd(), 'src/lib/themes/installed');
 
 const getInstalledThemeIds = () => {
   if (!existsSync(INSTALLED_THEME_ROOT)) return [];
@@ -42,9 +41,9 @@ export const GET: APIRoute = async ({ request }) => {
       version: theme.version,
       author: theme.author,
       previewImage: theme.previewImage,
-      accent: theme.accent,
+      previewDescription: theme.previewDescription,
+      previewFeatures: theme.previewFeatures,
       fonts: theme.fonts,
-      fontImports: theme.fontImports,
       installed: installedIds.has(theme.id),
       bundled: !installedIds.has(theme.id),
       active: theme.id === activeTheme

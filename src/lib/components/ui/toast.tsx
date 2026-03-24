@@ -119,16 +119,16 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const { variant = 'default', title, description } = toast;
 
   const variantClasses: Record<ToastVariant, string> = {
-    default: 'border-border bg-background text-foreground',
-    success: 'border-emerald-500/40 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
-    destructive: 'border-destructive/40 bg-destructive text-destructive-foreground',
-    warning: 'border-amber-500/40 bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-50',
+    default: 'border-border bg-surface-1 text-foreground',
+    success: 'border-success/35 bg-success/12 text-success',
+    destructive: 'border-destructive/35 bg-destructive/14 text-destructive',
+    warning: 'border-warning/40 bg-warning/16 text-warning-foreground',
   };
   const descriptionClasses: Record<ToastVariant, string> = {
     default: 'text-muted-foreground',
-    success: 'text-emerald-900/90 dark:text-emerald-100/90',
-    destructive: 'text-destructive-foreground/90',
-    warning: 'text-amber-900/90 dark:text-amber-50/90',
+    success: 'text-success/90',
+    destructive: 'text-destructive/90',
+    warning: 'text-warning-foreground/90',
   };
 
   return (
@@ -144,7 +144,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
         <button
           type="button"
           aria-label="Dismiss notification"
-          className="rounded-md p-1 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
           onClick={onDismiss}
         >
           <X className="h-4 w-4" aria-hidden="true" />

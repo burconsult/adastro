@@ -22,10 +22,25 @@
   --info: 210 10% 45%;
   --info-foreground: 60 10% 96.1%;
   --border: 60 3.4% 82.5%;
+  --border-strong: 60 2.2% 35.3%;
   --input: 60 3.4% 82.5%;
   --ring: 60 2.1% 46.9%;
-  --radius: 0.45rem;
-  --surface-border-width: 1px;
+  --link: 60 2.7% 29%;
+  --link-hover: 60 3.6% 73.1%;
+  --inverse: 60 4.4% 17.6%;
+  --inverse-foreground: 60 10% 96.1%;
+  --surface-1: 0 0% 100%;
+  --surface-2: 60 6.7% 91.2%;
+  --surface-3: 60 5.3% 88.8%;
+  --surface-overlay: 60 4.4% 17.6%;
+  --media-overlay-start: 60 4.4% 17.6%;
+  --media-overlay-end: 60 2.7% 29%;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.35rem;
+  --radius-lg: 0.45rem;
+  --radius-pill: 999px;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(var(--foreground) / 0.07);
   --elevation-md: 0 8px 18px hsl(var(--foreground) / 0.1);
   --elevation-lg: 0 14px 28px hsl(var(--foreground) / 0.13);
@@ -46,8 +61,6 @@
   --sidebar-ring: 60 2.1% 46.9%;
   --font-body: 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-heading: 'Libre Baskerville', 'Georgia', 'Times New Roman', serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }
 
 .dark[data-theme="monochrome-calm"] {
@@ -74,10 +87,25 @@
   --info: 210 15% 70%;
   --info-foreground: 60 4.5% 8.6%;
   --border: 60 1.7% 23.1%;
+  --border-strong: 60 4.2% 81.2%;
   --input: 60 1.7% 23.1%;
   --ring: 60 3.3% 63.9%;
-  --radius: 0.45rem;
-  --surface-border-width: 1px;
+  --link: 60 3.3% 63.9%;
+  --link-hover: 60 3% 53.9%;
+  --inverse: 60 3.7% 10.6%;
+  --inverse-foreground: 60 8.6% 93.1%;
+  --surface-1: 60 1.4% 13.9%;
+  --surface-2: 60 2% 19.6%;
+  --surface-3: 60 2% 19.6%;
+  --surface-overlay: 60 3.7% 10.6%;
+  --media-overlay-start: 60 3.7% 10.6%;
+  --media-overlay-end: 60 3.3% 63.9%;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.35rem;
+  --radius-lg: 0.45rem;
+  --radius-pill: 999px;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(var(--primary) / 0.14);
   --elevation-md: 0 8px 18px hsl(var(--primary) / 0.18);
   --elevation-lg: 0 14px 28px hsl(var(--primary) / 0.22);
@@ -98,6 +126,4 @@
   --sidebar-ring: 60 3.3% 63.9%;
   --font-body: 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-heading: 'Libre Baskerville', 'Georgia', 'Times New Roman', serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }

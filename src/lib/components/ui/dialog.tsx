@@ -150,7 +150,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
     <DialogPortal>
       <div className={cn('fixed inset-0 z-50 flex items-center justify-center', containerClassName)}>
         <div
-          className={cn('absolute inset-0 bg-black/40 backdrop-blur-sm', overlayClassName)}
+          className={cn('absolute inset-0 bg-surface-overlay/68 backdrop-blur-sm', overlayClassName)}
           onClick={() => setOpen(false)}
         />
         <div
@@ -158,7 +158,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
           role="dialog"
           aria-modal="true"
           className={cn(
-            'relative z-10 w-full max-w-lg rounded-xl border border-border bg-background p-6 shadow-xl outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'relative z-10 w-full max-w-lg rounded-xl border border-border bg-surface-1 p-6 shadow-xl outline-none focus-visible:ring-2 focus-visible:ring-ring',
             className
           )}
           tabIndex={-1}

@@ -2,12 +2,11 @@
   "id": "fashion-muse",
   "label": "Fashion Muse",
   "description": "Editorial contrast with blush accents and polished neutrals.",
+  "previewDescription": "Soft blush surfaces and magazine-inspired typography with polished action and status colors.",
+  "previewFeatures": ["Editorial serif headings", "Blush neutral palette", "Luxe admin accents"],
   "version": "1.0.0",
   "author": "Burconsult",
   "entry": "index.ts",
-  "fontImports": [
-    "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
-  ],
   "fonts": {
     "body": "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     "heading": "'Playfair Display', 'Georgia', 'Times New Roman', serif"

@@ -5,15 +5,13 @@ export const THEME_MODULE: ThemeModule = {
   id: 'neural-nexus',
   label: 'Neural Nexus',
   description: 'Electric purples with neon teal accents.',
+  previewDescription: 'Futurist violet surfaces, electric accents, and deliberate code-like hierarchy for high-energy brands.',
+  previewFeatures: ['Electric chart colors', 'Dense contrast hierarchy', 'Futurist mono heading stack'],
   version: '1.0.0',
   author: 'Burconsult',
-  accent: 'hsl(258 89.5% 66.3%)',
   fonts: {
     body: "'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     heading: "'JetBrains Mono', 'Courier New', monospace"
   },
-  fontImports: [
-    "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
-  ],
   source: 'installed'
 };

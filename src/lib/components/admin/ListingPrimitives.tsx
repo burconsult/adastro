@@ -168,9 +168,9 @@ export function IconActionButton({
   disabled?: boolean;
 }) {
   const baseClass = cx(
-    'btn btn-outline btn-sm h-8 w-8 p-0 border-border/80 bg-background text-foreground shadow-sm hover:bg-muted/70',
+    'btn btn-outline btn-sm h-8 w-8 p-0 border-border/80 bg-surface-1 text-foreground shadow-sm hover:bg-surface-2',
     destructive
-      ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-900/60'
+      ? 'border-destructive/35 bg-destructive/12 text-destructive hover:bg-destructive/18'
       : ''
   );
   const renderedIcon = normalizeIcon(icon);

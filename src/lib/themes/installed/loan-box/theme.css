@@ -22,10 +22,25 @@
   --info: 215.5 90.2% 23.9%;
   --info-foreground: 212.3 72.2% 92.9%;
   --border: 215 10.7% 78%;
+  --border-strong: 220 12.9% 41%;
   --input: 215 10.7% 78%;
   --ring: 215.5 90.2% 23.9%;
-  --radius: 0.5rem;
-  --surface-border-width: 1px;
+  --link: 215.5 90.2% 23.9%;
+  --link-hover: 278.1 92.3% 20.4%;
+  --inverse: 225 11.1% 7.1%;
+  --inverse-foreground: 210 20% 96.1%;
+  --surface-1: 0 0% 100%;
+  --surface-2: 270 40% 96.1%;
+  --surface-3: 240 12% 95.1%;
+  --surface-overlay: 225 11.1% 7.1%;
+  --media-overlay-start: 225 11.1% 7.1%;
+  --media-overlay-end: 278.1 92.3% 20.4%;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-pill: 999px;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(225 11.1% 7.1% / 0.06);
   --elevation-md: 0 8px 20px hsl(225 11.1% 7.1% / 0.08), 0 2px 6px hsl(278.1 92.3% 20.4% / 0.04);
   --elevation-lg: 0 16px 34px hsl(225 11.1% 7.1% / 0.1), 0 4px 12px hsl(278.1 92.3% 20.4% / 0.06);
@@ -46,8 +61,6 @@
   --sidebar-ring: 215.5 90.2% 23.9%;
   --font-body: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   --font-heading: 'Rubik', 'Helvetica Neue', Arial, sans-serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }
 
 .dark[data-theme="loan-box"] {
@@ -74,10 +87,25 @@
   --info: 212.6 72.6% 52.7%;
   --info-foreground: 215 90.9% 12.9%;
   --border: 216.5 13.3% 33.9%;
+  --border-strong: 215 10.7% 78%;
   --input: 216.5 13.3% 33.9%;
   --ring: 211.8 77.3% 74.1%;
-  --radius: 0.5rem;
-  --surface-border-width: 1px;
+  --link: 212.6 72.6% 52.7%;
+  --link-hover: 211.8 77.3% 74.1%;
+  --inverse: 225 11.1% 7.1%;
+  --inverse-foreground: 210 20% 96.1%;
+  --surface-1: 222 16.1% 12.2%;
+  --surface-2: 265.7 20.6% 13.3%;
+  --surface-3: 216.5 13.3% 33.9%;
+  --surface-overlay: 225 11.1% 7.1%;
+  --media-overlay-start: 225 11.1% 7.1%;
+  --media-overlay-end: 266 36.9% 55.9%;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-pill: 999px;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(225 11.1% 7.1% / 0.5);
   --elevation-md: 0 10px 26px hsl(225 11.1% 7.1% / 0.6), 0 2px 8px hsl(266 36.9% 55.9% / 0.12);
   --elevation-lg: 0 18px 40px hsl(225 11.1% 7.1% / 0.66), 0 6px 14px hsl(266 36.9% 55.9% / 0.16);
@@ -98,6 +126,4 @@
   --sidebar-ring: 211.8 77.3% 74.1%;
   --font-body: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   --font-heading: 'Rubik', 'Helvetica Neue', Arial, sans-serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }

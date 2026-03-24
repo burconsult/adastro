@@ -18,12 +18,12 @@ type ThemeSummary = {
   version?: string;
   author?: string;
   previewImage?: string;
-  accent?: string;
+  previewDescription?: string;
+  previewFeatures?: string[];
   fonts?: {
     body: string;
     heading: string;
   };
-  fontImports?: string[];
   installed: boolean;
   bundled: boolean;
   active: boolean;
@@ -33,8 +33,15 @@ type ThemeMode = 'light' | 'dark' | 'system';
 
 const PREVIEW_PRESET_KEY = 'theme-preview';
 const PREVIEW_MODE_KEY = 'theme-preview-mode';
+const PREVIEW_MODES: ThemeMode[] = ['light', 'dark', 'system'];
 
 const getFileLabel = (file: File | null) => file?.name || 'Choose a theme package (.zip)';
+
+const summarizeFontStack = (stack?: string) => {
+  if (!stack) return 'System';
+  const [firstEntry] = stack.split(',');
+  return firstEntry?.trim().replace(/^['"]|['"]$/g, '') || 'System';
+};
 
 const resolveMode = (mode: ThemeMode) => {
   if (mode === 'system') {
@@ -65,18 +72,18 @@ const applyThemeToDocument = (themeId: string, mode: ThemeMode, preview = false)
   }
 };
 
-const ensureFontImports = (imports: string[] = []) => {
-  if (typeof document === 'undefined') return;
-  const head = document.head;
-  imports.forEach((href) => {
-    if (document.querySelector(`link[data-theme-font="${href}"]`)) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    link.dataset.themeFont = href;
-    head.appendChild(link);
-  });
+const persistPreview = (themeId: string, mode: ThemeMode) => {
+  localStorage.setItem(PREVIEW_PRESET_KEY, themeId);
+  localStorage.setItem(PREVIEW_MODE_KEY, mode);
 };
+
+const chartSwatches = [
+  { key: 'chart1', label: 'Chart 1' },
+  { key: 'chart2', label: 'Chart 2' },
+  { key: 'chart3', label: 'Chart 3' },
+  { key: 'chart4', label: 'Chart 4' },
+  { key: 'chart5', label: 'Chart 5' }
+] as const;
 
 export const ThemeManager: React.FC = () => {
   const reduceMotion = useReducedMotion();
@@ -105,15 +112,8 @@ export const ThemeManager: React.FC = () => {
       }
       const payload = await response.json();
       setThemes(Array.isArray(payload?.themes) ? payload.themes : []);
-      const activeTheme = typeof payload?.activeTheme === 'string' ? payload.activeTheme : 'adastro';
-      const mode = (payload?.activeMode as ThemeMode) || 'system';
-      setActiveThemeId(activeTheme);
-      setActiveMode(mode);
-      const active = (Array.isArray(payload?.themes) ? payload.themes : [])
-        .find((theme: ThemeSummary) => theme.id === activeTheme);
-      if (active?.fontImports) {
-        ensureFontImports(active.fontImports);
-      }
+      setActiveThemeId(typeof payload?.activeTheme === 'string' ? payload.activeTheme : 'adastro');
+      setActiveMode((payload?.activeMode as ThemeMode) || 'system');
     } catch (error) {
       const text = error instanceof Error ? error.message : 'Failed to load themes';
       setMessage({ type: 'error', text });
@@ -130,24 +130,59 @@ export const ThemeManager: React.FC = () => {
     if (typeof window === 'undefined') return;
     const storedPreview = localStorage.getItem(PREVIEW_PRESET_KEY);
     const storedMode = (localStorage.getItem(PREVIEW_MODE_KEY) as ThemeMode | null) || 'system';
-    if (storedPreview) {
-      const theme = themes.find((item) => item.id === storedPreview);
-      if (!theme) {
-        localStorage.removeItem(PREVIEW_PRESET_KEY);
-        localStorage.removeItem(PREVIEW_MODE_KEY);
-        setPreviewThemeId(null);
-        setPreviewMode(activeMode);
-        applyThemeToDocument(activeThemeId, activeMode, false);
-        return;
-      }
-      if (theme.fontImports) {
-        ensureFontImports(theme.fontImports);
-      }
-      setPreviewThemeId(storedPreview);
-      setPreviewMode(storedMode);
-      applyThemeToDocument(storedPreview, storedMode, true);
+    if (!storedPreview) return;
+
+    const theme = themes.find((item) => item.id === storedPreview);
+    if (!theme) {
+      localStorage.removeItem(PREVIEW_PRESET_KEY);
+      localStorage.removeItem(PREVIEW_MODE_KEY);
+      setPreviewThemeId(null);
+      setPreviewMode(activeMode);
+      applyThemeToDocument(activeThemeId, activeMode, false);
+      return;
     }
+
+    setPreviewThemeId(storedPreview);
+    setPreviewMode(storedMode);
+    applyThemeToDocument(storedPreview, storedMode, true);
   }, [activeMode, activeThemeId, themes]);
+
+  const activeTheme = useMemo(
+    () => themes.find((theme) => theme.id === activeThemeId) ?? null,
+    [themes, activeThemeId]
+  );
+  const previewTheme = useMemo(
+    () => (previewThemeId ? themes.find((theme) => theme.id === previewThemeId) ?? null : null),
+    [themes, previewThemeId]
+  );
+  const isPreviewing = Boolean(previewTheme);
+  const specimenTheme = previewTheme ?? activeTheme ?? themes[0] ?? null;
+  const specimenMode = isPreviewing ? previewMode : activeMode;
+
+  const clearPreview = useCallback((nextThemeId?: string, nextMode?: ThemeMode) => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(PREVIEW_PRESET_KEY);
+    localStorage.removeItem(PREVIEW_MODE_KEY);
+    setPreviewThemeId(null);
+    const resolvedTheme = nextThemeId || activeThemeId;
+    const resolvedMode = nextMode || activeMode;
+    setPreviewMode(resolvedMode);
+    applyThemeToDocument(resolvedTheme, resolvedMode, false);
+  }, [activeMode, activeThemeId]);
+
+  const startPreview = useCallback((themeId: string, mode: ThemeMode = activeMode) => {
+    if (typeof window === 'undefined') return;
+    persistPreview(themeId, mode);
+    setPreviewThemeId(themeId);
+    setPreviewMode(mode);
+    applyThemeToDocument(themeId, mode, true);
+  }, [activeMode]);
+
+  const handlePreviewModeChange = useCallback((mode: ThemeMode) => {
+    const targetThemeId = previewThemeId || activeThemeId;
+    if (!targetThemeId) return;
+    startPreview(targetThemeId, mode);
+  }, [activeThemeId, previewThemeId, startPreview]);
 
   const handleInstall = useCallback(async () => {
     if (!installFile) {
@@ -182,47 +217,25 @@ export const ThemeManager: React.FC = () => {
     }
   }, [installFile, loadThemes]);
 
-  const clearPreview = useCallback((nextThemeId?: string, nextMode?: ThemeMode) => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(PREVIEW_PRESET_KEY);
-    localStorage.removeItem(PREVIEW_MODE_KEY);
-    setPreviewThemeId(null);
-    const resolvedTheme = nextThemeId || activeThemeId;
-    const resolvedMode = nextMode || activeMode;
-    setPreviewMode(resolvedMode);
-    applyThemeToDocument(resolvedTheme, resolvedMode, false);
-  }, [activeMode, activeThemeId]);
-
-  const startPreview = useCallback((themeId: string) => {
-    if (typeof window === 'undefined') return;
-    const theme = themes.find((item) => item.id === themeId);
-    if (theme?.fontImports) {
-      ensureFontImports(theme.fontImports);
-    }
-    const mode = activeMode;
-    localStorage.setItem(PREVIEW_PRESET_KEY, themeId);
-    localStorage.setItem(PREVIEW_MODE_KEY, mode);
-    setPreviewThemeId(themeId);
-    setPreviewMode(mode);
-    applyThemeToDocument(themeId, mode, true);
-  }, [activeMode, themes]);
-
   const handleActivate = useCallback(async (themeId: string) => {
+    const modeToPersist = previewThemeId === themeId ? previewMode : activeMode;
+
     try {
       setBusyThemeId(themeId);
       setMessage(null);
       const response = await fetch('/api/admin/themes/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: themeId, mode: activeMode })
+        body: JSON.stringify({ id: themeId, mode: modeToPersist })
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.error || 'Failed to activate theme');
       }
       setActiveThemeId(themeId);
-      applyThemeToDocument(themeId, activeMode);
-      clearPreview(themeId, activeMode);
+      setActiveMode(modeToPersist);
+      applyThemeToDocument(themeId, modeToPersist);
+      clearPreview(themeId, modeToPersist);
       await loadThemes();
       setMessage({ type: 'success', text: 'Theme activated.' });
     } catch (error) {
@@ -231,7 +244,7 @@ export const ThemeManager: React.FC = () => {
     } finally {
       setBusyThemeId(null);
     }
-  }, [activeMode, clearPreview, loadThemes]);
+  }, [activeMode, clearPreview, loadThemes, previewMode, previewThemeId]);
 
   const confirmUninstallTheme = useCallback((theme: ThemeSummary) => {
     setConfirmUninstall({ open: true, theme });
@@ -271,11 +284,6 @@ export const ThemeManager: React.FC = () => {
     () => themes.filter((theme) => theme.installed || theme.bundled),
     [themes]
   );
-  const previewTheme = useMemo(
-    () => (previewThemeId ? themes.find((theme) => theme.id === previewThemeId) ?? null : null),
-    [previewThemeId, themes]
-  );
-  const isPreviewing = Boolean(previewTheme);
 
   return (
     <>
@@ -299,8 +307,13 @@ export const ThemeManager: React.FC = () => {
               <button type="button" className="btn btn-outline" onClick={clearPreview}>
                 Clear preview
               </button>
+              {previewThemeId && (
+                <button type="button" className="btn btn-primary" onClick={() => void handleActivate(previewThemeId)}>
+                  Activate Previewed Theme
+                </button>
+              )}
               <a href="/" target="_blank" rel="noreferrer" className="btn btn-outline">
-                Open site preview
+                Open Site Preview
               </a>
             </div>
           </div>
@@ -311,7 +324,7 @@ export const ThemeManager: React.FC = () => {
             <div className="space-y-1">
               <h2 className="text-lg font-semibold">Installed Themes</h2>
               <p className="text-sm text-muted-foreground">
-                Preview and switch themes without touching the core styles.
+                Preview a full semantic specimen before activation. Preview mode changes stay local until you activate.
               </p>
             </div>
             {loading ? (
@@ -335,59 +348,67 @@ export const ThemeManager: React.FC = () => {
                   return (
                     <motion.div
                       key={theme.id}
-                      className="rounded-lg border border-border/60 bg-background p-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between"
+                      className="rounded-lg border border-border/60 bg-surface-1 p-4"
                       {...motionProps}
                     >
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-semibold">{theme.label}</h3>
-                          <span className="badge badge-secondary text-xs">
-                            {theme.bundled ? 'Bundled' : 'Installed'}
-                          </span>
-                          {isActive && <span className="badge badge-gradient text-xs">Active</span>}
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold">{theme.label}</h3>
+                            <span className="badge badge-secondary text-xs">
+                              {theme.bundled ? 'Bundled' : 'Installed'}
+                            </span>
+                            {isActive && <span className="badge badge-gradient text-xs">Active</span>}
+                            {isPreview && <span className="badge text-xs">Previewing</span>}
+                          </div>
+                          {(theme.previewDescription || theme.description) && (
+                            <p className="text-sm text-muted-foreground">
+                              {theme.previewDescription || theme.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            {theme.version && <span>v{theme.version}</span>}
+                            {theme.author && <span>{theme.author}</span>}
+                            {theme.fonts?.body && <span>Body: {summarizeFontStack(theme.fonts.body)}</span>}
+                            {theme.fonts?.heading && <span>Heading: {summarizeFontStack(theme.fonts.heading)}</span>}
+                          </div>
+                          {Array.isArray(theme.previewFeatures) && theme.previewFeatures.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {theme.previewFeatures.map((feature) => (
+                                <span key={feature} className="badge text-xs">
+                                  {feature}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {theme.description && (
-                          <p className="text-xs text-muted-foreground">{theme.description}</p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          {theme.version && <span>v{theme.version}</span>}
-                          {theme.author && <span>{theme.author}</span>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Accent</span>
-                          <span
-                            className="h-4 w-4 rounded-full border border-border/60"
-                            style={{ background: theme.accent || 'hsl(var(--primary))' }}
-                            aria-hidden="true"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-52 md:flex-none md:flex-col">
-                        <button
-                          type="button"
-                          className="btn btn-outline w-full justify-center"
-                          onClick={() => startPreview(theme.id)}
-                        >
-                          {isPreview ? 'Previewing' : 'Preview'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn w-full justify-center"
-                          onClick={() => handleActivate(theme.id)}
-                          disabled={busyThemeId === theme.id}
-                        >
-                          {isActive ? 'Active' : 'Activate'}
-                        </button>
-                        {!theme.bundled && (
+                        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-52 md:flex-none md:flex-col">
                           <button
                             type="button"
-                            className="btn btn-destructive w-full justify-center"
-                            onClick={() => confirmUninstallTheme(theme)}
+                            className="btn btn-outline w-full justify-center"
+                            onClick={() => startPreview(theme.id, previewMode)}
+                          >
+                            {isPreview ? 'Previewing' : 'Preview'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary w-full justify-center"
+                            onClick={() => void handleActivate(theme.id)}
                             disabled={busyThemeId === theme.id}
                           >
-                            {busyThemeId === theme.id ? 'Removing...' : 'Uninstall'}
+                            {isActive ? 'Active' : 'Activate'}
                           </button>
-                        )}
+                          {!theme.bundled && (
+                            <button
+                              type="button"
+                              className="btn btn-destructive w-full justify-center"
+                              onClick={() => confirmUninstallTheme(theme)}
+                              disabled={busyThemeId === theme.id}
+                            >
+                              {busyThemeId === theme.id ? 'Removing...' : 'Uninstall'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -396,12 +417,107 @@ export const ThemeManager: React.FC = () => {
             )}
           </div>
 
-          <div>
+          <div className="space-y-6">
+            <div className="card p-6 space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Live Theme Specimen</h2>
+                <p className="text-sm text-muted-foreground">
+                  Use the preview controls to inspect site, form, chart, and admin chrome states before activation.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {PREVIEW_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`btn ${specimenMode === mode ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => handlePreviewModeChange(mode)}
+                  >
+                    {mode[0].toUpperCase()}{mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-surface-1 p-4 shadow-sm">
+                <div className="grid gap-4 xl:grid-cols-[1fr_14rem]">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {specimenTheme?.label || 'Theme'} · {specimenMode}
+                      </p>
+                      <h3 className="font-heading text-2xl text-foreground">
+                        Semantic theme preview
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {specimenTheme?.previewDescription || specimenTheme?.description || 'Inspect buttons, surfaces, forms, and chart colors before activation.'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="btn btn-primary">Primary</button>
+                      <button type="button" className="btn btn-secondary">Secondary</button>
+                      <button type="button" className="btn btn-outline">Outline</button>
+                      <button type="button" className="btn btn-destructive">Destructive</button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-border bg-surface-2 p-4">
+                        <label className="mb-2 block text-sm font-medium text-foreground">Field Chrome</label>
+                        <input
+                          readOnly
+                          value="Theme-aware input"
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none"
+                        />
+                        <p className="mt-2 text-xs text-muted-foreground">Border, focus ring, and placeholder surfaces inherit from the theme contract.</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-surface-2 p-4">
+                        <p className="mb-3 text-sm font-medium text-foreground">Badges & Status</p>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="badge">Default</span>
+                          <span className="badge badge-secondary">Secondary</span>
+                          <span className="badge badge-gradient">Active</span>
+                        </div>
+                        <p className="mt-3 text-xs text-muted-foreground">Typography uses {summarizeFontStack(specimenTheme?.fonts?.body)} and {summarizeFontStack(specimenTheme?.fonts?.heading)}.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-5">
+                      {chartSwatches.map((swatch) => (
+                        <div key={swatch.key} className="space-y-2">
+                          <div
+                            className="h-14 rounded-lg border border-border shadow-sm"
+                            style={{ backgroundColor: `hsl(var(--${swatch.key}))` }}
+                          />
+                          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{swatch.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <aside className="rounded-2xl border border-sidebar-border bg-sidebar p-4 text-sidebar-foreground shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/70">Admin Chrome</p>
+                    <div className="mt-3 space-y-2">
+                      <div className="rounded-lg bg-sidebar-primary px-3 py-2 text-sm font-medium text-sidebar-primary-foreground shadow-sm">
+                        Dashboard
+                      </div>
+                      <div className="rounded-lg border border-sidebar-border px-3 py-2 text-sm text-sidebar-foreground/80">
+                        Posts
+                      </div>
+                      <div className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground">
+                        Theme Preview
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+              </div>
+            </div>
+
             <div className="card p-6 space-y-4">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold">Install Theme</h2>
                 <p className="text-sm text-muted-foreground">
-                  Upload a theme package (.zip) exported from another build.
+                  Upload a theme package (.zip) that matches the semantic contract and local-asset requirements.
                 </p>
               </div>
               <div className="space-y-3 text-sm">

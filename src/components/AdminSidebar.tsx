@@ -21,8 +21,8 @@ export default function AdminSidebar({
   );
 
   return (
-    <aside className="flex h-full w-64 min-w-64 flex-col border-r border-border bg-card/35">
-      <div className="px-4 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+    <aside className="flex h-full w-64 min-w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="px-4 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/70">
         Admin
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-6">
@@ -35,8 +35,8 @@ export default function AdminSidebar({
               item.parentHref ? 'ml-6 text-xs' : ''
             } ${
               item.isActive
-                ? 'border-primary/25 bg-primary/10 text-foreground'
-                : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/70 hover:text-foreground'
+                ? 'border-sidebar-primary/30 bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                : 'border-transparent text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             }`}
           >
             {item.icon}

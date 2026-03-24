@@ -22,7 +22,7 @@ export const getStoredThemeMode = (): ThemeMode => {
   if (stored === 'dark' || stored === 'light' || stored === 'system') {
     return stored;
   }
-  return resolveThemeMode('system');
+  return 'system';
 };
 
 export const applyThemeMode = (mode: ThemeMode) => {

@@ -5,14 +5,12 @@ const DEFAULT_THEME_FONTS = {
   heading: '"Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif'
 };
 
-const DEFAULT_FONT_IMPORTS: string[] = [];
-
 export const CORE_THEME_MODULES: ThemeModule[] = [{
   id: 'adastro',
   label: 'AdAstro (Default)',
   description: 'Space-inspired contrast with cyan propulsion and amber highlights.',
-  accent: 'hsl(194 88% 46%)',
+  previewDescription: 'Crisp space-age neutrals, luminous cyan actions, and high-clarity editorial surfaces.',
+  previewFeatures: ['Cyan action palette', 'Warm highlight accents', 'Balanced site/admin contrast'],
   fonts: DEFAULT_THEME_FONTS,
-  fontImports: DEFAULT_FONT_IMPORTS,
   source: 'core'
 }];

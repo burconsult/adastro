@@ -3,17 +3,21 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 
-const PROJECT_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
+const PROJECT_ROOT = process.cwd();
 const THEME_INSTALL_SCRIPT = join(PROJECT_ROOT, 'infra/themes/install.js');
 
 const runInstaller = (archivePath: string) =>
   new Promise<void>((resolve, reject) => {
-    execFile(process.execPath, [THEME_INSTALL_SCRIPT, archivePath], { cwd: PROJECT_ROOT }, (error) => {
+    execFile(process.execPath, [THEME_INSTALL_SCRIPT, archivePath], { cwd: PROJECT_ROOT }, (error, stdout, stderr) => {
       if (error) {
-        reject(error);
+        const message = [stderr, stdout, error.message]
+          .map((value) => value?.toString().trim())
+          .filter(Boolean)
+          .join('\n')
+          .replace(/^❌\s*/gm, '');
+        reject(new Error(message || 'Failed to install theme package.'));
       } else {
         resolve();
       }
@@ -50,8 +54,11 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error) {
     console.error('Theme install failed:', error);
-    return new Response(JSON.stringify({ error: 'Failed to install theme package.' }), {
-      status: 500,
+    const message = error instanceof Error && error.message.trim().length > 0
+      ? error.message.trim()
+      : 'Failed to install theme package.';
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
   } finally {

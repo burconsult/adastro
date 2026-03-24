@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { validateThemePackage } from './theme-contract.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,15 +38,6 @@ const copyDir = (source, destination) => {
       copyFileSync(srcPath, destPath);
     }
   }
-};
-
-const readThemeMeta = (rootDir) => {
-  const metaPath = join(rootDir, 'theme.json');
-  if (!existsSync(metaPath)) {
-    throw new Error('Missing theme.json in theme package.');
-  }
-  const raw = readFileSync(metaPath, 'utf-8');
-  return JSON.parse(raw);
 };
 
 const normalizeEntryImport = (entry) => {
@@ -142,7 +134,13 @@ const main = async () => {
   }
 
   try {
-    const meta = readThemeMeta(packageRoot);
+    const { meta, errors } = validateThemePackage(packageRoot);
+    if (!meta) {
+      throw new Error(errors.join('\n'));
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join('\n'));
+    }
     const themeId = (idOverride || meta.id || '').trim();
     if (!themeId) {
       throw new Error('theme.json must include an "id".');

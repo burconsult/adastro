@@ -22,10 +22,25 @@
   --info: 214 62% 46%;
   --info-foreground: 0 0% 98%;
   --border: 0 0% 9%;
+  --border-strong: 20 6% 32%;
   --input: 0 0% 9%;
   --ring: 40 62% 53%;
-  --radius: 0rem;
-  --surface-border-width: 1px;
+  --link: 0 0% 7%;
+  --link-hover: 40 62% 53%;
+  --inverse: 0 0% 7%;
+  --inverse-foreground: 15 100% 98%;
+  --surface-1: 0 0% 100%;
+  --surface-2: 22 38% 94%;
+  --surface-3: 22 42% 92%;
+  --surface-overlay: 0 0% 7%;
+  --media-overlay-start: 0 0% 7%;
+  --media-overlay-end: 40 62% 53%;
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-pill: 0rem;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(var(--foreground) / 0.06);
   --elevation-md: 0 6px 14px hsl(var(--foreground) / 0.08);
   --elevation-lg: 0 12px 24px hsl(var(--foreground) / 0.1);
@@ -46,8 +61,6 @@
   --sidebar-ring: 40 62% 53%;
   --font-body: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-heading: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }
 
 .dark[data-theme="simple-lines"] {
@@ -74,10 +87,25 @@
   --info: 212 76% 66%;
   --info-foreground: 0 0% 8%;
   --border: 0 0% 84%;
+  --border-strong: 26 18% 76%;
   --input: 0 0% 84%;
   --ring: 40 56% 58%;
-  --radius: 0rem;
-  --surface-border-width: 1px;
+  --link: 28 47% 94%;
+  --link-hover: 40 56% 58%;
+  --inverse: 0 0% 8%;
+  --inverse-foreground: 28 47% 94%;
+  --surface-1: 0 0% 10%;
+  --surface-2: 0 0% 14%;
+  --surface-3: 0 0% 14%;
+  --surface-overlay: 0 0% 8%;
+  --media-overlay-start: 0 0% 8%;
+  --media-overlay-end: 40 56% 58%;
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-pill: 0rem;
+  --border-width-default: 1px;
+  --border-width-focus: 3px;
   --elevation-sm: 0 1px 2px hsl(var(--foreground) / 0.08);
   --elevation-md: 0 6px 14px hsl(var(--foreground) / 0.1);
   --elevation-lg: 0 12px 24px hsl(var(--foreground) / 0.12);
@@ -98,8 +126,6 @@
   --sidebar-ring: 40 56% 58%;
   --font-body: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-heading: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-heading);
 }
 
 :root[data-theme="simple-lines"] :where(

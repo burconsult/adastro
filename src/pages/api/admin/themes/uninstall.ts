@@ -2,13 +2,12 @@ import type { APIRoute } from 'astro';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 import { SettingsService } from '../../../../lib/services/settings-service.js';
 import { resetSiteThemeCache } from '../../../../lib/site-config.js';
 
 const settingsService = new SettingsService();
-const PROJECT_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
+const PROJECT_ROOT = process.cwd();
 const INSTALLED_THEME_ROOT = join(PROJECT_ROOT, 'src/lib/themes/installed');
 const THEME_UNINSTALL_SCRIPT = join(PROJECT_ROOT, 'infra/themes/uninstall.js');
 

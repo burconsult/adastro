@@ -5,11 +5,11 @@ export interface ThemeModule {
   version?: string;
   author?: string;
   previewImage?: string;
-  accent?: string;
+  previewDescription?: string;
+  previewFeatures?: string[];
   fonts?: {
     body: string;
     heading: string;
   };
-  fontImports?: string[];
   source?: 'core' | 'installed';
 }
