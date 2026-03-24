@@ -104,6 +104,44 @@ describe('SetupWizard', () => {
     expect(screen.getByRole('link', { name: 'Open Netlify Env Settings' })).toBeInTheDocument();
   });
 
+  it('builds exact Netlify console links for netlify.app sites', async () => {
+    fetchMock.mockResolvedValueOnce(createApiResponse({
+      ...samplePayload,
+      environment: {
+        ...samplePayload.environment,
+        adapter: 'netlify',
+        deploymentTarget: 'netlify',
+        siteUrl: 'https://adastro.netlify.app'
+      }
+    }));
+
+    render(<SetupWizard />);
+    await screen.findByText(/Guided setup for Supabase \+ Netlify\./);
+
+    expect(screen.getByRole('link', { name: 'Open Netlify Env Settings' }))
+      .toHaveAttribute('href', 'https://app.netlify.com/sites/adastro/configuration/env');
+  });
+
+  it('normalizes Netlify preview hosts back to the canonical site slug', async () => {
+    fetchMock.mockResolvedValueOnce(createApiResponse({
+      ...samplePayload,
+      environment: {
+        ...samplePayload.environment,
+        adapter: 'netlify',
+        deploymentTarget: 'netlify',
+        siteUrl: 'https://69c2a50effebf12a496f29d4--adastro.netlify.app'
+      }
+    }));
+
+    render(<SetupWizard />);
+    await screen.findByText(/Guided setup for Supabase \+ Netlify\./);
+
+    expect(screen.getByRole('link', { name: 'Open Netlify Env Settings' }))
+      .toHaveAttribute('href', 'https://app.netlify.com/sites/adastro/configuration/env');
+    expect(screen.getByRole('link', { name: 'Netlify deploys' }))
+      .toHaveAttribute('href', 'https://app.netlify.com/sites/adastro/deploys');
+  });
+
   it('derives target provider from adapter when deployment target is custom', async () => {
     fetchMock.mockResolvedValueOnce(createApiResponse({
       ...samplePayload,

@@ -4,6 +4,7 @@ import { authService } from './lib/auth/auth-helpers.js';
 import {
   HTML_BROWSER_CACHE_CONTROL,
   HTML_CDN_CACHE_CONTROL,
+  HTML_NETLIFY_CDN_CACHE_CONTROL,
   HTML_VERCEL_CDN_CACHE_CONTROL,
   NO_STORE_CACHE_CONTROL,
   shouldApplyHtmlCdnCache,
@@ -351,6 +352,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   })) {
     setHeader('Cache-Control', NO_STORE_CACHE_CONTROL);
     deleteHeader('CDN-Cache-Control');
+    deleteHeader('Netlify-CDN-Cache-Control');
     deleteHeader('Vercel-CDN-Cache-Control');
   } else if (shouldApplyHtmlCdnCache({
     request: context.request,
@@ -361,6 +363,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   })) {
     setHeader('Cache-Control', HTML_BROWSER_CACHE_CONTROL);
     setHeader('CDN-Cache-Control', HTML_CDN_CACHE_CONTROL);
+    setHeader('Netlify-CDN-Cache-Control', HTML_NETLIFY_CDN_CACHE_CONTROL);
     setHeader('Vercel-CDN-Cache-Control', HTML_VERCEL_CDN_CACHE_CONTROL);
     setHeader('Vary', 'Cookie');
   }

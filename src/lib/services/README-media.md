@@ -225,7 +225,7 @@ SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 SUPABASE_SECRET_KEY=your-secret-key
 
 # Optional CDN configuration
-IMAGE_CDN_PROVIDER=vercel        # vercel | cloudflare | custom
+IMAGE_CDN_PROVIDER=vercel        # vercel | netlify | cloudflare | custom
 IMAGE_CDN_BASE_URL=https://cdn.example.com
 IMAGE_CDN_API_KEY=your-cloudflare-api-key
 IMAGE_CDN_ZONE_ID=your-zone-id

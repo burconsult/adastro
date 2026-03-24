@@ -7,6 +7,7 @@ const NON_CACHEABLE_PUBLIC_PREFIXES = ['/search'];
 export const HTML_BROWSER_CACHE_CONTROL = 'public, max-age=0, must-revalidate';
 export const HTML_CDN_CACHE_CONTROL = 'public, s-maxage=300, stale-while-revalidate=86400';
 export const HTML_VERCEL_CDN_CACHE_CONTROL = HTML_CDN_CACHE_CONTROL;
+export const HTML_NETLIFY_CDN_CACHE_CONTROL = 'public, durable, s-maxage=300, stale-while-revalidate=86400';
 export const NO_STORE_CACHE_CONTROL = 'no-store';
 
 const hasPrefixedPath = (pathname: string, prefixes: string[]) => (

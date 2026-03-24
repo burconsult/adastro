@@ -84,7 +84,7 @@ Required:
 - Keep `SUPABASE_SECRET_KEY` server-only (never `PUBLIC_`).
 
 Recommended:
-- Use `vercel.json` headers for baseline security headers and API no-store caching.
+- Keep `vercel.json` and `netlify.toml` aligned for baseline security headers and API no-store caching.
 - Add edge rate limiting for `/api/auth/*` and `/api/admin/*`.
 - Add a CSP header if you remove inline scripts.
 - Enable SSL enforcement and network restrictions in Supabase.

@@ -19,6 +19,8 @@ Notes:
 - `SITE_URL` is strongly recommended for canonical URLs, auth callbacks, invite/recovery redirects, sitemap/RSS, and email links.
 - If `SITE_URL` is not set, AdAstro can fall back to detected request origin in some flows, but production installs should still set it explicitly.
 - Any env var change requires a redeploy on Vercel/Netlify before the app can use it.
+- Keep hosted environments isolated. If `www.adastro.no` stays on the existing production Supabase project, give the Netlify site and any Vercel test project their own Supabase-backed env values instead of reusing production secrets.
+- Netlify Deploy Previews and branch deploys need the same required core vars in the relevant preview/branch context if you want hosted smoke tests to exercise the full app instead of stopping at `/setup`.
 
 ## Core (Local Development)
 
@@ -108,6 +110,31 @@ IMAGE_CDN_ZONE_ID=
 ```
 
 Use these only if you are wiring a custom CDN integration and understand the provider-specific behavior.
+
+`IMAGE_CDN_PROVIDER` accepts `vercel`, `netlify`, `cloudflare`, or `custom`.
+
+## Netlify CLI Operations (Optional, Ops Only)
+
+These are not required for app runtime, but they are useful for low-friction Netlify CLI workflows:
+
+```bash
+NETLIFY_AUTH_TOKEN=            # optional if you do not want browser-based netlify login
+NETLIFY_SITE_ID=               # optional helper for netlify link/deploy commands
+```
+
+Notes:
+- These values are for the Netlify CLI and deployment operations only.
+- Do not treat them as application runtime requirements.
+
+## Host Isolation Recommendation
+
+For multi-host testing, use separate hosting projects with separate env scopes:
+
+- Vercel production: existing `www.adastro.no` Supabase project only
+- Netlify site: fresh Supabase project or a dedicated non-production clone
+- Vercel test deployment: the same fresh non-production Supabase project used for Netlify, or another isolated staging project
+
+This keeps production content, auth users, storage buckets, and email flows isolated from deployment testing.
 
 ## What Not To Use (v1)
 

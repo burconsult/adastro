@@ -108,6 +108,13 @@ const hostFromUrl = (value: string | null | undefined): string | null => {
   }
 };
 
+const netlifySiteSlugFromHost = (host: string | null): string | null => {
+  if (!host?.endsWith('.netlify.app')) return null;
+  const rawSlug = host.slice(0, -'.netlify.app'.length);
+  if (!rawSlug) return null;
+  return rawSlug.includes('--') ? rawSlug.split('--').at(-1) || null : rawSlug;
+};
+
 type ProviderConsoleLinks = {
   dashboard: string;
   envSettings: string;
@@ -120,8 +127,8 @@ const getProviderConsoleLinks = (provider: DeployProvider, siteUrl: string | nul
   const host = hostFromUrl(siteUrl);
 
   if (provider === 'netlify') {
-    if (host?.endsWith('.netlify.app')) {
-      const siteSlug = host.slice(0, -'.netlify.app'.length);
+    const siteSlug = netlifySiteSlugFromHost(host);
+    if (siteSlug) {
       return {
         dashboard: `https://app.netlify.com/sites/${siteSlug}/overview`,
         envSettings: `https://app.netlify.com/sites/${siteSlug}/configuration/env`,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CDNManager, createCDNManager } from '../cdn-manager.js';
+import { CDNManager, createCDNManager, detectDefaultCdnProvider, normalizeCdnProvider } from '../cdn-manager.js';
 import type { MediaAsset } from '../../types/index.js';
 
 describe('CDNManager', () => {
@@ -50,6 +50,36 @@ describe('CDNManager', () => {
       expect(responsiveUrls.medium).toContain('w=800&q=85');
       expect(responsiveUrls.large).toContain('w=1200&q=90');
       expect(responsiveUrls.xlarge).toContain('w=1920&q=90');
+    });
+  });
+
+  describe('Netlify CDN', () => {
+    beforeEach(() => {
+      cdnManager = createCDNManager({ provider: 'netlify' });
+    });
+
+    it('should generate Netlify Image CDN URLs', () => {
+      const optimizedUrl = cdnManager.generateOptimizedUrl(mockMediaAsset, {
+        width: 800,
+        height: 600,
+        quality: 85,
+        format: 'webp',
+        fit: 'cover'
+      });
+
+      expect(optimizedUrl).toBe(
+        '/.netlify/images?url=https%3A%2F%2Fexample.com%2Ftest-image.jpg&w=800&h=600&q=85&fm=webp&fit=cover'
+      );
+    });
+
+    it('should generate responsive URLs through the Netlify image endpoint', () => {
+      const responsiveUrls = cdnManager.generateResponsiveUrls(mockMediaAsset);
+
+      expect(responsiveUrls.thumbnail).toContain('/.netlify/images?');
+      expect(responsiveUrls.thumbnail).toContain('w=150');
+      expect(responsiveUrls.thumbnail).toContain('fit=cover');
+      expect(responsiveUrls.medium).toContain('w=800');
+      expect(responsiveUrls.xlarge).toContain('w=1920');
     });
   });
 
@@ -217,6 +247,12 @@ describe('CDNManager', () => {
       await expect(cdnManagerVercel.purgeCacheUrls(['https://example.com/image1.jpg']))
         .resolves.toBeUndefined();
     });
+
+    it('should handle Netlify cache purging gracefully', async () => {
+      const cdnManagerNetlify = createCDNManager({ provider: 'netlify' });
+      await expect(cdnManagerNetlify.purgeCacheUrls(['https://example.com/image1.jpg']))
+        .resolves.toBeUndefined();
+    });
   });
 
   describe('CDN Analytics', () => {
@@ -246,6 +282,40 @@ describe('CDNManager', () => {
       expect(analytics24h).toBeDefined();
       expect(analytics7d).toBeDefined();
       expect(analytics30d).toBeDefined();
+    });
+  });
+
+  describe('default provider detection', () => {
+    beforeEach(() => {
+      delete process.env.ASTRO_ADAPTER;
+      delete process.env.NETLIFY;
+      delete process.env.NETLIFY_IMAGES_CDN_DOMAIN;
+      delete process.env.NETLIFY_LOCAL;
+      delete process.env.SITE_ID;
+      delete process.env.DEPLOY_ID;
+      delete process.env.CONTEXT;
+    });
+
+    it('normalizes configured providers', () => {
+      expect(normalizeCdnProvider('netlify')).toBe('netlify');
+      expect(normalizeCdnProvider('VERCEL')).toBe('vercel');
+      expect(normalizeCdnProvider('custom')).toBe('custom');
+      expect(normalizeCdnProvider('')).toBeNull();
+      expect(normalizeCdnProvider('unknown')).toBeNull();
+    });
+
+    it('defaults to Netlify when the adapter is forced to netlify', () => {
+      process.env.ASTRO_ADAPTER = 'netlify';
+      expect(detectDefaultCdnProvider()).toBe('netlify');
+    });
+
+    it('defaults to Netlify when Netlify runtime markers are present', () => {
+      process.env.NETLIFY = 'true';
+      expect(detectDefaultCdnProvider()).toBe('netlify');
+    });
+
+    it('defaults to Vercel when no Netlify markers are present', () => {
+      expect(detectDefaultCdnProvider()).toBe('vercel');
     });
   });
 });

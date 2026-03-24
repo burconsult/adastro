@@ -1,7 +1,7 @@
 import type { MediaAsset } from '../types/index.js';
 
 export interface CDNConfig {
-  provider: 'vercel' | 'cloudflare' | 'custom';
+  provider: 'vercel' | 'netlify' | 'cloudflare' | 'custom';
   baseUrl?: string;
   apiKey?: string;
   zoneId?: string;
@@ -42,6 +42,8 @@ export class CDNManager {
     switch (this.config.provider) {
       case 'vercel':
         return this.generateVercelUrl(baseUrl, options);
+      case 'netlify':
+        return this.generateNetlifyUrl(baseUrl, options);
       case 'cloudflare':
         return this.generateCloudflareUrl(baseUrl, options);
       case 'custom':
@@ -161,6 +163,9 @@ export class CDNManager {
       case 'vercel':
         // Vercel doesn't have a direct cache purge API for images
         break;
+      case 'netlify':
+        // Netlify doesn't expose a direct image CDN cache purge API
+        break;
       case 'custom':
         await this.purgeCustomCache(urls);
         break;
@@ -199,6 +204,22 @@ export class CDNManager {
 
     const queryString = params.toString();
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  }
+
+  /**
+   * Generate Netlify Image CDN URL
+   */
+  private generateNetlifyUrl(baseUrl: string, options: ImageTransformOptions): string {
+    const params = new URLSearchParams();
+
+    params.set('url', baseUrl);
+    if (options.width) params.set('w', options.width.toString());
+    if (options.height) params.set('h', options.height.toString());
+    if (options.quality) params.set('q', options.quality.toString());
+    if (options.format) params.set('fm', options.format);
+    if (options.fit) params.set('fit', options.fit);
+
+    return `/.netlify/images?${params.toString()}`;
   }
 
   /**
@@ -299,7 +320,38 @@ export function createCDNManager(config: CDNConfig): CDNManager {
   return new CDNManager(config);
 }
 
-const envProvider = (process.env.IMAGE_CDN_PROVIDER as CDNConfig['provider']) || 'vercel';
+export const normalizeCdnProvider = (value: string | undefined | null): CDNConfig['provider'] | null => {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'vercel') return 'vercel';
+  if (normalized === 'netlify') return 'netlify';
+  if (normalized === 'cloudflare') return 'cloudflare';
+  if (normalized === 'custom') return 'custom';
+  return null;
+};
+
+export const detectDefaultCdnProvider = (): Extract<CDNConfig['provider'], 'vercel' | 'netlify'> => {
+  const configuredAdapter = normalizeCdnProvider(process.env.ASTRO_ADAPTER);
+  if (configuredAdapter === 'netlify' || configuredAdapter === 'vercel') {
+    return configuredAdapter;
+  }
+
+  if (
+    process.env.NETLIFY
+    || process.env.NETLIFY_IMAGES_CDN_DOMAIN
+    || process.env.NETLIFY_LOCAL
+    || process.env.SITE_ID
+    || process.env.DEPLOY_ID
+    || process.env.CONTEXT
+  ) {
+    return 'netlify';
+  }
+
+  return 'vercel';
+};
+
+const envProvider = normalizeCdnProvider(process.env.IMAGE_CDN_PROVIDER) || detectDefaultCdnProvider();
 const envBaseUrl = process.env.IMAGE_CDN_BASE_URL;
 const envApiKey = process.env.IMAGE_CDN_API_KEY;
 const envZoneId = process.env.IMAGE_CDN_ZONE_ID;

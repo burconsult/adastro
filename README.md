@@ -18,10 +18,12 @@ AdAstro pairs Astro + React with Supabase Auth, Postgres, and Storage to deliver
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/burconsult/adastro)
 [![Create Supabase Project](https://img.shields.io/badge/Supabase-Create%20Project-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/dashboard/new/project)
 
-For Netlify or other providers, swap the Astro adapter:
+For Netlify or other providers, the app can build against either hosted adapter:
 - `@astrojs/netlify` is already included in dependencies.
 - Auto-detection uses `netlify` on Netlify and `vercel` on Vercel.
 - Optionally set `ASTRO_ADAPTER=netlify` to force Netlify mode explicitly.
+- `netlify.toml` mirrors the static header policy that `vercel.json` already defines for Vercel.
+- Netlify-specific tuning keeps shared HTML on Durable Cache, allowlists Supabase-hosted remote images for `/.netlify/images`, and skips preview builds for docs/tests/local-only changes.
 
 ## Setup Wizard
 - Open `/setup` to run the in-app **AdAstro - The Lightspeed CMS** setup wizard.
@@ -104,14 +106,28 @@ Locale settings:
 | Command | Description |
 | --- | --- |
 | `npm run build` | Build production assets and server output |
+| `npm run build:netlify` | Build production assets using the Netlify adapter |
 | `npm run preview` | Run the production build locally |
 | `npm run db:reset` | Drop + recreate schema (dev only) |
 | `npm run db:full` | Convenience wrapper for setup + seed |
 | `npm run local:dev` | Start app with local Supabase env auto-wired |
 | `npm run local:db:core` | Local Supabase reset + core schema apply |
 | `npm run local:db:full` | Local Supabase reset + schema + seed |
+| `npm run verify:netlify` | Run tests and a Netlify-targeted production build |
+| `npm run smoke:hosted` | Run lightweight hosted smoke checks against `BASE_URL` |
 | `npm run verify:quick` | Fast local validation (core DB + targeted tests) |
 | `npm run verify:full` | Full local validation (core+seed DB + full tests + build) |
+
+### Netlify CLI Workflow
+Use a linked Netlify repo for low-cost preview validation:
+
+1. `npx netlify status`
+2. `npx netlify link --id <site-id>` if the local repo is not linked yet
+3. `npx netlify build`
+4. `npx netlify deploy --build`
+5. `BASE_URL=<deploy-url> npm run smoke:hosted`
+
+Keep a separate Supabase project for Netlify and other non-production deployments so preview/test hosts never share the `www.adastro.no` production database, auth users, or storage with Vercel production.
 
 ### Local Autonomous Testing
 Use this path for fast, repeatable AI-assisted validation with one project `.env`:

@@ -8,6 +8,7 @@ import { THEME_MODULE as THEME_MONOCHROME_CALM_MODULE } from './installed/monoch
 import { THEME_MODULE as THEME_NEURAL_NEXUS_MODULE } from './installed/neural-nexus/index.js';
 import { THEME_MODULE as THEME_BRUTALIST_GRID_MODULE } from './installed/brutalist-grid/index.js';
 import { THEME_MODULE as THEME_SIMPLE_LINES_MODULE } from './installed/simple-lines/index.js';
+import { THEME_MODULE as THEME_LOAN_BOX_MODULE } from './installed/loan-box/index.js';
 // @theme-installer-imports
 
 export const THEME_MANIFEST: ThemeModule[] = [
@@ -20,5 +21,6 @@ export const THEME_MANIFEST: ThemeModule[] = [
   THEME_NEURAL_NEXUS_MODULE,
   THEME_BRUTALIST_GRID_MODULE,
   THEME_SIMPLE_LINES_MODULE,
+  THEME_LOAN_BOX_MODULE,
   // @theme-installer-list
 ];

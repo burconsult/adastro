@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   HTML_BROWSER_CACHE_CONTROL,
+  HTML_NETLIFY_CDN_CACHE_CONTROL,
   NO_STORE_CACHE_CONTROL,
   shouldApplyHtmlCdnCache,
   shouldForceNoStore
@@ -69,5 +70,10 @@ describe('cache policy', () => {
     })).toBe(true);
     expect(NO_STORE_CACHE_CONTROL).toBe('no-store');
     expect(HTML_BROWSER_CACHE_CONTROL).toContain('must-revalidate');
+  });
+
+  it('uses the same CDN TTL for Netlify and shared cache headers', () => {
+    expect(HTML_NETLIFY_CDN_CACHE_CONTROL).toContain('s-maxage=300');
+    expect(HTML_NETLIFY_CDN_CACHE_CONTROL).toContain('durable');
   });
 });
