@@ -1,7 +1,7 @@
 import { loadFeatureModules } from '@/lib/features/loader';
 import { DEFAULT_LOCALE, normalizeLocaleCode } from './locales';
 
-export const LOCALE_CATALOG_VERSION = '1.1.0';
+export const LOCALE_CATALOG_VERSION = '1.3.0';
 export const LOCALE_SCHEMA_VERSION = '1';
 export const LOCALE_META_PREFIX = '_meta.';
 

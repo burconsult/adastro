@@ -1,6 +1,6 @@
 # Release Execution Board
 
-Use this board to drive v1.1.0 multilingual release readiness with deterministic gate progression.
+Use this board to drive v1.3.0 "Schneller" release readiness with deterministic gate progression.
 
 ## Autonomous Execution Protocol
 
@@ -253,6 +253,29 @@ Exit criteria:
 ---
 
 ## Evidence Log
+
+### 2026-03-24
+
+- v1.3.0 "Schneller" release metadata + performance/theming cut:
+  - Bumped package version to `1.3.0` (`package.json`, `package-lock.json`)
+  - Added `1.3.0 "Schneller"` changelog entry for theming, font-hosting, contrast, and public-JS reductions (`CHANGELOG.md`)
+  - Updated release-scoped docs and architecture metadata to `v1.3.0`
+  - Verification:
+    - `npm run ci:check-release-hygiene` -> PASS
+    - `npm run test:run` -> PASS
+    - `npm run build` -> PASS
+
+### 2026-03-23
+
+- v1.2.0 "Solidbeam" hosted hardening release:
+  - Release/tag confirmed on GitHub as `v1.2.0 — Solidbeam`
+  - Release note summary: `Hardening and infra performance improvements`
+  - Local tag ancestry confirms the release cut included:
+    - public HTML cache variation fix
+    - Vercel performance hardening
+    - auth/access/runtime-config hardening pass
+    - final 1.2.0 release metadata fixes
+  - Local documentation was missing this release entry and has now been backfilled into `CHANGELOG.md` and this execution log
 
 ### 2026-03-20
 

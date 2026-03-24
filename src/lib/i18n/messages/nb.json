@@ -1,6 +1,6 @@
 {
   "_meta.locale": "nb",
-  "_meta.catalogVersion": "1.1.0",
+  "_meta.catalogVersion": "1.3.0",
   "_meta.schemaVersion": "1",
   "_meta.fallbackLocale": "en",
   "core.auth.signIn": "Logg inn",

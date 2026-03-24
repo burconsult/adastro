@@ -1,4 +1,4 @@
-# Environment Variables (v1.1.0)
+# Environment Variables (v1.3.0)
 
 Use this as the canonical env var reference for AdAstro.
 

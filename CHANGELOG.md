@@ -2,6 +2,42 @@
 
 All notable changes to AdAstro are documented in this file.
 
+## 1.3.0 "Schneller" - 2026-03-24
+
+### Added
+- Added the `Loan Box` bundled theme based on the supplied design system, with locally hosted fonts and full semantic-token coverage.
+
+### Changed
+- Reset the theme contract around stricter semantic tokens for light and dark mode, with public and admin surfaces aligned on the same token model.
+- Replaced runtime Google Fonts loading with self-hosted local font assets so theme typography remains customizable without third-party font requests.
+- Fixed article card title contrast and removed unintended underline/link-color leakage from article boxes across themes.
+- Hardened public navigation and menu states so links, buttons, and theme toggles use foreground/surface semantics instead of theme-link color leakage.
+- Trimmed public-page JavaScript by replacing the pageview tracker React island with an inline idle script and mounting the public toast host only on auth pages that use it.
+
+### Performance
+- Reduced non-critical public hydration work on article and index pages.
+- Removed remote font requests from the public runtime.
+- Kept public PSI/Lighthouse work focused on non-regressive changes to performance and accessibility.
+
+### Known Limitations (1.3.0)
+- Hosted PSI/Lighthouse score deltas still need to be recorded per deployment environment before a formal release tag.
+- Admin surfaces remain English-only by design; multilingual support still targets public surfaces.
+
+## 1.2.0 "Solidbeam" - 2026-03-23
+
+### Changed
+- Hardened public request handling and cache behavior for hosted deployments, including explicit public HTML cache variation handling.
+- Improved Vercel-facing performance and canonical-site behavior for public article, search, and page routes.
+- Tightened auth/access-policy handling, callback flows, and runtime config caching around hosted production paths.
+- Strengthened first-party analytics, robots handling, and release metadata for the hosted release cut.
+
+### Performance
+- Added cache-policy infrastructure for public responses and aligned middleware behavior to avoid incorrect shared HTML reuse.
+- Focused the release on hosted hardening and infra performance improvements for the public site.
+
+### Security
+- Hardened fail-closed auth and access-path handling during the 1.2.0 release run.
+
 ## 1.1.0 - 2026-03-19
 
 ### Added
