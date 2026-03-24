@@ -3,7 +3,7 @@ import "@/styles/global.css";
 import "@/styles/theme-fonts";
 import "@/lib/themes/manifest";
 import MobileNavigation from "@/components/MobileNavigation.tsx";
-import PageViewTracker from "@/components/PageViewTracker.tsx";
+import PageViewTracker from "@/components/PageViewTracker.astro";
 import ThemeInitScript from "@/components/ThemeInitScript.astro";
 import AuthHashRecoveryScript from "@/components/AuthHashRecoveryScript.astro";
 import ToastHost from "@/lib/components/ui/ToastHost.tsx";
@@ -28,6 +28,7 @@ type Props = {
   localeSwitcherFallbacks?: Array<{ locale: string; href: string }>;
   xDefaultHref?: string;
   hideFooterNewsletter?: boolean;
+  enableToastHost?: boolean;
 }
 
 const siteLocaleConfig = await getSiteLocaleConfig();
@@ -48,7 +49,8 @@ const {
   alternateLinks,
   localeSwitcherFallbacks,
   xDefaultHref,
-  hideFooterNewsletter = false
+  hideFooterNewsletter = false,
+  enableToastHost = false
 } = Astro.props as Props;
 const showFooterNewsletter = !hideFooterNewsletter && await isFeatureActive('newsletter');
 const localizedPathname = typeof Astro.locals.localizedPath === 'string'
@@ -589,8 +591,8 @@ const localeNotice = localeNoticeCode === 'post-unavailable'
         )}
       </div>
     </footer>
-    <ToastHost client:load />
-    <PageViewTracker client:idle />
+    {enableToastHost && <ToastHost client:load />}
+    <PageViewTracker />
     {siteCustomScripts.footerHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.footerHtml} />}
   </body>
 </html>

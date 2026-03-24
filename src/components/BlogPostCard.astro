@@ -88,7 +88,7 @@ const cardClasses = {
             <span>{(post.publishedAt || post.createdAt).toLocaleDateString(intlLocale)}</span>
           </div>
           <h2 class={`font-semibold leading-tight break-words ${titleClampClass} ${variant === 'featured' ? 'text-2xl md:text-3xl' : variant === 'compact' ? 'text-lg' : 'text-xl'}`}>
-            <a href={postHref} data-astro-prefetch="hover" class="hover:underline focus:underline focus:outline-none">
+            <a href={postHref} data-astro-prefetch="hover" class="text-inherit no-underline decoration-transparent hover:text-inherit hover:no-underline focus:text-inherit focus:no-underline focus:outline-none">
               {post.title}
             </a>
           </h2>

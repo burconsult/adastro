@@ -57,6 +57,9 @@ export default function MobileNavigation({
   const [open, setOpen] = useState(false);
   const prefetchProps = (href: string): Record<string, string> =>
     href.startsWith('/') ? { 'data-astro-prefetch': 'hover' } : {};
+  const iconButtonClasses = 'inline-flex items-center justify-center rounded-md border border-border bg-background text-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  const desktopNavLinkClasses = 'rounded-md px-2 py-1.5 text-[0.97rem] font-medium text-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  const drawerLinkClasses = 'flex min-h-[48px] items-center rounded-lg px-3 text-base font-medium text-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
   const secondaryLinks = useMemo(() => navLinks.filter((link) => Boolean(link)), [navLinks]);
   const links = secondaryLinks.length > 0
     ? secondaryLinks
@@ -77,7 +80,7 @@ export default function MobileNavigation({
         <DialogTrigger asChild>
           <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent sm:hidden"
+              className={`flex h-10 w-10 sm:hidden ${iconButtonClasses}`}
               aria-label={openMenuLabel}
               aria-expanded={open}
             >
@@ -94,14 +97,14 @@ export default function MobileNavigation({
           className="ml-0 mr-auto flex h-full w-[85vw] max-w-sm flex-col gap-6 rounded-none border-r border-border bg-background p-6 shadow-xl"
         >
           <div className="flex items-center justify-between">
-            <a href={homeHref} {...prefetchProps(homeHref)} className="flex items-center gap-2 text-lg font-semibold">
+            <a href={homeHref} {...prefetchProps(homeHref)} className="flex items-center gap-2 text-lg font-semibold text-foreground no-underline hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
               <img src={siteLogoUrl} alt={`${siteTitle} logo`} className="h-7 w-7" />
               <span>{siteTitle}</span>
             </a>
             <DialogClose>
               <button
                 type="button"
-                className="h-10 w-10 rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+                className={`h-10 w-10 ${iconButtonClasses}`}
                 aria-label={closeMenuLabel}
               >
                 <X className="mx-auto h-5 w-5" aria-hidden="true" />
@@ -115,7 +118,7 @@ export default function MobileNavigation({
                 <a
                   href={link.href}
                   {...prefetchProps(link.href)}
-                  className="flex min-h-[48px] items-center rounded-lg px-3 text-base font-medium text-foreground transition-colors hover:bg-accent"
+                  className={drawerLinkClasses}
                 >
                   {link.label}
                 </a>
@@ -149,7 +152,7 @@ export default function MobileNavigation({
             <select
               id="mobile-locale-switcher"
               aria-label={localeSwitcherLabel}
-              className="h-10 max-w-[8.5rem] rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-foreground"
+              className="h-10 max-w-[8.5rem] rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               value={activeLocale}
               onChange={(event) => {
                 const nextLocale = event.target.value;
@@ -169,7 +172,7 @@ export default function MobileNavigation({
               href={adminLink.href}
               {...prefetchProps(adminLink.href)}
               aria-label={adminLink.label}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+              className={`h-10 w-10 ${iconButtonClasses}`}
             >
               <Settings className="h-5 w-5" aria-hidden="true" />
             </a>
@@ -179,7 +182,7 @@ export default function MobileNavigation({
               href={authLink.href}
               {...prefetchProps(authLink.href)}
               aria-label={authLink.label}
-              className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground transition-colors hover:bg-accent ${
+              className={`inline-flex h-10 items-center justify-center border border-border bg-background text-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 isAuthenticated ? 'w-10 rounded-md' : 'rounded-md px-3 text-xs font-semibold'
               }`}
             >
@@ -193,13 +196,13 @@ export default function MobileNavigation({
         </div>
       )}
 
-      <div className="hidden items-center gap-4 text-base text-muted-foreground sm:flex">
+      <div className="hidden items-center gap-4 text-base sm:flex">
         {secondaryLinks.map((link) => (
           <a
             key={link.href}
             href={link.href}
             {...prefetchProps(link.href)}
-            className="rounded-md px-2 py-1.5 text-[0.97rem] font-medium hover:bg-accent hover:text-foreground transition-colors"
+            className={desktopNavLinkClasses}
           >
             {link.label}
           </a>
@@ -216,7 +219,7 @@ export default function MobileNavigation({
         {hasLocaleSwitcher && (
           <select
             aria-label={localeSwitcherLabel}
-            className="h-9 min-w-[8.5rem] rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground"
+            className="h-9 min-w-[8.5rem] rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             value={activeLocale}
             onChange={(event) => {
               const nextLocale = event.target.value;
@@ -237,7 +240,7 @@ export default function MobileNavigation({
             href={adminLink.href}
             {...prefetchProps(adminLink.href)}
             aria-label={adminLink.label}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+            className={`h-9 w-9 ${iconButtonClasses}`}
           >
             <Settings className="h-5 w-5" aria-hidden="true" />
           </a>
@@ -248,7 +251,7 @@ export default function MobileNavigation({
               href={authLink.href}
               {...prefetchProps(authLink.href)}
               aria-label={authLink.label}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+              className={`h-9 w-9 ${iconButtonClasses}`}
             >
               <UserRound className="h-5 w-5" aria-hidden="true" />
             </a>
@@ -256,7 +259,7 @@ export default function MobileNavigation({
             <a
               href={authLink.href}
               {...prefetchProps(authLink.href)}
-              className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {authLink.label}
             </a>

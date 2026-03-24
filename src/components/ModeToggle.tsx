@@ -22,8 +22,8 @@ interface ModeToggleProps {
   variant?: 'icon' | 'list';
 }
 
-const baseButtonClasses = 'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
-const listButtonClasses = 'relative flex w-full items-center justify-start gap-3 rounded-md border border-input bg-background px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background min-h-[48px]';
+const baseButtonClasses = 'relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background text-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+const listButtonClasses = 'relative flex min-h-[48px] w-full items-center justify-start gap-3 rounded-md border border-input bg-background px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 export const ModeToggle: React.FC<ModeToggleProps> = ({ className = '', label = 'Toggle theme', variant = 'icon' }) => {
   const [mode, setMode] = useState<ThemeMode>('light');

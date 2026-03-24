@@ -1,0 +1,61 @@
+<script is:inline>
+  // Keep analytics off the critical path on public pages without shipping a React island.
+  (() => {
+    const shouldSkipPath = (pathname) => (
+      pathname.startsWith('/admin')
+      || pathname.startsWith('/auth')
+      || pathname.startsWith('/api')
+      || pathname.startsWith('/setup')
+    );
+
+    const trackPageView = () => {
+      try {
+        const { pathname, search } = window.location;
+        if (shouldSkipPath(pathname)) return;
+
+        const nav = window.navigator;
+        if (nav.doNotTrack === '1' || window.doNotTrack === '1') return;
+
+        const key = `adastro:pv:${pathname}${search}`;
+        try {
+          if (window.sessionStorage.getItem(key) === '1') return;
+          window.sessionStorage.setItem(key, '1');
+        } catch {
+          // Ignore storage failures; tracking remains best-effort.
+        }
+
+        const body = JSON.stringify({
+          path: pathname,
+          query: search || '',
+          title: document.title || '',
+          referrer: document.referrer || '',
+          viewport: `${window.innerWidth || 0}x${window.innerHeight || 0}`
+        });
+
+        if (typeof navigator.sendBeacon === 'function') {
+          const payload = new Blob([body], { type: 'application/json' });
+          navigator.sendBeacon('/api/analytics/track', payload);
+          return;
+        }
+
+        void fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true
+        }).catch(() => {
+          // Best-effort analytics should fail silently on the client.
+        });
+      } catch {
+        // Avoid breaking page render for analytics failures.
+      }
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(trackPageView, { timeout: 1500 });
+      return;
+    }
+
+    window.setTimeout(trackPageView, 1);
+  })();
+</script>
