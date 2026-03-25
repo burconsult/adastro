@@ -43,7 +43,7 @@ For Netlify or other providers, the app can build against either hosted adapter:
 - **Architecture map** – start from `docs/architecture/system-map.md` and `docs/architecture/README.md`.
 
 ## Prerequisites
-- Node.js 20+
+- Node.js 22.x
 - A Supabase project with Postgres + Storage enabled
 - A deploy target (Vercel or Netlify) for hosted installs
 
@@ -174,7 +174,7 @@ See `docs/mcp-server.md` for the endpoint details, auth, tool list, and security
 
 ## Media Pipeline Cheat Sheet
 - `src/lib/services/media-manager.ts` orchestrates uploads, metadata, and AI-generated alt text.
-- `src/lib/services/cdn-manager.ts` abstracts Vercel/Cloudflare/custom CDN URL building and cache purges.
+- `src/lib/services/cdn-manager.ts` abstracts Vercel/Netlify/Cloudflare/custom CDN URL building and cache purges.
 - React helpers (`OptimizedImage`, `MediaUpload`, `MediaManager`) live under `src/lib/components`.
 - Detailed behavior lives in `src/lib/services/README-media.md`.
 > Storage paths default to `uploads/*` in the configured media bucket. By default this is derived per instance, with `media-assets` as fallback.

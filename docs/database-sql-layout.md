@@ -1,21 +1,18 @@
-# Database SQL Layout (v1.1.x)
+# Database SQL Layout (v1.3.0)
 
 This document defines the canonical SQL files shipped with AdAstro and what each one is for.
 
 ## Canonical SQL Groups
 
-### 1) Core Schema (required)
+### 1) Fresh-Install Core Schema (required)
 
 Path:
 - `infra/supabase/migrations/000_core.sql`
-- `infra/supabase/migrations/001_content_locales.sql`
-- `infra/supabase/migrations/002_locale_nb_bootstrap.sql`
 
 What it contains:
-- Core CMS tables (`authors`, `posts`, `pages`, `media_assets`, settings, taxonomy, etc.)
+- Core CMS tables (`authors`, `posts`, `pages`, `page_sections`, `media_assets`, `site_settings`, taxonomy, migration jobs/artifacts, analytics, user profiles, etc.)
 - Core helper functions/triggers used by the app
 - Core RLS policies
-- Core upgrade migrations for locale-aware content records and locale bootstrap flows
 
 What it does **not** contain:
 - Comments tables
@@ -24,11 +21,19 @@ What it does **not** contain:
 
 This is the baseline SQL the setup flow requires before wizard automation can proceed.
 
+### 2) Core Upgrade Migrations (existing installs only)
+
+Path:
+- `infra/supabase/migrations/001_content_locales.sql`
+- `infra/supabase/migrations/002_locale_nb_bootstrap.sql`
+- `infra/supabase/migrations/003_nb_content_translation_hardening.sql`
+
 Migration notes:
 - `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
 - `002_locale_nb_bootstrap.sql` is idempotent and intended for existing `en` content stacks that want Norwegian (`nb`) as active primary locale; it clones/bootstraps localized records where missing.
+- `003_nb_content_translation_hardening.sql` backfills known Norwegian `about` page section content on older installs that were already bootstrapped before the translation fixes landed.
 
-### 2) Demo Data (optional)
+### 3) Demo Data (optional)
 
 Path:
 - `infra/supabase/seed.sql`
@@ -98,12 +103,21 @@ Do not use these for v1 installs:
 - `external_docs/migrations/*` (legacy/reference artifacts)
 - any SQL under `.netlify/` or build output directories (generated copies)
 
-## Recommended Install Order (fresh install)
+## Recommended Install Order
+
+Fresh install:
 
 1. `000_core.sql`
 2. Wizard automation (settings + buckets + admin bootstrap)
 3. `seed.sql` (optional demo content + locale-aware baseline settings)
 4. Feature activation later (applies feature SQL only when enabled)
+
+Existing install upgrade:
+
+1. Apply any pending core upgrade migrations in numeric order (`001` -> `003`) as needed.
+2. Open `/setup` and confirm checks are green.
+3. Apply optional `seed.sql` only if you intentionally want demo content/settings additions.
+4. Activate features later so feature tables remain opt-in.
 
 ## Safety / Idempotency Notes
 

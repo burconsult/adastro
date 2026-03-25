@@ -114,7 +114,7 @@ All data models and utilities include comprehensive unit tests:
 npm run test
 
 # Run tests in watch mode
-npm run test:watch
+npm run test
 
 # Run tests with UI
 npm run test:ui

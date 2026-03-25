@@ -1,6 +1,6 @@
 # AdAstro Installation Guide (Vercel/Netlify + Supabase)
 
-This is the canonical install document for AdAstro v1.0.0.
+This is the canonical install document for AdAstro v1.3.0.
 
 Use this file as your source of truth during setup. The `/setup` wizard is a guided assistant, but some tasks must still be done in Supabase/Vercel/Netlify dashboards.
 

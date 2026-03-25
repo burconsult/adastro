@@ -35,18 +35,25 @@ This directory contains the database schema and optional seed data for the Adast
 
 ## Database Schema Overview
 
-### Core Tables
+### Core Content Tables
 
-- **authors** - Blog authors and users (includes `slug`)
+- **authors** - Author profiles mapped to Supabase auth users
 - **categories** - Hierarchical content categories
-- **tags** - Content tags (many-to-many with posts)
-- **posts** - Blog posts and pages
+- **tags** - Content tags
+- **posts** - Locale-aware blog posts
+- **pages** - Locale-aware editable pages
+- **page_sections** - Reusable page-builder sections for pages
 - **media_assets** - Uploaded files and images
 
-### Junction Tables
+### Supporting Core Tables
 
-- **post_categories** - Links posts to categories
-- **post_tags** - Links posts to tags
+- **post_categories** / **post_tags** - Content taxonomy junction tables
+- **site_settings** - Runtime/admin settings
+- **analytics_events** - Built-in analytics event storage
+- **migration_jobs** / **migration_artifacts** - WordPress import tracking + rollback support
+- **scheduled_posts** - Scheduled publishing queue
+- **system_logs** - System and operational logs
+- **user_profiles** - Per-user feature/profile extension data
 
 ### Key Features
 
@@ -56,6 +63,7 @@ This directory contains the database schema and optional seed data for the Adast
 - **Hierarchical categories** with parent-child relationships
 - **JSONB fields** for flexible metadata storage
 - **Optimized indexes** for common queries
+- **Feature isolation** so comments/newsletter/AI tables stay outside core schema until activated
 
 ## Environment Variables
 

@@ -7,7 +7,7 @@ A comprehensive media management system for the Adastro platform, featuring auto
 ### 🚀 Core Capabilities
 - **Lightweight Optimization**: Store the original plus a single standard derivative
 - **Responsive Delivery**: Let Astro/CDN generate responsive sizes at request time
-- **CDN Integration**: Support for Vercel, Cloudflare, and custom CDN providers
+- **CDN Integration**: Support for Vercel, Netlify, Cloudflare, and custom CDN providers
 - **Smart Alt Text Generation**: AI-assisted alt text suggestions for accessibility
 - **Media Analytics**: Usage statistics and optimization recommendations
 - **Bulk Operations**: Efficient batch processing for media management
