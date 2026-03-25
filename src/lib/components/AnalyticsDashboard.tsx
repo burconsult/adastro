@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdminLoadingState } from '@/lib/components/admin/ListingPrimitives';
+import AnalyticsProviderSettings from '@/lib/components/AnalyticsProviderSettings';
 import type {
   AnalyticsDailyPoint,
   AnalyticsHeatmapRow,
@@ -19,6 +20,8 @@ const TRAFFIC_OPTIONS = [
   { value: 'human', label: 'Human only' },
   { value: 'bot', label: 'Bots only' }
 ] as const;
+
+type AnalyticsTab = 'reporting' | 'settings';
 
 const sourceLabels: Record<AnalyticsSourceType, string> = {
   direct: 'Direct',
@@ -66,6 +69,7 @@ const localeName = (locale: string) => {
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
 export default function AnalyticsDashboard() {
+  const [activeTab, setActiveTab] = React.useState<AnalyticsTab>('reporting');
   const [days, setDays] = React.useState<7 | 30 | 90>(30);
   const [locale, setLocale] = React.useState<string>('all');
   const [country, setCountry] = React.useState<string>('all');
@@ -77,6 +81,10 @@ export default function AnalyticsDashboard() {
   const [data, setData] = React.useState<AnalyticsReport | null>(null);
 
   React.useEffect(() => {
+    if (activeTab !== 'reporting') {
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
@@ -112,7 +120,7 @@ export default function AnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [days, locale, country, device, browser, traffic]);
+  }, [activeTab, browser, country, days, device, locale, traffic]);
 
   React.useEffect(() => {
     if (!data || locale === 'all') return;
@@ -138,6 +146,83 @@ export default function AnalyticsDashboard() {
     setBrowser('all');
   }, [browser, data]);
 
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-card/40 p-2">
+        <button
+          type="button"
+          className={`btn h-9 px-4 text-sm ${activeTab === 'reporting' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setActiveTab('reporting')}
+        >
+          Reporting
+        </button>
+        <button
+          type="button"
+          className={`btn h-9 px-4 text-sm ${activeTab === 'settings' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </button>
+      </div>
+
+      {activeTab === 'settings' ? (
+        <AnalyticsProviderSettings />
+      ) : (
+        <AnalyticsReportingPanel
+          loading={loading}
+          error={error}
+          data={data}
+          days={days}
+          locale={locale}
+          country={country}
+          device={device}
+          browser={browser}
+          traffic={traffic}
+          setDays={setDays}
+          setLocale={setLocale}
+          setCountry={setCountry}
+          setDevice={setDevice}
+          setBrowser={setBrowser}
+          setTraffic={setTraffic}
+        />
+      )}
+    </div>
+  );
+}
+
+function AnalyticsReportingPanel({
+  loading,
+  error,
+  data,
+  days,
+  locale,
+  country,
+  device,
+  browser,
+  traffic,
+  setDays,
+  setLocale,
+  setCountry,
+  setDevice,
+  setBrowser,
+  setTraffic
+}: {
+  loading: boolean;
+  error: string | null;
+  data: AnalyticsReport | null;
+  days: 7 | 30 | 90;
+  locale: string;
+  country: string;
+  device: string;
+  browser: string;
+  traffic: 'all' | 'human' | 'bot';
+  setDays: React.Dispatch<React.SetStateAction<7 | 30 | 90>>;
+  setLocale: React.Dispatch<React.SetStateAction<string>>;
+  setCountry: React.Dispatch<React.SetStateAction<string>>;
+  setDevice: React.Dispatch<React.SetStateAction<string>>;
+  setBrowser: React.Dispatch<React.SetStateAction<string>>;
+  setTraffic: React.Dispatch<React.SetStateAction<'all' | 'human' | 'bot'>>;
+}) {
   if (loading) {
     return <AdminLoadingState label="Loading analytics..." className="p-8" />;
   }
@@ -158,7 +243,7 @@ export default function AnalyticsDashboard() {
   const humanShare = data.totals.totalPageViews > 0 ? data.totals.humanViews / data.totals.totalPageViews : 0;
 
   return (
-    <div className="space-y-6">
+    <>
       <section className="card p-4 space-y-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
@@ -460,7 +545,7 @@ export default function AnalyticsDashboard() {
         </a>
         ).
       </p>
-    </div>
+    </>
   );
 }
 

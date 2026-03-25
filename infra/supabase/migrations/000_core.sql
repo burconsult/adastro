@@ -253,13 +253,16 @@ AS $$
 $$;
 
 -- Updated-at helper
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 CREATE TRIGGER update_posts_updated_at
   BEFORE UPDATE ON posts
@@ -551,7 +554,8 @@ CREATE POLICY "Admin can read analytics events" ON analytics_events
   FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "Service can insert analytics events" ON analytics_events
-  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+  FOR INSERT TO service_role
+  WITH CHECK ((select auth.role()) = 'service_role');
 
 CREATE POLICY "Admin can manage migration jobs" ON migration_jobs
   FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
@@ -566,7 +570,8 @@ CREATE POLICY "Admin can read system logs" ON system_logs
   FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "Service can insert system logs" ON system_logs
-  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+  FOR INSERT TO service_role
+  WITH CHECK ((select auth.role()) = 'service_role');
 
 -- Storage bucket defaults
 INSERT INTO site_settings (key, value, category, description)
@@ -582,6 +587,12 @@ VALUES
     to_jsonb('migration-uploads'::text),
     'system',
     'Supabase Storage bucket for migration upload staging files'
+  ),
+  (
+    'analytics.retention',
+    '{"retentionDays":180,"warnAtRowCount":250000,"archiveBeforePrune":true}'::jsonb,
+    'general',
+    'Hidden admin-managed configuration for analytics archive and prune rules.'
   )
 ON CONFLICT (key) DO NOTHING;
 
@@ -768,6 +779,22 @@ ALTER TABLE public.migration_jobs FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.migration_artifacts FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.scheduled_posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.system_logs FORCE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'schema_migrations'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.schema_migrations ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'ALTER TABLE public.schema_migrations FORCE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Service can manage schema migrations" ON public.schema_migrations';
+    EXECUTE 'CREATE POLICY "Service can manage schema migrations" ON public.schema_migrations FOR ALL TO service_role USING ((select auth.role()) = ''service_role'') WITH CHECK ((select auth.role()) = ''service_role'')';
+  END IF;
+END;
+$$;
 
 -- 3) Tighten default privileges for future objects
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;

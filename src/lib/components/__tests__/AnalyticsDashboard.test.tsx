@@ -6,6 +6,10 @@ vi.mock('@/lib/components/admin/ListingPrimitives', () => ({
   AdminLoadingState: ({ label }: { label?: string }) => <div>{label ?? 'Loading…'}</div>
 }));
 
+vi.mock('../AnalyticsProviderSettings', () => ({
+  default: () => <div>Provider Settings Panel</div>
+}));
+
 const payload = {
   windowDays: 30,
   filters: {
@@ -152,5 +156,14 @@ describe('AnalyticsDashboard', () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/admin/analytics?days=30&traffic=human');
     });
+  });
+
+  it('switches to the settings tab without blocking on analytics reporting state', async () => {
+    render(<AnalyticsDashboard />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(await screen.findByText('Provider Settings Panel')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Traffic Trend' })).not.toBeInTheDocument();
   });
 });

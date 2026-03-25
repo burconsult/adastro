@@ -91,6 +91,24 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     defaultValue: true
   },
   {
+    key: 'analytics.externalProviders',
+    displayName: 'External Analytics Providers',
+    description: 'Hidden admin-managed configuration for public third-party analytics integrations.',
+    type: 'json',
+    category: 'general',
+    adminSurface: 'hidden',
+    defaultValue: {}
+  },
+  {
+    key: 'analytics.retention',
+    displayName: 'Analytics Retention',
+    description: 'Hidden admin-managed configuration for analytics archive and prune rules.',
+    type: 'json',
+    category: 'general',
+    adminSurface: 'hidden',
+    defaultValue: {}
+  },
+  {
     key: 'site.customHeadScripts',
     displayName: 'Custom Head Scripts/HTML',
     description: 'Trusted admin only. Injected into the public site <head>. Use for self-hosted snippets or inline tags. Note: CSP may block third-party external script hosts.',

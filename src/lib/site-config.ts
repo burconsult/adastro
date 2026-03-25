@@ -1,6 +1,12 @@
 import { SettingsService } from './services/settings-service.js';
 import { getThemeModuleById } from './themes/registry.js';
 import {
+  buildExternalAnalyticsHeadHtml,
+  EXTERNAL_ANALYTICS_SETTING_KEY,
+  parseExternalAnalyticsSettings,
+  type ExternalAnalyticsSettingsState
+} from './analytics/external-providers.js';
+import {
   applyArticleBasePathToHref,
   DEFAULT_ARTICLE_ROUTING,
   normalizeArticleBasePath,
@@ -87,6 +93,11 @@ export interface SiteCustomScripts {
   footerHtml: string;
 }
 
+export interface SiteExternalAnalytics {
+  headHtml: string;
+  settings: ExternalAnalyticsSettingsState;
+}
+
 const DEFAULT_IDENTITY: SiteIdentity = {
   title: 'AdAstro',
   description: 'A practical, speed-first CMS built with Astro and Supabase.',
@@ -148,6 +159,11 @@ const DEFAULT_CUSTOM_SCRIPTS: SiteCustomScripts = {
   footerHtml: ''
 };
 
+const DEFAULT_EXTERNAL_ANALYTICS: SiteExternalAnalytics = {
+  headHtml: '',
+  settings: parseExternalAnalyticsSettings(null)
+};
+
 const THEME_CACHE_TTL_MS = 2000;
 
 let cachedIdentity = new Map<string, SiteIdentity>();
@@ -169,6 +185,8 @@ let cachedLocaleConfig: SiteLocaleConfig | null = null;
 let loadingLocaleConfigPromise: Promise<SiteLocaleConfig> | null = null;
 let cachedCustomScripts: SiteCustomScripts | null = null;
 let loadingCustomScriptsPromise: Promise<SiteCustomScripts> | null = null;
+let cachedExternalAnalytics: SiteExternalAnalytics | null = null;
+let loadingExternalAnalyticsPromise: Promise<SiteExternalAnalytics> | null = null;
 
 const resolveLocalizedStringValue = (
   map: Record<string, string> | undefined,
@@ -463,6 +481,17 @@ async function fetchSiteCustomScripts(): Promise<SiteCustomScripts> {
   return {
     headHtml,
     footerHtml
+  };
+}
+
+async function fetchSiteExternalAnalytics(): Promise<SiteExternalAnalytics> {
+  const settingsService = new SettingsService();
+  const settings = await settingsService.getSettings([EXTERNAL_ANALYTICS_SETTING_KEY]);
+  const providerSettings = parseExternalAnalyticsSettings(settings[EXTERNAL_ANALYTICS_SETTING_KEY]);
+
+  return {
+    headHtml: buildExternalAnalyticsHeadHtml(providerSettings),
+    settings: providerSettings
   };
 }
 
@@ -815,6 +844,29 @@ export async function getSiteCustomScripts(options?: { refresh?: boolean }): Pro
   return loadingCustomScriptsPromise;
 }
 
+export async function getSiteExternalAnalytics(options?: { refresh?: boolean }): Promise<SiteExternalAnalytics> {
+  if (options?.refresh) {
+    cachedExternalAnalytics = null;
+    loadingExternalAnalyticsPromise = null;
+  }
+
+  if (cachedExternalAnalytics) {
+    return cachedExternalAnalytics;
+  }
+
+  if (!loadingExternalAnalyticsPromise) {
+    loadingExternalAnalyticsPromise = fetchSiteExternalAnalytics().catch((error) => {
+      console.warn('Failed to load external analytics integrations from settings. Falling back to defaults.', error);
+      return DEFAULT_EXTERNAL_ANALYTICS;
+    }).then((analytics) => {
+      cachedExternalAnalytics = analytics;
+      return analytics;
+    });
+  }
+
+  return loadingExternalAnalyticsPromise;
+}
+
 export function resetSiteThemeCache(): void {
   cachedTheme = null;
   loadingThemePromise = null;
@@ -861,6 +913,11 @@ export function resetSiteCustomScriptsCache(): void {
   loadingCustomScriptsPromise = null;
 }
 
+export function resetSiteExternalAnalyticsCache(): void {
+  cachedExternalAnalytics = null;
+  loadingExternalAnalyticsPromise = null;
+}
+
 export function resetAllSiteConfigCaches(): void {
   resetSiteIdentityCache();
   resetSiteNavigationCache();
@@ -871,6 +928,7 @@ export function resetAllSiteConfigCaches(): void {
   resetSiteContentPreferencesCache();
   resetSiteLocaleConfigCache();
   resetSiteCustomScriptsCache();
+  resetSiteExternalAnalyticsCache();
   resetRuntimeConfigCaches();
 }
 

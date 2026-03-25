@@ -12,7 +12,8 @@ import { getPublishedPages } from "@/lib/astro-helpers";
 import { Facebook, Github, Link2, Linkedin } from "lucide-react";
 import { isFeatureActive } from "@/lib/features/state";
 import { authService } from "@/lib/auth/auth-helpers";
-import { getSiteContentRouting, getSiteCustomScripts, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
+import { getSiteContentRouting, getSiteCustomScripts, getSiteExternalAnalytics, getSiteIdentity, getSiteLocaleConfig, getSiteNavigation, getSiteSeoDefaults, getSiteSocialProfiles, getSiteTheme } from "@/lib/site-config";
+import { shouldRenderExternalAnalytics } from "@/lib/analytics/external-providers";
 import { buildLocalizedPath, localizeHref, normalizeLocaleCode, toHtmlLang, toOpenGraphLocale } from "@/lib/i18n/locales";
 import { getCoreLocalePacks } from "@/lib/i18n/catalog";
 import { getLocaleMessages, t } from "@/lib/i18n/runtime";
@@ -39,6 +40,7 @@ const siteTheme = await getSiteTheme();
 const siteSeoDefaults = await getSiteSeoDefaults();
 const siteSocialProfiles = await getSiteSocialProfiles();
 const siteCustomScripts = await getSiteCustomScripts();
+const siteExternalAnalytics = await getSiteExternalAnalytics();
 const siteContentRouting = await getSiteContentRouting();
 const {
   title = siteIdentity.title,
@@ -59,6 +61,7 @@ const localizedPathname = typeof Astro.locals.localizedPath === 'string'
 const requestPathname = typeof Astro.locals.requestPathname === 'string'
   ? Astro.locals.requestPathname
   : Astro.url.pathname;
+const injectExternalAnalytics = shouldRenderExternalAnalytics(localizedPathname);
 const localeMessages = getLocaleMessages(currentLocale);
 const defaultLocaleMessages = currentLocale === siteLocaleConfig.defaultLocale
   ? localeMessages
@@ -458,6 +461,7 @@ const localeNotice = localeNoticeCode === 'post-unavailable'
     )}
     <ThemeInitScript />
     <AuthHashRecoveryScript />
+    {injectExternalAnalytics && siteExternalAnalytics.headHtml.trim().length > 0 && <Fragment set:html={siteExternalAnalytics.headHtml} />}
     {siteCustomScripts.headHtml.trim().length > 0 && <Fragment set:html={siteCustomScripts.headHtml} />}
   </head>
   <body class="min-h-full bg-background text-foreground">
