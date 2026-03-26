@@ -6,6 +6,15 @@ import type { MediaAsset } from '../../types/index.js';
 // Mock external dependencies
 vi.mock('../../supabase.js');
 vi.mock('sharp');
+vi.mock('../settings-service.js', () => ({
+  SettingsService: vi.fn().mockImplementation(() => ({
+    getSettings: vi.fn().mockResolvedValue({
+      'media.images.maxWidth': 1600,
+      'media.images.quality': 82,
+      'media.images.outputFormat': 'auto'
+    })
+  }))
+}));
 
 describe('MediaManager Integration Tests', () => {
   let mediaManager: MediaManager;

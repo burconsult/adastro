@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useId } from 'react';
 import type EditorJS from '@editorjs/editorjs';
 import type { EditorJSData } from '@/lib/editorjs/types';
 import { normalizeEditorJsData } from '@/lib/editorjs';
+import { uploadMediaFromBrowser } from '@/lib/media/upload-client';
 
 interface EditorJSEditorProps {
   data: EditorJSData;
@@ -605,19 +606,7 @@ export const EditorJSEditor: React.FC<EditorJSEditorProps> = ({
               uploader: {
                 async uploadByFile(file: File) {
                   try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const response = await fetch('/api/admin/media/upload', {
-                      method: 'POST',
-                      body: formData
-                    });
-                    const payload = await response.json().catch(() => null);
-                    if (!response.ok) {
-                      return {
-                        success: 0,
-                        message: payload?.message || payload?.error || `Upload failed (${response.status})`
-                      };
-                    }
+                    const payload = await uploadMediaFromBrowser({ file });
                     const asset = payload?.public || payload?.original;
                     const url = asset?.url || asset?.storagePath;
                     if (!asset || !url) {
@@ -689,7 +678,7 @@ export const EditorJSEditor: React.FC<EditorJSEditorProps> = ({
 
         const editor = new EditorJSConstructor({
           holder: holderId,
-          data: normalizeEditorJsData(latestDataRef.current),
+          data: normalizeEditorJsData(latestDataRef.current) as any,
           autofocus: true,
           placeholder: 'Start writing your post...',
           tools,
@@ -746,7 +735,7 @@ export const EditorJSEditor: React.FC<EditorJSEditorProps> = ({
         await editor.isReady;
         if (cancelled || editorRef.current !== editor) return;
         if (typeof editor.render === 'function') {
-          await editor.render(normalizedData);
+          await editor.render(normalizedData as any);
           if (!cancelled && editorRef.current === editor) {
             lastBlocksRef.current = serializedBlocks;
           }

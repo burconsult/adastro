@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { MAX_MEDIA_UPLOAD_BYTES, formatMediaUploadLimitMb } from '@/lib/config/media';
 import type { MediaOptimizationResult } from '../services/media-manager.js';
+import { uploadMediaFromBrowser } from '@/lib/media/upload-client';
 
 interface MediaUploadProps {
   onUploadComplete?: (result: MediaOptimizationResult) => void;
@@ -32,24 +33,10 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
     setUploadProgress({ stage: 'Uploading...', progress: 0 });
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      setUploadProgress({ stage: 'Processing...', progress: 30 });
-
-      const response = await fetch('/api/admin/media/upload', {
-        method: 'POST',
-        body: formData
+      const result = await uploadMediaFromBrowser({
+        file,
+        onProgress: setUploadProgress
       });
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => null);
-        throw new Error(errorPayload?.message || errorPayload?.error || 'Upload failed');
-      }
-
-      const result = await response.json();
-
-      setUploadProgress({ stage: 'Complete!', progress: 100 });
 
       onUploadComplete?.(result);
 

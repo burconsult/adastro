@@ -36,6 +36,11 @@ const deserializeMediaAsset = (asset: any): MediaAsset => ({
   dimensions: asset?.dimensions ?? undefined
 });
 
+const isImageAsset = (asset: MediaAsset) => asset.mimeType.startsWith('image/');
+const isVideoAsset = (asset: MediaAsset) => asset.mimeType.startsWith('video/');
+const isAudioAsset = (asset: MediaAsset) => asset.mimeType.startsWith('audio/');
+const isPdfAsset = (asset: MediaAsset) => asset.mimeType === 'application/pdf';
+
 const formatFileSize = (bytes: number) => {
   if (!bytes) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -435,17 +440,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
                       }`}
                     >
                       <div className="aspect-square bg-muted">
-                        {asset.mimeType.startsWith('image/') ? (
-                          <img
-                            src={asset.url}
-                            alt={asset.altText || asset.filename}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-4xl">📄</div>
-                        )}
+                        <AssetPreview asset={asset} variant="grid" />
                       </div>
                       <div className="space-y-1 p-2 text-left">
                         <p className="truncate text-xs font-medium text-muted-foreground">{asset.filename}</p>
@@ -481,16 +476,10 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
           {selectedAsset ? (
             <div className="space-y-4">
               <div className="overflow-hidden rounded-md border">
-                <div className="aspect-square bg-muted">
-                  {selectedAsset.mimeType.startsWith('image/') ? (
-                    <img
-                      src={selectedAsset.url}
-                      alt={selectedAsset.altText || selectedAsset.filename}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl">📄</div>
-                  )}
+                <div
+                  className={`${isAudioAsset(selectedAsset) ? 'min-h-[220px]' : 'aspect-square'} bg-muted`}
+                >
+                  <AssetPreview asset={selectedAsset} variant="detail" />
                 </div>
               </div>
 
@@ -509,7 +498,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
 
               <div className="space-y-3">
                 <label className="text-sm font-medium text-muted-foreground" htmlFor="media-alt-text">
-                  Alt Text
+                  {isImageAsset(selectedAsset) ? 'Alt Text' : 'Description'}
                 </label>
                 <textarea
                   id="media-alt-text"
@@ -517,7 +506,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
                   value={metadataDraft.altText}
                   onChange={event => setMetadataDraft(prev => ({ ...prev, altText: event.target.value }))}
                   className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-primary/50 focus:outline-none"
-                  placeholder="Describe the visual content for accessibility"
+                  placeholder={isImageAsset(selectedAsset)
+                    ? 'Describe the visual content for accessibility'
+                    : 'Add an accessible description for this file'}
                 />
 
                 <label className="text-sm font-medium text-muted-foreground" htmlFor="media-caption">
@@ -550,9 +541,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
                         className="btn btn-outline"
                         onClick={() => window.open(optimizedUrl, '_blank', 'noopener,noreferrer')}
                       >
-                        Open Optimized Version
+                        {isImageAsset(selectedAsset) ? 'Open Optimized Version' : 'Open File'}
                       </button>
-                      {originalUrl && (
+                      {originalUrl && originalUrl !== optimizedUrl && (
                         <button
                           type="button"
                           className="btn btn-outline"
@@ -650,6 +641,78 @@ interface MetadataRowProps {
   label: string;
   value: string | number;
 }
+
+interface AssetPreviewProps {
+  asset: MediaAsset;
+  variant: 'grid' | 'detail';
+}
+
+const AssetPreview: React.FC<AssetPreviewProps> = ({ asset, variant }) => {
+  if (isImageAsset(asset)) {
+    return (
+      <img
+        src={asset.url}
+        alt={asset.altText || asset.filename}
+        className="h-full w-full object-cover"
+        loading={variant === 'grid' ? 'lazy' : undefined}
+        decoding={variant === 'grid' ? 'async' : undefined}
+      />
+    );
+  }
+
+  if (isVideoAsset(asset)) {
+    return (
+      <video
+        src={asset.url}
+        className="h-full w-full object-cover"
+        controls={variant === 'detail'}
+        muted={variant === 'grid'}
+        playsInline
+        preload="metadata"
+        aria-label={asset.altText || asset.filename}
+      />
+    );
+  }
+
+  if (isAudioAsset(asset)) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 p-6 text-center dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Audio</div>
+        <div className="max-w-full truncate text-sm font-medium text-foreground">{asset.filename}</div>
+        {variant === 'detail' ? (
+          <audio controls preload="metadata" className="w-full">
+            <source src={asset.url} type={asset.mimeType} />
+          </audio>
+        ) : (
+          <div className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Select to play</div>
+        )}
+      </div>
+    );
+  }
+
+  if (isPdfAsset(asset)) {
+    return variant === 'detail' ? (
+      <iframe
+        title={asset.filename}
+        src={`${asset.url}#view=FitH`}
+        className="h-full w-full border-0"
+      />
+    ) : (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-rose-50 to-orange-100 text-center dark:from-zinc-900 dark:to-zinc-800">
+        <div className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-rose-600 dark:border-rose-900 dark:bg-zinc-900 dark:text-rose-300">
+          PDF
+        </div>
+        <div className="px-4 text-xs text-muted-foreground">Select to preview</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      Unsupported preview
+    </div>
+  );
+};
 
 const MetadataRow: React.FC<MetadataRowProps> = ({ label, value }) => (
   <div className="flex items-start justify-between gap-3 text-sm">

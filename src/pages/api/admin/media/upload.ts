@@ -19,15 +19,20 @@ export const POST: APIRoute = async ({ request }) => {
 
     const formData = await request.formData();
     const file = formData.get('file');
+    const storagePath = formData.get('storagePath');
+    const filename = formData.get('filename');
+    const mimeType = formData.get('mimeType');
+    const caption = formData.get('caption')?.toString();
+    const providedAltText = formData.get('altText')?.toString();
 
-    if (!(file instanceof File)) {
+    if (!(file instanceof File) && typeof storagePath !== 'string') {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    if (typeof file.size === 'number' && file.size > MAX_MEDIA_UPLOAD_BYTES) {
+    if (file instanceof File && typeof file.size === 'number' && file.size > MAX_MEDIA_UPLOAD_BYTES) {
       return new Response(JSON.stringify({
         error: `File is too large. Maximum upload size is ${Math.round(MAX_MEDIA_UPLOAD_BYTES / (1024 * 1024))}MB.`
       }), {
@@ -36,15 +41,23 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const caption = formData.get('caption')?.toString();
-    const providedAltText = formData.get('altText')?.toString();
+    const stagedPath = typeof storagePath === 'string' ? storagePath : null;
 
-    const result = await mediaManager.uploadMedia({
-      file,
-      altText: providedAltText?.trim() || undefined,
-      caption,
-      uploadedBy
-    });
+    const result = file instanceof File
+      ? await mediaManager.uploadMedia({
+          file,
+          altText: providedAltText?.trim() || undefined,
+          caption,
+          uploadedBy
+        })
+      : await mediaManager.uploadMediaFromStorage({
+          storagePath: stagedPath as string,
+          filename: typeof filename === 'string' ? filename : undefined,
+          mimeType: typeof mimeType === 'string' ? mimeType : undefined,
+          altText: providedAltText?.trim() || undefined,
+          caption,
+          uploadedBy
+        });
 
     const primaryAsset = result.public ?? result.original;
     const responsiveUrls = cdnManager.generateResponsiveUrls(primaryAsset);

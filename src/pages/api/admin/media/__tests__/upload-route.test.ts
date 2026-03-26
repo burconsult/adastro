@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   requireAuthor: vi.fn(),
-  uploadMedia: vi.fn()
+  uploadMedia: vi.fn(),
+  uploadMediaFromStorage: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -11,7 +12,8 @@ vi.mock('@/lib/auth/auth-helpers', () => ({
 
 vi.mock('@/lib/services/media-manager.js', () => ({
   mediaManager: {
-    uploadMedia: mocks.uploadMedia
+    uploadMedia: mocks.uploadMedia,
+    uploadMediaFromStorage: mocks.uploadMediaFromStorage
   }
 }));
 
@@ -53,6 +55,30 @@ describe('admin media upload api', () => {
         createdAt: new Date('2026-03-01T00:00:00.000Z')
       }
     });
+    mocks.uploadMediaFromStorage.mockResolvedValue({
+      original: {
+        id: 'media-2',
+        filename: 'guide.pdf',
+        url: 'https://example.com/uploads/guide.pdf',
+        storagePath: 'uploads/guide.pdf',
+        altText: 'Guide',
+        caption: null,
+        mimeType: 'application/pdf',
+        fileSize: 4096,
+        createdAt: new Date('2026-03-01T00:00:00.000Z')
+      },
+      public: {
+        id: 'media-2',
+        filename: 'guide.pdf',
+        url: 'https://example.com/uploads/guide.pdf',
+        storagePath: 'uploads/guide.pdf',
+        altText: 'Guide',
+        caption: null,
+        mimeType: 'application/pdf',
+        fileSize: 4096,
+        createdAt: new Date('2026-03-01T00:00:00.000Z')
+      }
+    });
   });
 
   it('returns Netlify-safe responsive image URLs', async () => {
@@ -72,5 +98,30 @@ describe('admin media upload api', () => {
     expect(payload.responsiveUrls.thumbnail).toContain('fit=cover');
     expect(payload.responsiveUrls.medium).toContain('w=800');
     expect(payload.public.url).toBe('https://example.com/uploads/hero.jpg');
+  });
+
+  it('accepts staged uploads that were sent directly to storage', async () => {
+    const formData = new FormData();
+    formData.set('storagePath', 'staging/upload-1-guide.pdf');
+    formData.set('filename', 'guide.pdf');
+    formData.set('mimeType', 'application/pdf');
+
+    const response = await POST({
+      request: {
+        formData: async () => formData
+      }
+    } as any);
+
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mocks.uploadMediaFromStorage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storagePath: 'staging/upload-1-guide.pdf',
+        filename: 'guide.pdf',
+        mimeType: 'application/pdf'
+      })
+    );
+    expect(payload.public.mimeType).toBe('application/pdf');
   });
 });

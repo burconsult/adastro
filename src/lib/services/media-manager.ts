@@ -1,8 +1,13 @@
 import { supabase, supabaseAdmin } from '../supabase.js';
 import { getStorageBucketConfig } from '../storage/buckets.js';
-import { MAX_MEDIA_UPLOAD_BYTES } from '../config/media.js';
+import {
+  isSupportedMediaMimeType,
+  MAX_MEDIA_UPLOAD_BYTES,
+  MEDIA_STAGING_FOLDER
+} from '../config/media.js';
 import sharp from 'sharp';
 import type { MediaAsset, MediaOptimizationResult } from '../types/index.js';
+import { SettingsService } from './settings-service.js';
 
 export type { MediaOptimizationResult } from '../types/index.js';
 
@@ -21,9 +26,12 @@ export interface MediaUsageStats {
   optimizationSavings: number;
 }
 
-const STANDARD_DERIVATIVE_WIDTH = 1600;
 const PUBLIC_FOLDER = 'uploads';
 const ORIGINALS_FOLDER = 'originals';
+const DEFAULT_MAX_IMAGE_WIDTH = 1600;
+const DEFAULT_IMAGE_QUALITY = 82;
+const IMAGE_OUTPUT_FORMATS = ['auto', 'original', 'webp', 'avif'] as const;
+const settingsService = new SettingsService();
 export { MAX_MEDIA_UPLOAD_BYTES };
 
 type OriginalMediaInfo = {
@@ -32,6 +40,12 @@ type OriginalMediaInfo = {
   mimeType: string;
   fileSize: number;
   dimensions?: { width: number; height: number };
+};
+
+type ImageOptimizationSettings = {
+  maxWidth: number;
+  quality: number;
+  outputFormat: (typeof IMAGE_OUTPUT_FORMATS)[number];
 };
 
 export class MediaManager {
@@ -55,12 +69,15 @@ export class MediaManager {
     const normalizedAltText = this.normalizeAltText(altText, caption, file.name);
     const baseName = this.buildOptimizedBaseName(normalizedAltText, file.name, timestamp);
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    let publicBuffer = buffer;
+    const buffer: Buffer = Buffer.from(new Uint8Array(await file.arrayBuffer()));
+    let publicBuffer: Buffer = buffer;
     let publicMimeType = file.type;
     let totalSizeSavings = 0;
     const formatConversions: string[] = [];
     let originalInfo: OriginalMediaInfo | undefined;
+    const imageSettings = this.isImageType(file.type)
+      ? await this.getImageOptimizationSettings()
+      : null;
 
     if (this.isImageType(file.type)) {
       const originalFilename = `${timestamp}-${this.sanitizeFilename(file.name)}`;
@@ -77,9 +94,9 @@ export class MediaManager {
         dimensions: originalDimensions
       };
 
-      if (this.shouldOptimizeImage(file.type)) {
+      if (imageSettings && this.shouldOptimizeImage(file.type)) {
         try {
-          const optimized = await this.createOptimizedImageBuffer(buffer, file.type);
+          const optimized = await this.createOptimizedImageBuffer(buffer, file.type, imageSettings);
           publicBuffer = optimized.buffer;
           publicMimeType = optimized.mimeType;
           totalSizeSavings = Math.max(0, buffer.length - publicBuffer.length);
@@ -114,6 +131,49 @@ export class MediaManager {
       sizeSavings: totalSizeSavings,
       formatConversions
     };
+  }
+
+  async uploadMediaFromStorage(options: Omit<MediaUploadOptions, 'file'> & {
+    storagePath: string;
+    filename?: string;
+    mimeType?: string;
+  }): Promise<MediaOptimizationResult> {
+    const { storagePath, filename, mimeType, altText, caption, uploadedBy } = options;
+    const bucketName = await this.getMediaBucketName();
+
+    if (!storagePath.startsWith(`${MEDIA_STAGING_FOLDER}/`)) {
+      throw new Error('Invalid staged upload path.');
+    }
+
+    try {
+      const { data, error } = await supabaseAdmin.storage
+        .from(bucketName)
+        .download(storagePath);
+
+      if (error || !data) {
+        throw new Error(error?.message || 'Failed to download staged upload.');
+      }
+
+      const resolvedFilename = filename?.trim() || storagePath.split('/').pop() || 'upload.bin';
+      const resolvedMimeType = mimeType?.trim() || data.type || 'application/octet-stream';
+      const arrayBuffer = await this.toArrayBuffer(data);
+      const file = new File([arrayBuffer], resolvedFilename, { type: resolvedMimeType });
+
+      return await this.uploadMedia({
+        file,
+        altText,
+        caption,
+        uploadedBy
+      });
+    } finally {
+      const { error: cleanupError } = await supabaseAdmin.storage
+        .from(bucketName)
+        .remove([storagePath]);
+
+      if (cleanupError) {
+        console.warn('Failed to cleanup staged media upload:', cleanupError);
+      }
+    }
   }
   
   /**
@@ -565,24 +625,7 @@ export class MediaManager {
    * Utility methods
    */
   private isValidMediaType(mimeType: string): boolean {
-    const validTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/avif',
-      'image/svg+xml',
-      'video/mp4',
-      'video/webm',
-      'audio/mpeg',
-      'audio/mp3',
-      'audio/wav',
-      'audio/ogg',
-      'application/pdf'
-    ];
-    
-    return validTypes.includes(mimeType);
+    return isSupportedMediaMimeType(mimeType);
   }
   
   private isImageType(mimeType: string): boolean {
@@ -636,17 +679,17 @@ export class MediaManager {
     }
   }
 
-  private getFormatOptions(mimeType: string): Record<string, any> {
+  private getFormatOptions(mimeType: string, quality: number): Record<string, any> {
     switch (mimeType) {
       case 'image/png':
       case 'image/gif':
         return { compressionLevel: 8 };
       case 'image/webp':
-        return { quality: 80 };
+        return { quality };
       case 'image/avif':
-        return { quality: 65 };
+        return { quality: Math.min(quality, 80) };
       default:
-        return { quality: 85 };
+        return { quality };
     }
   }
 
@@ -693,7 +736,19 @@ export class MediaManager {
     return !['image/svg+xml', 'image/gif'].includes(mimeType);
   }
 
-  private getOptimizedImageMimeType(original: string): string {
+  private getOptimizedImageMimeType(
+    original: string,
+    outputFormat: ImageOptimizationSettings['outputFormat']
+  ): string {
+    if (outputFormat === 'original') {
+      return original;
+    }
+    if (outputFormat === 'webp') {
+      return 'image/webp';
+    }
+    if (outputFormat === 'avif') {
+      return 'image/avif';
+    }
     if (original === 'image/webp' || original === 'image/avif') {
       return original;
     }
@@ -705,21 +760,65 @@ export class MediaManager {
 
   private async createOptimizedImageBuffer(
     buffer: Buffer,
-    mimeType: string
+    mimeType: string,
+    settings: ImageOptimizationSettings
   ): Promise<{ buffer: Buffer; mimeType: string }> {
-    const targetMime = this.getOptimizedImageMimeType(mimeType);
+    const targetMime = this.getOptimizedImageMimeType(mimeType, settings.outputFormat);
     const sharpFormat = this.getSharpFormat(targetMime);
-    const formatOptions = this.getFormatOptions(targetMime);
+    const formatOptions = this.getFormatOptions(targetMime, settings.quality);
 
     const processedBuffer = await sharp(buffer)
-      .resize(STANDARD_DERIVATIVE_WIDTH, STANDARD_DERIVATIVE_WIDTH, {
+      .resize(settings.maxWidth, settings.maxWidth, {
         fit: 'inside',
         withoutEnlargement: true
       })
       .toFormat(sharpFormat as any, formatOptions as any)
       .toBuffer();
 
-    return { buffer: processedBuffer, mimeType: targetMime };
+    return { buffer: processedBuffer as Buffer, mimeType: targetMime };
+  }
+
+  private async getImageOptimizationSettings(): Promise<ImageOptimizationSettings> {
+    const values = await settingsService.getSettings([
+      'media.images.maxWidth',
+      'media.images.quality',
+      'media.images.outputFormat'
+    ]);
+
+    const rawOutputFormat = values['media.images.outputFormat'];
+    const outputFormat: ImageOptimizationSettings['outputFormat'] = IMAGE_OUTPUT_FORMATS.includes(rawOutputFormat as any)
+      ? rawOutputFormat as ImageOptimizationSettings['outputFormat']
+      : 'auto';
+
+    return {
+      maxWidth: this.clampNumber(values['media.images.maxWidth'], DEFAULT_MAX_IMAGE_WIDTH, 320, 4096),
+      quality: this.clampNumber(values['media.images.quality'], DEFAULT_IMAGE_QUALITY, 40, 100),
+      outputFormat
+    };
+  }
+
+  private clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, Math.round(numeric)));
+  }
+
+  private async toArrayBuffer(data: any): Promise<ArrayBuffer> {
+    if (data && typeof data.arrayBuffer === 'function') {
+      return await data.arrayBuffer();
+    }
+
+    if (data instanceof ArrayBuffer) {
+      return data;
+    }
+
+    if (ArrayBuffer.isView(data)) {
+      return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    }
+
+    throw new Error('Failed to read staged upload data.');
   }
 
   private normalizeAltText(altText: string | undefined, caption: string | undefined, filename: string): string {

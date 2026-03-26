@@ -361,6 +361,33 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     validation: { min: 50, max: 500 }
   },
   {
+    key: 'media.images.maxWidth',
+    displayName: 'Optimized Image Max Width',
+    description: 'Largest width, in pixels, for generated public image assets.',
+    type: 'number',
+    category: 'media',
+    defaultValue: 1600,
+    validation: { required: true, min: 320, max: 4096 }
+  },
+  {
+    key: 'media.images.quality',
+    displayName: 'Optimized Image Quality',
+    description: 'Compression quality applied to optimized JPEG, WebP, and AVIF assets.',
+    type: 'number',
+    category: 'media',
+    defaultValue: 82,
+    validation: { required: true, min: 40, max: 100 }
+  },
+  {
+    key: 'media.images.outputFormat',
+    displayName: 'Optimized Image Output Format',
+    description: 'Choose whether public image assets stay in the original format or are converted.',
+    type: 'string',
+    category: 'media',
+    defaultValue: 'auto',
+    validation: { required: true, options: ['auto', 'original', 'webp', 'avif'] }
+  },
+  {
     key: 'social.twitter',
     displayName: 'X (Twitter) Handle',
     description: 'Your X username (without @). Used for social cards and footer link.',
@@ -410,6 +437,7 @@ export const CORE_CATEGORY_ORDER = [
   'navigation',
   'seo',
   'content',
+  'media',
   'social',
   'editor'
 ];
@@ -442,6 +470,10 @@ export const CATEGORY_META: Record<string, { displayName: string; description: s
   content: {
     displayName: 'Content Settings',
     description: 'Content display and management options'
+  },
+  media: {
+    displayName: 'Media Library',
+    description: 'Upload pipeline, optimization defaults, and media delivery settings'
   },
   social: {
     displayName: 'Social Media',

@@ -14,7 +14,7 @@ for = "/*"
   Referrer-Policy = "strict-origin-when-cross-origin"
   Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
   Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-  Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; img-src 'self' data: blob: https:; media-src 'self' blob: https://*.supabase.co; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; script-src-attr 'none'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; form-action 'self'; upgrade-insecure-requests"
+  Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://*.supabase.co; img-src 'self' data: blob: https:; media-src 'self' blob: https://*.supabase.co; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; script-src-attr 'none'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; form-action 'self'; upgrade-insecure-requests"
 
 [[headers]]
 for = "/_astro/*"

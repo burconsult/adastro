@@ -20,7 +20,7 @@ vi.mock('../../supabase.js', () => ({
 
 // Mock Sharp
 vi.mock('sharp', () => {
-  const mockSharp = vi.fn(() => ({
+const mockSharp = vi.fn(() => ({
     metadata: vi.fn().mockResolvedValue({
       width: 1920,
       height: 1080,
@@ -36,6 +36,20 @@ vi.mock('sharp', () => {
   
   return { default: mockSharp };
 });
+
+const settingsServiceMocks = vi.hoisted(() => ({
+  getSettings: vi.fn().mockResolvedValue({
+    'media.images.maxWidth': 1600,
+    'media.images.quality': 82,
+    'media.images.outputFormat': 'auto'
+  })
+}));
+
+vi.mock('../settings-service.js', () => ({
+  SettingsService: vi.fn().mockImplementation(() => ({
+    getSettings: settingsServiceMocks.getSettings
+  }))
+}));
 
 describe('MediaManager', () => {
   let mediaManager: MediaManager;
@@ -59,6 +73,11 @@ describe('MediaManager', () => {
 
     // Reset all mocks
     vi.clearAllMocks();
+    settingsServiceMocks.getSettings.mockResolvedValue({
+      'media.images.maxWidth': 1600,
+      'media.images.quality': 82,
+      'media.images.outputFormat': 'auto'
+    });
   });
 
   afterEach(() => {
@@ -286,6 +305,49 @@ describe('MediaManager', () => {
       expect(insert.mock.calls[2]?.[0]).not.toHaveProperty('original_filename');
 
       nowSpy.mockRestore();
+    });
+
+    it('should process staged uploads from storage and cleanup the temporary file', async () => {
+      const uploadResult = {
+        original: {
+          id: 'media-staged',
+          filename: 'clip.mp4',
+          url: 'https://example.com/uploads/clip.mp4',
+          storagePath: 'uploads/clip.mp4',
+          mimeType: 'video/mp4',
+          fileSize: 4096,
+          createdAt: new Date()
+        }
+      } as any;
+
+      const mockStorageFrom = {
+        download: vi.fn().mockResolvedValue({
+          data: {
+            type: 'video/mp4',
+            arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode('video-data').buffer)
+          },
+          error: null
+        }),
+        remove: vi.fn().mockResolvedValue({ error: null })
+      };
+
+      mockSupabaseAdmin.storage.from.mockReturnValue(mockStorageFrom);
+
+      const uploadMediaSpy = vi.spyOn(mediaManager, 'uploadMedia').mockResolvedValue(uploadResult);
+
+      const result = await mediaManager.uploadMediaFromStorage({
+        storagePath: 'staging/upload-1-clip.mp4',
+        filename: 'clip.mp4',
+        mimeType: 'video/mp4'
+      } as any);
+
+      expect(result.original.id).toBe('media-staged');
+      expect(uploadMediaSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          file: expect.any(File)
+        })
+      );
+      expect(mockStorageFrom.remove).toHaveBeenCalledWith(['staging/upload-1-clip.mp4']);
     });
   });
 
@@ -525,7 +587,7 @@ describe('MediaManager', () => {
         url: 'https://example.com/test-image.jpg',
         storagePath: 'uploads/test-image.jpg',
         altText: 'Test image',
-        caption: null,
+        caption: undefined,
         mimeType: 'image/jpeg',
         fileSize: 1024,
         dimensions: { width: 800, height: 600 },

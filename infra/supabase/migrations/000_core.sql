@@ -603,13 +603,18 @@ VALUES (
   true,
   ARRAY[
     'image/jpeg',
+    'image/gif',
     'image/png',
     'image/webp',
+    'image/avif',
     'image/svg+xml',
+    'video/mp4',
+    'video/webm',
     'audio/mpeg',
     'audio/mp3',
     'audio/wav',
-    'audio/ogg'
+    'audio/ogg',
+    'application/pdf'
   ]
 )
 ON CONFLICT (id) DO UPDATE
@@ -712,13 +717,18 @@ CREATE INDEX IF NOT EXISTS idx_posts_audio_asset_id ON posts(audio_asset_id);
 UPDATE storage.buckets
 SET allowed_mime_types = ARRAY[
   'image/jpeg',
+  'image/gif',
   'image/png',
   'image/webp',
+  'image/avif',
   'image/svg+xml',
+  'video/mp4',
+  'video/webm',
   'audio/mpeg',
   'audio/mp3',
   'audio/wav',
-  'audio/ogg'
+  'audio/ogg',
+  'application/pdf'
 ]
 WHERE id = public.media_storage_bucket();
 -- Migration: Security Hardening (v1.0.1)
