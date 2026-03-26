@@ -10,6 +10,8 @@ This workflow is optimized for rapid, repeatable verification with local Supabas
 ## Commands
 - `npm run local:supabase:start` - start local Supabase stack.
 - `npm run local:supabase:status` - print local Supabase endpoints/keys.
+- `npm run local:doctor` - inspect local Supabase config, published ports, runtime status, and whether the app schema is bootstrapped.
+- `npm run local:env` - print exportable local app env values derived from the running local Supabase stack.
 - `npm run local:db:core` - reset + apply only core schema.
 - `npm run local:db:full` - reset + apply core schema + seed content.
 - `npm run local:dev` - run Astro dev with local Supabase env auto-injected.
@@ -29,7 +31,7 @@ This workflow is optimized for rapid, repeatable verification with local Supabas
    - `SUPABASE_URL`
    - `SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY`
-   - `SITE_URL=http://127.0.0.1:4321` (unless `LOCAL_SITE_URL` is set)
+   - `SITE_URL` derived from `LOCAL_APP_HOST` / `LOCAL_APP_PORT` (defaults to `http://127.0.0.1:4321`) unless `LOCAL_SITE_URL` is set
 4. Run migration/reset/seed flow via `infra/supabase/scripts/migrate.js`.
 5. Run admin consistency and theme token verification before tests.
 6. In full mode, run default content and release hygiene verification before tests/build.

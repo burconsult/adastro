@@ -139,6 +139,9 @@ Use this path for fast, repeatable AI-assisted validation with one project `.env
 Notes:
 - Local scripts auto-start Supabase using `infra/supabase/config.toml`.
 - Local scripts auto-wire app env (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SITE_URL`) from `supabase status -o env`.
+- Use `npm run local:doctor` to catch port conflicts, config drift, and missing local DB bootstrap before starting work.
+- Use `npm run local:env` to print exportable local app env values for ad-hoc commands.
+- Override `LOCAL_APP_HOST` / `LOCAL_APP_PORT` when you need AdAstro’s local app server on a different host/port; `SITE_URL` follows automatically unless `LOCAL_SITE_URL` is set.
 - `local:db:*` commands pre-install `exec_sql` in local Postgres so migration scripts stay consistent with hosted workflows.
 
 ## Testing & Quality

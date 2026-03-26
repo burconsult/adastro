@@ -30,12 +30,14 @@ Use a project-root `.env` for local testing only:
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=...
 SUPABASE_SECRET_KEY=...
-SITE_URL=http://localhost:4321
+SITE_URL=http://127.0.0.1:4321
 ```
 
 Notes:
 - Local helper scripts also support `.env.local`.
-- Local helper scripts derive Supabase URL/keys from `supabase status -o env`; use `LOCAL_SITE_URL` only if you want to override the default local app URL (`http://127.0.0.1:4321`).
+- Local helper scripts derive Supabase URL/keys from `supabase status -o env`.
+- `LOCAL_APP_HOST` / `LOCAL_APP_PORT` let you move the local Astro server without editing package scripts; the default remains `http://127.0.0.1:4321`.
+- `LOCAL_SITE_URL` still overrides the derived local app URL when you need an explicit callback origin.
 - Providers/hosts do not use `.env` files directly; this is only for local dev/CLI workflows.
 
 ## Platform / Runtime Overrides (Advanced, Optional)

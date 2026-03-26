@@ -4,16 +4,12 @@ import {
   buildLocalAppEnv,
   ensureDockerRunning,
   ensureSupabaseRunning,
-  readSupabaseStatusEnv,
-  runCommand
+  formatShellEnvExports,
+  LOCAL_APP_ENV_KEYS,
+  readSupabaseStatusEnv
 } from './lib.mjs';
 
-const commandArgs = process.argv.slice(2);
-
-if (commandArgs.length === 0) {
-  console.error('Usage: node scripts/local/with-local-env.mjs <command> [args...]');
-  process.exit(1);
-}
+const asJson = process.argv.includes('--json');
 
 try {
   ensureDockerRunning();
@@ -21,8 +17,13 @@ try {
 
   const statusEnv = readSupabaseStatusEnv();
   const env = buildLocalAppEnv(statusEnv);
+  const localEnv = Object.fromEntries(LOCAL_APP_ENV_KEYS.map((key) => [key, env[key]]));
 
-  runCommand(commandArgs[0], commandArgs.slice(1), { env });
+  if (asJson) {
+    console.log(JSON.stringify(localEnv, null, 2));
+  } else {
+    console.log(formatShellEnvExports(localEnv));
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

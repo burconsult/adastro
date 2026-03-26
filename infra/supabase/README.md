@@ -19,6 +19,19 @@ This directory contains the database schema and optional seed data for the Adast
    -- infra/supabase/setup-admin-user.sql
    ```
 
+## Local Port Allocation
+
+This repo intentionally uses a non-default local Supabase port block so it can run alongside other local Supabase projects:
+
+- API: `55321`
+- DB: `55322`
+- Studio: `55323`
+- Mailpit: `55324`
+- Analytics: `55327`
+
+Use `npm run local:supabase:status` to see the live endpoints for the current workspace.
+Run `npm run local:doctor` if you want a quick readiness check for port collisions, runtime drift, and missing local DB bootstrap.
+
 ## Files Structure
 
 - `migrations/000_core.sql` - Consolidated schema for initial installs
@@ -73,7 +86,7 @@ Required environment variables in `.env`:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 SUPABASE_SECRET_KEY=your_supabase_secret_key
-SITE_URL=http://localhost:4321
+SITE_URL=http://127.0.0.1:4321
 ```
 
 ## Row Level Security

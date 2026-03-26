@@ -58,6 +58,7 @@ external_docs/
 # Supabase CLI local config
 infra/supabase/config.toml
 infra/supabase/.vscode/
+infra/supabase/.branches/
 infra/supabase/.temp/
 
 # Theme installer temp
