@@ -373,7 +373,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
-    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://*.supabase.co",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https://*.supabase.co",
     "font-src 'self'",
