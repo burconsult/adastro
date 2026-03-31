@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { authService } from '../../../lib/auth/auth-helpers.js';
 import { sanitizeRedirectPath } from '../../../lib/auth/redirects.js';
-import { checkRateLimit } from '../../../lib/security/rate-limit.js';
+import { buildRateLimitHeaders, checkRateLimit } from '../../../lib/security/rate-limit.js';
 import { getClientIp } from '../../../lib/security/request-guards.js';
 import { resolveSiteUrl } from '../../../lib/url/site-url.js';
 
@@ -11,6 +11,15 @@ const GENERIC_RESPONSE = {
 };
 
 const isValidEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const FORGOT_PASSWORD_IP_RATE_LIMIT = {
+  limit: 10,
+  windowMs: 10 * 60 * 1000
+};
+const FORGOT_PASSWORD_EMAIL_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 10 * 60 * 1000
+};
+
 export const POST: APIRoute = async ({ request }) => {
   try {
     const payload = await request.json().catch(() => ({}));
@@ -22,16 +31,30 @@ export const POST: APIRoute = async ({ request }) => {
     if (!isValidEmail(email)) {
       return new Response(
         JSON.stringify({ error: 'Enter a valid email address.' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store'
+          }
+        }
       );
     }
 
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit({
-      key: `auth:forgot-password:${ip}:${email}`,
-      limit: 5,
-      windowMs: 10 * 60 * 1000
+    const ipRateLimit = checkRateLimit({
+      key: `auth:forgot-password:ip:${ip}`,
+      ...FORGOT_PASSWORD_IP_RATE_LIMIT
     });
+    const emailRateLimit = checkRateLimit({
+      key: `auth:forgot-password:${ip}:${email}`,
+      ...FORGOT_PASSWORD_EMAIL_RATE_LIMIT
+    });
+    const rateLimit = !ipRateLimit.allowed ? ipRateLimit : emailRateLimit;
+    const rateLimitHeaders = buildRateLimitHeaders(
+      rateLimit,
+      !ipRateLimit.allowed ? FORGOT_PASSWORD_IP_RATE_LIMIT : FORGOT_PASSWORD_EMAIL_RATE_LIMIT
+    );
 
     if (!rateLimit.allowed) {
       return new Response(
@@ -40,7 +63,8 @@ export const POST: APIRoute = async ({ request }) => {
           status: 429,
           headers: {
             'Content-Type': 'application/json',
-            'Retry-After': String(rateLimit.retryAfterSec)
+            'Cache-Control': 'no-store',
+            ...rateLimitHeaders
           }
         }
       );
@@ -61,13 +85,26 @@ export const POST: APIRoute = async ({ request }) => {
 
     return new Response(
       JSON.stringify(GENERIC_RESPONSE),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          ...rateLimitHeaders
+        }
+      }
     );
   } catch (error) {
     console.error('Forgot password API error:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to process password reset request.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      }
     );
   }
 };

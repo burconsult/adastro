@@ -20,7 +20,8 @@ describe('oauth provider availability', () => {
       json: async () => ({
         external: {
           github: true,
-          google: true
+          google: true,
+          azure: true
         }
       })
     }) as any;
@@ -29,12 +30,14 @@ describe('oauth provider availability', () => {
   it('marks provider available only when app toggle and supabase provider are enabled', async () => {
     mocks.getSettings.mockResolvedValue({
       'auth.oauth.github.enabled': true,
-      'auth.oauth.google.enabled': false
+      'auth.oauth.google.enabled': false,
+      'auth.oauth.azure.enabled': true
     });
 
     const availability = await getOAuthProviderAvailability({ forceRefresh: true });
     const github = availability.find((entry) => entry.id === 'github');
     const google = availability.find((entry) => entry.id === 'google');
+    const azure = availability.find((entry) => entry.id === 'azure');
 
     expect(github?.available).toBe(true);
     expect(github?.enabledInApp).toBe(true);
@@ -43,12 +46,17 @@ describe('oauth provider availability', () => {
     expect(google?.available).toBe(false);
     expect(google?.enabledInApp).toBe(false);
     expect(google?.enabledInSupabase).toBe(true);
+
+    expect(azure?.available).toBe(true);
+    expect(azure?.enabledInApp).toBe(true);
+    expect(azure?.enabledInSupabase).toBe(true);
   });
 
   it('falls back to unavailable providers when supabase settings call fails', async () => {
     mocks.getSettings.mockResolvedValue({
       'auth.oauth.github.enabled': true,
-      'auth.oauth.google.enabled': true
+      'auth.oauth.google.enabled': true,
+      'auth.oauth.azure.enabled': true
     });
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,

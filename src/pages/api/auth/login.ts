@@ -2,19 +2,37 @@ import type { APIRoute } from 'astro';
 import { authService } from '../../../lib/auth/auth-helpers.js';
 import { resolveRoleSafeRedirect } from '../../../lib/auth/access-policy.js';
 import { buildAccessTokenCookie } from '../../../lib/auth/cookies.js';
-import { checkRateLimit } from '../../../lib/security/rate-limit.js';
+import { buildRateLimitHeaders, checkRateLimit } from '../../../lib/security/rate-limit.js';
 import { getClientIp } from '../../../lib/security/request-guards.js';
+
+const LOGIN_IP_RATE_LIMIT = {
+  limit: 20,
+  windowMs: 10 * 60 * 1000
+};
+
+const LOGIN_CREDENTIAL_RATE_LIMIT = {
+  limit: 8,
+  windowMs: 10 * 60 * 1000
+};
 
 export const POST: APIRoute = async ({ request }) => {
   try {
     const { email, password, redirect, locale } = await request.json();
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit({
-      key: `auth:login:${ip}:${normalizedEmail || 'unknown'}`,
-      limit: 8,
-      windowMs: 10 * 60 * 1000
+    const ipRateLimit = checkRateLimit({
+      key: `auth:login:ip:${ip}`,
+      ...LOGIN_IP_RATE_LIMIT
     });
+    const credentialRateLimit = checkRateLimit({
+      key: `auth:login:${ip}:${normalizedEmail || 'unknown'}`,
+      ...LOGIN_CREDENTIAL_RATE_LIMIT
+    });
+    const rateLimit = !ipRateLimit.allowed ? ipRateLimit : credentialRateLimit;
+    const rateLimitHeaders = buildRateLimitHeaders(
+      rateLimit,
+      !ipRateLimit.allowed ? LOGIN_IP_RATE_LIMIT : LOGIN_CREDENTIAL_RATE_LIMIT
+    );
 
     if (!rateLimit.allowed) {
       return new Response(
@@ -23,7 +41,8 @@ export const POST: APIRoute = async ({ request }) => {
           status: 429,
           headers: {
             'Content-Type': 'application/json',
-            'Retry-After': String(rateLimit.retryAfterSec)
+            'Cache-Control': 'no-store',
+            ...rateLimitHeaders
           }
         }
       );
@@ -32,7 +51,13 @@ export const POST: APIRoute = async ({ request }) => {
     if (!email || !password) {
       return new Response(
         JSON.stringify({ error: 'Email and password are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store'
+          }
+        }
       );
     }
 
@@ -49,7 +74,9 @@ export const POST: APIRoute = async ({ request }) => {
         status: 200, 
         headers: { 
           'Content-Type': 'application/json',
-          'Set-Cookie': buildAccessTokenCookie(result.session.access_token, result.session.expires_in, request.url)
+          'Cache-Control': 'no-store',
+          'Set-Cookie': buildAccessTokenCookie(result.session.access_token, result.session.expires_in, request.url),
+          ...rateLimitHeaders
         }
       }
     );
@@ -58,7 +85,13 @@ export const POST: APIRoute = async ({ request }) => {
     
     return new Response(
       JSON.stringify({ error: 'Login failed' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      }
     );
   }
 };

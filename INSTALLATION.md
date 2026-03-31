@@ -1,6 +1,6 @@
 # AdAstro Installation Guide (Vercel/Netlify + Supabase)
 
-This is the canonical install document for AdAstro v1.3.0.
+This is the canonical install document for AdAstro v1.4.0.
 
 Use this file as your source of truth during setup. The `/setup` wizard is a guided assistant, but some tasks must still be done in Supabase/Vercel/Netlify dashboards.
 
@@ -26,6 +26,9 @@ Wizard cannot do reliably:
 - Set Vercel/Netlify environment variables for you.
 - Force a host redeploy after env var updates.
 - Configure Supabase SMTP provider and sender identity.
+- Configure Supabase social-provider credentials, Azure tenant mode, or Entra token claim mapping.
+- Configure Supabase Auth rate limits, CAPTCHA/Turnstile, or dashboard-level abuse controls.
+- Enable Supabase MFA factors for your project.
 - Run every privileged DB operation without the initial manual schema SQL.
 
 ## Required Environment Variables
@@ -128,11 +131,31 @@ In Supabase Auth settings:
    - Add provider credentials in Supabase.
    - In AdAstro Admin → Settings → Authentication, enable:
      - `auth.oauth.github.enabled` and/or
-     - `auth.oauth.google.enabled`
+     - `auth.oauth.google.enabled` and/or
+     - `auth.oauth.azure.enabled`
    - Social buttons only render when both App setting + Supabase provider are enabled.
+6. Optional Microsoft login via Supabase Azure provider:
+   - Provider name in Supabase is `azure`.
+   - Supabase callback URL in Microsoft Entra must be `https://<project-ref>.supabase.co/auth/v1/callback`.
+   - AdAstro still requires your site callback in Supabase Redirect URLs: `https://<site>/auth/callback`.
+   - Azure sign-in must request the `email` scope; AdAstro adds that automatically on the login entrypoint.
+   - Use the provider's optional tenant URL in Supabase if you want single-tenant Entra mode. Leave it on `common` for Microsoft-account / multi-tenant behavior.
+   - Do not use SAML or `signInWithSSO` for AdAstro v1.4.0.
+   - Microsoft Entra can emit unverified emails. Prefer adding the optional `xms_edov` claim and `email` claim in the Entra app configuration, then treat `xms_edov=true` as the safe path for email-based trust decisions.
+7. Optional MFA:
+   - In Supabase Dashboard → Auth → Multi-Factor Auth, enable TOTP/authenticator-app support.
+   - In AdAstro Admin → Settings → Authentication, enable `auth.mfa.enabled` when you are ready to expose enrollment.
+   - AdAstro keeps MFA optional. Users without verified factors keep the existing UX.
+   - When `auth.mfa.enabled` is on and a user has a verified factor, sensitive account actions currently require `aal2`.
+8. Recommended abuse protections:
+   - Configure Supabase Auth rate limits for sign-in, OTP, password reset, MFA challenge, and MFA verify.
+   - Enable Supabase CAPTCHA / Turnstile for the auth flows you expose publicly.
+   - Review Supabase Security Advisor after running migrations.
+   - Keep Vercel Firewall / Attack Challenge or equivalent Netlify edge protections enabled for public deployments.
 
 Important:
 - If invite emails still point to `localhost`, your Supabase Auth URL configuration is still using a local value. Update it to match `SITE_URL`.
+- After setup is marked complete, `/setup` re-entry is admin-only and can be disabled entirely with `setup.allowReentry=false`.
 
 ### 8) Configure Article URL Model + Public Locales
 

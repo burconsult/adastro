@@ -1,4 +1,4 @@
-# Environment Variables (v1.3.0)
+# Environment Variables (v1.4.0)
 
 Use this as the canonical env var reference for AdAstro.
 
@@ -21,6 +21,7 @@ Notes:
 - Any env var change requires a redeploy on Vercel/Netlify before the app can use it.
 - Keep hosted environments isolated. If `www.adastro.no` stays on the existing production Supabase project, give the Netlify site and any Vercel test project their own Supabase-backed env values instead of reusing production secrets.
 - Netlify Deploy Previews and branch deploys need the same required core vars in the relevant preview/branch context if you want hosted smoke tests to exercise the full app instead of stopping at `/setup`.
+- Azure/Microsoft login and TOTP MFA do not require extra app env vars. Configure those in Supabase Auth and enable the matching app settings in AdAstro.
 
 ## Core (Local Development)
 
@@ -55,6 +56,7 @@ Notes:
 - `ASTRO_ADAPTER` is optional because AdAstro auto-detects Vercel/Netlify at runtime/build time.
 - Bucket names are auto-derived per instance by setup; override only if you need explicit naming.
 - `MCP_SERVER_TOKEN` enables the built-in AdAstro MCP endpoint at `/mcp`. Use a long random secret and rotate if shared.
+- Do not add Azure client secrets or MFA secrets to AdAstro env. OAuth provider credentials and MFA factor settings belong in Supabase/Auth dashboard configuration.
 
 ## Newsletter Feature (Optional)
 

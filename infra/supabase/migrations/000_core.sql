@@ -307,7 +307,7 @@ SET search_path = public
 AS $$
   SELECT CASE
     WHEN auth.role() = 'authenticated' THEN
-      COALESCE(NULLIF(auth.jwt() -> 'app_metadata' ->> 'role', ''), 'author')
+      COALESCE(NULLIF(auth.jwt() -> 'app_metadata' ->> 'role', ''), 'reader')
     ELSE 'anon'
   END;
 $$;
@@ -332,45 +332,15 @@ AS $$
   SELECT public.current_role() IN ('admin', 'author');
 $$;
 
--- Create author record on auth.user creation
+-- Auth users do not automatically become authors. Admin/bootstrap flows
+-- provision author records explicitly when the assigned app role needs one.
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-  display_name text;
-  slug_source text;
-  slug_base text;
-  slug_value text;
 BEGIN
-  display_name := COALESCE(NULLIF(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1), 'Author');
-  slug_source := COALESCE(
-    NULLIF(new.raw_user_meta_data->>'username', ''),
-    NULLIF(new.raw_user_meta_data->>'name', ''),
-    split_part(new.email, '@', 1),
-    display_name,
-    'author'
-  );
-  slug_base := regexp_replace(lower(slug_source), '[^a-z0-9]+', '-', 'g');
-  slug_base := trim(both '-' from slug_base);
-
-  IF slug_base = '' THEN
-    slug_base := 'author';
-  END IF;
-
-  slug_value := slug_base;
-  IF EXISTS (SELECT 1 FROM public.authors WHERE slug = slug_value) THEN
-    slug_value := slug_base || '-' || substr(replace(new.id::text, '-', ''), 1, 6);
-  END IF;
-
-  INSERT INTO public.authors (auth_user_id, name, email, slug)
-  VALUES (new.id, display_name, new.email, slug_value)
-  ON CONFLICT (email)
-  DO UPDATE SET auth_user_id = EXCLUDED.auth_user_id,
-                updated_at = NOW();
-
   RETURN new;
 END;
 $$;

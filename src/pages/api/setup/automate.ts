@@ -19,6 +19,7 @@ import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing
 import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 import { getCoreLocalePacks } from '@/lib/i18n/catalog';
 import { buildLocalizedPath, DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
+import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
 
 type AutomationActionStatus = 'ok' | 'warn' | 'fail';
 
@@ -609,30 +610,6 @@ const configureStorageBuckets = async (resolvedSiteUrl: string | null): Promise<
 };
 
 export const POST: APIRoute = async ({ request }) => {
-  if (!isSupabaseAdminConfigured) {
-    return new Response(JSON.stringify({
-      error: 'SUPABASE_SECRET_KEY is required for setup automation.'
-    }), {
-      status: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store'
-      }
-    });
-  }
-
-  if (!hasRequiredSetupEnv()) {
-    return new Response(JSON.stringify({
-      error: 'Required Supabase environment is incomplete. Configure env vars, redeploy, then rerun setup automation.'
-    }), {
-      status: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store'
-      }
-    });
-  }
-
   let payload: SetupAutomationRequest = {};
   try {
     payload = await request.json() as SetupAutomationRequest;
@@ -641,6 +618,31 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
+    await assertSetupApiAccess(request);
+    if (!isSupabaseAdminConfigured) {
+      return new Response(JSON.stringify({
+        error: 'SUPABASE_SECRET_KEY is required for setup automation.'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
+    if (!hasRequiredSetupEnv()) {
+      return new Response(JSON.stringify({
+        error: 'Required Supabase environment is incomplete. Configure env vars, redeploy, then rerun setup automation.'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
     const resolvedSiteUrl = sanitizeSiteUrl(payload.siteUrl)
       || sanitizeSiteUrl((import.meta.env.SITE_URL as string | undefined) || getRuntimeEnv('SITE_URL'))
       || detectRequestSiteUrl(request);
@@ -709,6 +711,16 @@ export const POST: APIRoute = async ({ request }) => {
       }
     });
   } catch (error) {
+    if (error instanceof SetupAccessError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
     console.error('Setup automation API error:', error);
     return new Response(JSON.stringify({ error: 'Setup automation failed.' }), {
       status: 500,

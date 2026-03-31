@@ -11,7 +11,10 @@ const authorRepo = new AuthorRepository(true);
 const json = (payload: unknown, status = 200) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' }
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store'
+    }
   });
 
 const gravatarUrlForEmail = (email: string) => {
@@ -31,6 +34,8 @@ const normalizeProfileData = (value: unknown): Record<string, any> => {
   }
   return {};
 };
+
+const canSyncAuthorProfile = (role: unknown): boolean => role === 'admin' || role === 'author';
 
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
@@ -121,7 +126,9 @@ export const PUT: APIRoute = async ({ request }) => {
       data
     });
 
-    const author = await authorRepo.findByAuthUserId(user.id);
+    const author = canSyncAuthorProfile(user.role)
+      ? await authorRepo.findByAuthUserId(user.id)
+      : null;
     if (author) {
       const avatarFromProfile = avatarSource === 'custom'
         ? normalizedAvatarUrl

@@ -184,6 +184,22 @@ export const CORE_SETTINGS: SettingDefinition[] = [
     defaultValue: false
   },
   {
+    key: 'auth.oauth.azure.enabled',
+    displayName: 'Enable Microsoft OAuth',
+    description: 'Show Microsoft social sign-in when the Azure provider is enabled in Supabase Auth.',
+    type: 'boolean',
+    category: 'auth',
+    defaultValue: false
+  },
+  {
+    key: 'auth.mfa.enabled',
+    displayName: 'Enable Optional MFA',
+    description: 'Allow users to enroll an authenticator app and require aal2 only for sensitive account actions when a verified factor exists.',
+    type: 'boolean',
+    category: 'auth',
+    defaultValue: false
+  },
+  {
     key: 'navigation.topLinks',
     displayName: 'Top Navigation Links',
     description: 'Links shown in the header navigation.',

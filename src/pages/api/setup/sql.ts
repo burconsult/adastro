@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import coreSql from '../../../../infra/supabase/migrations/000_core.sql?raw';
 import seedSql from '../../../../infra/supabase/seed.sql?raw';
 import adminSql from '../../../../infra/supabase/setup-admin-user.sql?raw';
+import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
 
 const templates: Record<string, { name: string; sql: string }> = {
   core: {
@@ -18,7 +19,22 @@ const templates: Record<string, { name: string; sql: string }> = {
   }
 };
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ request, url }) => {
+  try {
+    await assertSetupApiAccess(request);
+  } catch (error) {
+    if (error instanceof SetupAccessError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+    throw error;
+  }
+
   const template = (url.searchParams.get('template') || '').trim().toLowerCase();
   const selected = templates[template];
 

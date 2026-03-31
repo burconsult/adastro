@@ -4,7 +4,7 @@ import { isOAuthProviderAvailable } from '@/lib/auth/oauth-providers';
 import { resolveSiteUrl } from '@/lib/url/site-url';
 import { buildLocalizedPath, normalizeLocaleCode } from '@/lib/i18n/locales';
 
-const allowedProviders = new Set(['github', 'google']);
+const allowedProviders = new Set(['github', 'google', 'azure']);
 
 export const GET: APIRoute = async ({ params, url, request, locals }) => {
   const provider = params.provider?.toLowerCase() || '';
@@ -29,7 +29,12 @@ export const GET: APIRoute = async ({ params, url, request, locals }) => {
   }
 
   const redirectTo = `${siteUrl}${buildLocalizedPath('/auth/callback', locale)}?redirect=${encodeURIComponent(redirectTarget)}`;
-  const authUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+  const authUrl = new URL(`${supabaseUrl}/auth/v1/authorize`);
+  authUrl.searchParams.set('provider', provider);
+  authUrl.searchParams.set('redirect_to', redirectTo);
+  if (provider === 'azure') {
+    authUrl.searchParams.set('scopes', 'email');
+  }
 
-  return Response.redirect(authUrl, 302);
+  return Response.redirect(authUrl.toString(), 302);
 };

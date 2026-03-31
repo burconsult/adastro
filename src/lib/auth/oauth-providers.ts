@@ -1,6 +1,6 @@
 import { SettingsService } from '@/lib/services/settings-service';
 
-export type SupportedOAuthProvider = 'github' | 'google';
+export type SupportedOAuthProvider = 'github' | 'google' | 'azure';
 
 export interface OAuthProviderAvailability {
   id: SupportedOAuthProvider;
@@ -12,7 +12,8 @@ export interface OAuthProviderAvailability {
 
 const SUPPORTED_PROVIDERS: Array<{ id: SupportedOAuthProvider; label: string; settingKey: string }> = [
   { id: 'github', label: 'GitHub', settingKey: 'auth.oauth.github.enabled' },
-  { id: 'google', label: 'Google', settingKey: 'auth.oauth.google.enabled' }
+  { id: 'google', label: 'Google', settingKey: 'auth.oauth.google.enabled' },
+  { id: 'azure', label: 'Microsoft', settingKey: 'auth.oauth.azure.enabled' }
 ];
 
 const CACHE_TTL_MS = 60_000;
@@ -34,11 +35,12 @@ const readAppOAuthFlags = async (): Promise<Record<SupportedOAuthProvider, boole
     const raw = await settingsService.getSettings(SUPPORTED_PROVIDERS.map((provider) => provider.settingKey));
     return {
       github: toBoolean(raw['auth.oauth.github.enabled']),
-      google: toBoolean(raw['auth.oauth.google.enabled'])
+      google: toBoolean(raw['auth.oauth.google.enabled']),
+      azure: toBoolean(raw['auth.oauth.azure.enabled'])
     };
   } catch (error) {
     console.warn('Failed to load app OAuth settings. Falling back to disabled social providers.', error);
-    return { github: false, google: false };
+    return { github: false, google: false, azure: false };
   }
 };
 
@@ -47,7 +49,7 @@ const readSupabaseOAuthFlags = async (): Promise<Record<SupportedOAuthProvider, 
   const publishableKey = import.meta.env.SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
   if (!supabaseUrl || !publishableKey) {
-    return { github: false, google: false };
+    return { github: false, google: false, azure: false };
   }
 
   try {
@@ -63,11 +65,12 @@ const readSupabaseOAuthFlags = async (): Promise<Record<SupportedOAuthProvider, 
 
     return {
       github: Boolean(external.github),
-      google: Boolean(external.google)
+      google: Boolean(external.google),
+      azure: Boolean(external.azure)
     };
   } catch (error) {
     console.warn('Failed to load Supabase OAuth provider settings. Falling back to disabled social providers.', error);
-    return { github: false, google: false };
+    return { github: false, google: false, azure: false };
   }
 };
 

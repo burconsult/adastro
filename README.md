@@ -4,7 +4,8 @@ AdAstro pairs Astro + React with Supabase Auth, Postgres, and Storage to deliver
 
 ## Highlights
 - **WordPress migration pipeline** – WXR ingest with progress streaming, trial imports, and rollback via `migration_artifacts`.
-- **Supabase Auth roles** – app metadata roles (`admin`/`author`/`reader`) + author profiles with slugs.
+- **Supabase Auth roles** – app metadata roles (`admin`/`author`/`reader`) with fail-closed reader fallback and explicit author provisioning.
+- **Social login + step-up auth** – GitHub, Google, and Microsoft login via Supabase plus optional TOTP MFA for sensitive account actions.
 - **Admin workspace** – React components power Astro SSR routes under `src/pages/admin/*`.
 - **Pages system** – editable pages with reusable section layouts and SEO metadata.
 - **Media pipeline** – upload + CDN-aware delivery with optional AI alt-text suggestions.
@@ -34,6 +35,7 @@ For Netlify or other providers, the app can build against either hosted adapter:
 - It includes one-click Supabase automation for default settings, bucket provisioning, and admin bootstrap by email.
 - Supabase/Vercel operations that cannot be automated are listed as explicit manual tasks in the wizard.
 - It includes a content URL model step (`content.articleBasePath`, `content.articlePermalinkStyle`) for slug/permalink compatibility.
+- After setup is complete, `/setup` and `/api/setup/*` are locked down for admins only.
 
 ## Architecture Snapshot
 - **Frontend** – Astro with server output + React islands; admin routes live under `src/pages/admin/*`.
@@ -74,7 +76,7 @@ Notes:
 4. Open `/setup`:
    - Step 1: Environment + Docs (verify env vars and provider instructions).
    - Step 2: Supabase Database (run Core Schema SQL in Supabase SQL Editor).
-   - Step 3: Auth + Email Sender (run automated setup, then configure Auth URLs + SMTP).
+   - Step 3: Auth + Email Sender (run automated setup, then configure Auth URLs, OAuth providers, MFA, rate limits, and SMTP).
    - Step 4: Content URLs (set article base path and permalink style).
    - Step 5: Verification (resolve blockers and mark setup complete).
 5. Log in at `/auth/login` and continue in `/admin`.
@@ -213,6 +215,9 @@ The EditorJS block editor renders inside `PostEditor` when `editor.blocks.enable
 Plans/roadmaps are tracked externally to keep the repo lean.
 
 ## Release Notes
+- Microsoft OAuth is now supported through the Supabase `azure` provider with the same app-level activation pattern used for GitHub and Google.
+- Optional TOTP MFA can be enabled in Admin Settings and is enforced only for sensitive account actions when a verified factor exists.
+- Setup APIs are now admin-only after installation, and role-less authenticated users now stay `reader` at both the app and RLS layers.
 - `SITE_URL` now drives both build-time `site` resolution and runtime sitemap/RSS URL generation.
 - Invite callbacks derive from `SITE_URL` (or request origin fallback) to avoid localhost redirect leaks.
 - Supabase Auth redirect URLs and SMTP sender setup are still required platform tasks during install (`INSTALLATION.md`).

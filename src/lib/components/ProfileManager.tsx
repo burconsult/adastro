@@ -21,6 +21,52 @@ type ProfileResponse = {
   featureFlags?: Record<string, boolean>;
 };
 
+type MfaStatusResponse = {
+  enabledInApp: boolean;
+  assurance: {
+    currentLevel: 'aal1' | 'aal2' | null;
+    nextLevel: 'aal1' | 'aal2' | null;
+    currentAuthenticationMethods: string[];
+  };
+  factors: {
+    all: Array<{
+      id: string;
+      factorType: string;
+      status: string;
+      friendlyName: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>;
+    verified: Array<{
+      id: string;
+      factorType: string;
+      status: string;
+      friendlyName: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>;
+    totp: Array<{
+      id: string;
+      factorType: string;
+      status: string;
+      friendlyName: string | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>;
+  };
+};
+
+type MfaEnrollment = {
+  factorId: string;
+  qrCode: string | null;
+  secret: string | null;
+  uri: string | null;
+};
+
+type PendingSensitiveAction =
+  | { type: 'password' }
+  | { type: 'remove-factor'; factorId: string };
+
 interface ProfileManagerProps {
   activeFeatureIds?: string[];
   messages?: Record<string, string>;
@@ -44,10 +90,20 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [mfaStatus, setMfaStatus] = useState<MfaStatusResponse | null>(null);
+  const [mfaLoading, setMfaLoading] = useState(true);
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [pendingEnrollment, setPendingEnrollment] = useState<MfaEnrollment | null>(null);
+  const [pendingSensitiveAction, setPendingSensitiveAction] = useState<PendingSensitiveAction | null>(null);
   const activeFeatureSet = useMemo(() => new Set(activeFeatureIds), [activeFeatureIds]);
   const extensions = useMemo(
     () => getProfileExtensions().filter((extension) => activeFeatureSet.has(extension.id)),
     [activeFeatureSet]
+  );
+  const preferredMfaFactor = useMemo(
+    () => mfaStatus?.factors.totp[0] || mfaStatus?.factors.verified[0] || null,
+    [mfaStatus]
   );
 
   const loadProfile = useCallback(async () => {
@@ -81,6 +137,37 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  const loadMfaStatus = useCallback(async (options?: { silent?: boolean }) => {
+    try {
+      if (!options?.silent) {
+        setMfaLoading(true);
+      }
+
+      const response = await fetch('/api/auth/mfa');
+      if (response.status === 401) {
+        setAuthRequired(true);
+        return;
+      }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || text('core.profile.error.mfaLoadFailed', 'Failed to load MFA status'));
+      }
+
+      const payload = await response.json() as MfaStatusResponse;
+      setMfaStatus(payload);
+    } catch (mfaLoadError) {
+      setError(mfaLoadError instanceof Error ? mfaLoadError.message : text('core.profile.error.mfaLoadFailed', 'Failed to load MFA status'));
+    } finally {
+      if (!options?.silent) {
+        setMfaLoading(false);
+      }
+    }
+  }, [text]);
+
+  useEffect(() => {
+    loadMfaStatus();
+  }, [loadMfaStatus]);
 
   useEffect(() => {
     if (!authRequired || typeof window === 'undefined') return;
@@ -163,7 +250,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       return;
     }
 
-    try {
+    const submitPasswordUpdate = async () => {
       setPasswordSaving(true);
       setError(null);
       setMessage(null);
@@ -174,17 +261,167 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
+        if (payload?.code === 'mfa_required') {
+          setPendingSensitiveAction({ type: 'password' });
+          throw new Error(text('core.profile.error.mfaRequired', 'Enter an authenticator code to continue with this security action.'));
+        }
         throw new Error(payload?.error || text('core.profile.error.passwordUpdateFailed', 'Failed to update password'));
       }
       setPassword('');
       setPasswordConfirm('');
+      setPendingSensitiveAction(null);
       setMessage(text('core.profile.success.passwordUpdated', 'Password updated.'));
+    };
+
+    try {
+      await submitPasswordUpdate();
     } catch (passwordError) {
       setError(passwordError instanceof Error ? passwordError.message : text('core.profile.error.passwordUpdateFailed', 'Failed to update password'));
     } finally {
       setPasswordSaving(false);
     }
   }, [password, passwordConfirm, text]);
+
+  const handleMfaEnroll = useCallback(async () => {
+    try {
+      setMfaBusy(true);
+      setError(null);
+      setMessage(null);
+      const response = await fetch('/api/auth/mfa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'enroll' })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || text('core.profile.error.mfaEnrollFailed', 'Failed to enroll authenticator app'));
+      }
+
+      setPendingEnrollment({
+        factorId: payload.factor.id,
+        qrCode: payload.totp?.qrCode || null,
+        secret: payload.totp?.secret || null,
+        uri: payload.totp?.uri || null
+      });
+      setMfaCode('');
+      setMessage(text('core.profile.success.mfaEnrollmentStarted', 'Authenticator app enrollment started. Scan the QR code and verify with a 6-digit code.'));
+      await loadMfaStatus({ silent: true });
+    } catch (mfaError) {
+      setError(mfaError instanceof Error ? mfaError.message : text('core.profile.error.mfaEnrollFailed', 'Failed to enroll authenticator app'));
+    } finally {
+      setMfaBusy(false);
+    }
+  }, [loadMfaStatus, text]);
+
+  const verifyMfaCode = useCallback(async (factorId: string, code: string) => {
+    const response = await fetch('/api/auth/mfa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'verify',
+        factorId,
+        code
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || text('core.profile.error.mfaVerifyFailed', 'Failed to verify authenticator code'));
+    }
+
+    setMfaStatus(payload.status);
+    return payload.status as MfaStatusResponse;
+  }, [text]);
+
+  const handleMfaVerifyEnrollment = useCallback(async () => {
+    if (!pendingEnrollment) return;
+
+    try {
+      setMfaBusy(true);
+      setError(null);
+      setMessage(null);
+      await verifyMfaCode(pendingEnrollment.factorId, mfaCode);
+      setPendingEnrollment(null);
+      setPendingSensitiveAction(null);
+      setMfaCode('');
+      setMessage(text('core.profile.success.mfaEnabled', 'Authenticator app verified and enabled.'));
+    } catch (mfaError) {
+      setError(mfaError instanceof Error ? mfaError.message : text('core.profile.error.mfaVerifyFailed', 'Failed to verify authenticator code'));
+    } finally {
+      setMfaBusy(false);
+    }
+  }, [mfaCode, pendingEnrollment, text, verifyMfaCode]);
+
+  const removeMfaFactor = useCallback(async (factorId: string) => {
+    const response = await fetch('/api/auth/mfa', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ factorId })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      if (payload?.code === 'mfa_required') {
+        setPendingSensitiveAction({ type: 'remove-factor', factorId });
+        throw new Error(text('core.profile.error.mfaRequired', 'Enter an authenticator code to continue with this security action.'));
+      }
+      throw new Error(payload?.error || text('core.profile.error.mfaRemoveFailed', 'Failed to remove authenticator app'));
+    }
+
+    setPendingEnrollment(null);
+    setPendingSensitiveAction(null);
+    setMfaStatus(payload.status);
+    setMessage(text('core.profile.success.mfaRemoved', 'Authenticator app removed.'));
+  }, [text]);
+
+  const handleMfaRemoveFactor = useCallback(async (factorId: string) => {
+    try {
+      setMfaBusy(true);
+      setError(null);
+      setMessage(null);
+      await removeMfaFactor(factorId);
+    } catch (mfaError) {
+      setError(mfaError instanceof Error ? mfaError.message : text('core.profile.error.mfaRemoveFailed', 'Failed to remove authenticator app'));
+    } finally {
+      setMfaBusy(false);
+    }
+  }, [removeMfaFactor, text]);
+
+  const handleMfaStepUp = useCallback(async () => {
+    if (!preferredMfaFactor || !pendingSensitiveAction) {
+      return;
+    }
+
+    try {
+      setMfaBusy(true);
+      setError(null);
+      setMessage(null);
+      await verifyMfaCode(preferredMfaFactor.id, mfaCode);
+      setMfaCode('');
+
+      if (pendingSensitiveAction.type === 'password') {
+        const response = await fetch('/api/auth/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || text('core.profile.error.passwordUpdateFailed', 'Failed to update password'));
+        }
+        setPassword('');
+        setPasswordConfirm('');
+        setPendingSensitiveAction(null);
+        setMessage(text('core.profile.success.passwordUpdated', 'Password updated.'));
+        return;
+      }
+
+      await removeMfaFactor(pendingSensitiveAction.factorId);
+    } catch (mfaError) {
+      setError(mfaError instanceof Error ? mfaError.message : text('core.profile.error.mfaVerifyFailed', 'Failed to verify authenticator code'));
+    } finally {
+      setMfaBusy(false);
+      setPasswordSaving(false);
+    }
+  }, [mfaCode, password, pendingSensitiveAction, preferredMfaFactor, removeMfaFactor, text, verifyMfaCode]);
 
   const avatarPreview = useMemo(() => {
     if (!profile) return '';
@@ -320,7 +557,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
       <div className="card p-6 space-y-4">
         <div>
           <h2 className="text-xl font-semibold">{text('core.profile.securityTitle', 'Security')}</h2>
-          <p className="text-sm text-muted-foreground">{text('core.profile.securityBody', 'Update your account password.')}</p>
+          <p className="text-sm text-muted-foreground">{text('core.profile.securityBody', 'Update your account password and manage account security factors.')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -363,6 +600,139 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ activeFeatureIds
               ? text('core.profile.updatingPassword', 'Updating...')
               : text('core.profile.updatePassword', 'Update password')}
           </button>
+        </div>
+
+        <div className="border-t border-border pt-6 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">{text('core.profile.mfaTitle', 'Authenticator app')}</h3>
+            <p className="text-sm text-muted-foreground">
+              {mfaLoading
+                ? text('core.profile.mfaLoading', 'Loading multi-factor status...')
+                : mfaStatus?.enabledInApp
+                  ? text('core.profile.mfaEnabledBody', 'Add an authenticator app for optional step-up verification on sensitive account actions.')
+                  : text('core.profile.mfaDisabledBody', 'Multi-factor authentication is currently disabled by your administrator.')}
+            </p>
+          </div>
+
+          {mfaStatus && (
+            <div className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground space-y-1">
+              <p>
+                {text('core.profile.mfaAssurance', 'Current session assurance')}:{' '}
+                <span className="font-medium text-foreground">{mfaStatus.assurance.currentLevel || 'aal1'}</span>
+              </p>
+              <p>
+                {text('core.profile.mfaVerifiedFactors', 'Verified factors')}:{' '}
+                <span className="font-medium text-foreground">{mfaStatus.factors.verified.length}</span>
+              </p>
+            </div>
+          )}
+
+          {pendingEnrollment && (
+            <div className="rounded-md border border-border p-4 space-y-4">
+              <div className="grid gap-4 md:grid-cols-[200px_1fr]">
+                <div className="rounded-md border border-border bg-white p-3">
+                  {pendingEnrollment.qrCode ? (
+                    <img src={pendingEnrollment.qrCode} alt="Authenticator app QR code" className="h-auto w-full" />
+                  ) : (
+                    <div className="text-sm text-muted-foreground">{text('core.profile.mfaQrUnavailable', 'QR code unavailable')}</div>
+                  )}
+                </div>
+                <div className="space-y-3 text-sm">
+                  <p>{text('core.profile.mfaEnrollInstructions', 'Scan this QR code with your authenticator app, then enter the 6-digit code to finish setup.')}</p>
+                  {pendingEnrollment.secret && (
+                    <p><span className="font-medium text-foreground">{text('core.profile.mfaSecret', 'Secret')}:</span> <code className="break-all">{pendingEnrollment.secret}</code></p>
+                  )}
+                  {pendingEnrollment.uri && (
+                    <p><span className="font-medium text-foreground">{text('core.profile.mfaUri', 'URI')}:</span> <code className="break-all">{pendingEnrollment.uri}</code></p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
+                  placeholder={text('core.profile.mfaCodePlaceholder', 'Enter 6-digit code')}
+                />
+                <div className="flex gap-2">
+                  <button type="button" className="btn btn-outline" onClick={() => {
+                    setPendingEnrollment(null);
+                    setMfaCode('');
+                  }}>
+                    {text('core.profile.cancel', 'Cancel')}
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={handleMfaVerifyEnrollment} disabled={mfaBusy}>
+                    {mfaBusy
+                      ? text('core.profile.verifyingMfa', 'Verifying...')
+                      : text('core.profile.verifyMfa', 'Verify app')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!pendingEnrollment && mfaStatus?.factors.verified.length ? (
+            <div className="space-y-3">
+              {mfaStatus.factors.verified.map((factor) => (
+                <div key={factor.id} className="flex flex-col gap-3 rounded-md border border-border p-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">{factor.friendlyName || text('core.profile.mfaDefaultLabel', 'Authenticator app')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {factor.factorType.toUpperCase()} • {text('core.profile.mfaStatusVerified', 'Verified')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => handleMfaRemoveFactor(factor.id)}
+                    disabled={mfaBusy}
+                  >
+                    {mfaBusy
+                      ? text('core.profile.working', 'Working...')
+                      : text('core.profile.removeMfa', 'Remove')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!pendingEnrollment && (!mfaStatus || mfaStatus.factors.verified.length === 0) && mfaStatus?.enabledInApp && (
+            <div className="flex justify-end">
+              <button type="button" className="btn btn-outline" onClick={handleMfaEnroll} disabled={mfaBusy || mfaLoading}>
+                {mfaBusy
+                  ? text('core.profile.startingMfa', 'Starting...')
+                  : text('core.profile.enableMfa', 'Set up authenticator app')}
+              </button>
+            </div>
+          )}
+
+          {pendingSensitiveAction && preferredMfaFactor && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <p className="text-sm text-foreground">
+                {text('core.profile.mfaStepUpPrompt', 'Enter a fresh authenticator code to continue with this sensitive action.')}
+              </p>
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value.replace(/\D+/g, '').slice(0, 6))}
+                  placeholder={text('core.profile.mfaCodePlaceholder', 'Enter 6-digit code')}
+                />
+                <button type="button" className="btn btn-primary" onClick={handleMfaStepUp} disabled={mfaBusy}>
+                  {mfaBusy
+                    ? text('core.profile.verifyingMfa', 'Verifying...')
+                    : text('core.profile.continueSecureAction', 'Verify and continue')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

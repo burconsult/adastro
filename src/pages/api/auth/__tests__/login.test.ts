@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   signIn: vi.fn(),
   buildAccessTokenCookie: vi.fn(),
   checkRateLimit: vi.fn(),
+  buildRateLimitHeaders: vi.fn(),
   getClientIp: vi.fn()
 }));
 
@@ -18,7 +19,8 @@ vi.mock('../../../../lib/auth/cookies.js', () => ({
 }));
 
 vi.mock('../../../../lib/security/rate-limit.js', () => ({
-  checkRateLimit: mocks.checkRateLimit
+  checkRateLimit: mocks.checkRateLimit,
+  buildRateLimitHeaders: mocks.buildRateLimitHeaders
 }));
 
 vi.mock('../../../../lib/security/request-guards.js', () => ({
@@ -31,7 +33,12 @@ describe('auth login api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getClientIp.mockReturnValue('127.0.0.1');
-    mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterSec: 0 });
+    mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterSec: 0, remaining: 19 });
+    mocks.buildRateLimitHeaders.mockReturnValue({
+      'RateLimit-Limit': '20',
+      'RateLimit-Remaining': '19',
+      'RateLimit-Reset': '600'
+    });
     mocks.signIn.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -64,6 +71,7 @@ describe('auth login api', () => {
     expect(payload.success).toBe(true);
     expect(payload.redirect).toBe('/admin/posts');
     expect(payload.user.role).toBe('author');
+    expect(response.headers.get('cache-control')).toBe('no-store');
   });
 
   it('keeps reader fallback redirects locale-aware', async () => {
@@ -95,5 +103,35 @@ describe('auth login api', () => {
 
     expect(response.status).toBe(200);
     expect(payload.redirect).toBe('/nb/profile');
+  });
+
+  it('returns rate-limit headers when login throttling triggers', async () => {
+    mocks.checkRateLimit
+      .mockReturnValueOnce({ allowed: false, retryAfterSec: 120, remaining: 0 })
+      .mockReturnValueOnce({ allowed: true, retryAfterSec: 0, remaining: 7 });
+    mocks.buildRateLimitHeaders.mockReturnValue({
+      'RateLimit-Limit': '20',
+      'RateLimit-Remaining': '0',
+      'RateLimit-Reset': '120',
+      'Retry-After': '120'
+    });
+
+    const request = new Request('https://adastrocms.vercel.app/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'author@example.com',
+        password: 'StrongPass123!'
+      })
+    });
+
+    const response = await POST({ request } as any);
+    const payload = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(payload.error).toMatch(/too many login attempts/i);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('ratelimit-limit')).toBe('20');
+    expect(response.headers.get('retry-after')).toBe('120');
   });
 });

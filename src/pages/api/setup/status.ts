@@ -5,6 +5,7 @@ import { getAvailableLocaleCodes, getCoreLocalePacks } from '@/lib/i18n/catalog'
 import { buildLocalizedPath, DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 import { getStorageBucketConfig } from '@/lib/storage/buckets';
 import { buildInvitePasswordSetupPath } from '@/lib/auth/access-policy';
+import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
 import {
   detectDeploymentTarget,
   detectRequestSiteUrl,
@@ -470,6 +471,7 @@ const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
 
 export const GET: APIRoute = async ({ request }) => {
   try {
+    await assertSetupApiAccess(request);
     const payload = await buildPayload(request);
     return new Response(JSON.stringify(payload), {
       status: 200,
@@ -479,6 +481,16 @@ export const GET: APIRoute = async ({ request }) => {
       }
     });
   } catch (error) {
+    if (error instanceof SetupAccessError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
     console.error('Setup status endpoint failed:', error);
     return new Response(JSON.stringify({ error: 'Failed to build setup status.' }), {
       status: 500,

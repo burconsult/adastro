@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import { resetAllSiteConfigCaches } from '@/lib/site-config';
+import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
 import {
   hasRequiredSetupEnv,
   isMissingRelationError,
@@ -54,8 +55,9 @@ const hasCoreSystemPages = async (): Promise<{ ready: boolean; missing: string[]
   };
 };
 
-export const POST: APIRoute = async () => {
+export const POST: APIRoute = async ({ request }) => {
   try {
+    await assertSetupApiAccess(request);
     if (!isSupabaseAdminConfigured || !hasRequiredSetupEnv()) {
       return new Response(JSON.stringify({
         error: 'Required Supabase environment is incomplete. Configure env vars and redeploy first.'
@@ -132,6 +134,16 @@ export const POST: APIRoute = async () => {
       }
     });
   } catch (error) {
+    if (error instanceof SetupAccessError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
     console.error('Setup complete API error:', error);
     return new Response(JSON.stringify({ error: 'Failed to complete setup.' }), {
       status: 500,

@@ -2,6 +2,30 @@
 
 All notable changes to AdAstro are documented in this file.
 
+## 1.4.0 "Hardening" - 2026-03-31
+
+### Added
+- Added Microsoft login through the Supabase `azure` provider, using the same app-level activation model as GitHub and Google.
+- Added optional TOTP/authenticator-app MFA management in `/profile`, including enroll, verify, view, and remove flows.
+- Added release tests covering Azure OAuth entrypoints, MFA session/cookie handling, setup gate protection, and auth hardening SQL.
+
+### Changed
+- Hardened setup access so `/setup` and `/api/setup/*` stay open only before install completion and require an authenticated admin afterward.
+- Hardened profile sync so only `author`/`admin` users can mirror profile edits into author metadata.
+- Improved auth throttling with layered IP + account/factor in-process limits and standard rate-limit headers on selected auth endpoints.
+- Updated release documentation for Azure provider setup, optional MFA, RLS/auth behavior, and abuse-protection expectations.
+
+### Security
+- Changed the database role fallback so authenticated users without explicit role metadata stay `reader`, not `author`.
+- Stopped automatic author provisioning/linking on `auth.users` creation; author records are now created or linked explicitly through admin/bootstrap flows.
+- Enforced `aal2` only on sensitive account actions when `auth.mfa.enabled=true` and a verified factor exists.
+- Documented Microsoft Entra unverified-email risk and the recommended `xms_edov` claim configuration for Azure logins.
+
+### Migration Notes
+- Existing installs should apply `infra/supabase/migrations/006_auth_hardening_azure_mfa.sql`.
+- Fresh installs should use the updated `infra/supabase/migrations/000_core.sql` baseline.
+- Azure tenant mode, provider credentials, redirect URLs, auth rate limits, CAPTCHA/Turnstile, and Supabase MFA enablement still require dashboard configuration.
+
 ## 1.3.0 "Schneller" - 2026-03-24
 
 ### Added

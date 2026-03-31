@@ -61,5 +61,22 @@ describe('oauth provider route', () => {
     expect(authorizeUrl.searchParams.get('redirect_to')).toBe(
       'https://adastrocms.vercel.app/en/auth/callback?redirect=%2Fprofile'
     );
+    expect(authorizeUrl.searchParams.get('scopes')).toBeNull();
+  });
+
+  it('adds the required email scope for Azure OAuth', async () => {
+    const response = await GET({
+      params: { provider: 'azure' },
+      request: new Request('https://adastrocms.vercel.app/auth/oauth/azure?redirect=%2Fprofile'),
+      url: new URL('https://adastrocms.vercel.app/auth/oauth/azure?redirect=%2Fprofile')
+    } as any);
+
+    expect(response.status).toBe(302);
+
+    const location = response.headers.get('location');
+    expect(location).toBeTruthy();
+    const authorizeUrl = new URL(location as string);
+    expect(authorizeUrl.searchParams.get('provider')).toBe('azure');
+    expect(authorizeUrl.searchParams.get('scopes')).toBe('email');
   });
 });

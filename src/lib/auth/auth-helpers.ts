@@ -3,30 +3,7 @@ import { DatabaseError, ValidationError } from '../database/connection.js';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { sanitizeRedirectPath } from './redirects.js';
 import { normalizeCanonicalSiteUrl } from '../url/site-url.js';
-
-const ACCESS_TOKEN_COOKIE = 'sb-access-token';
-
-function getAccessTokenFromRequest(request: Request): string | null {
-  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.slice('Bearer '.length).trim();
-  }
-
-  const cookieHeader = request.headers.get('cookie');
-  if (!cookieHeader) {
-    return null;
-  }
-
-  const cookies = cookieHeader.split(';');
-  for (const cookie of cookies) {
-    const [rawName, ...rest] = cookie.trim().split('=');
-    if (!rawName || rawName !== ACCESS_TOKEN_COOKIE) continue;
-    const rawValue = rest.join('=');
-    return rawValue ? decodeURIComponent(rawValue) : null;
-  }
-
-  return null;
-}
+import { getAccessTokenFromRequest } from './cookies.js';
 
 export interface AuthUser {
   id: string;

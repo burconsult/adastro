@@ -13,25 +13,16 @@ import {
 import { isSameOriginRequest, isUnsafeMethod } from './lib/security/request-guards.js';
 import { getSiteContentRouting, getSiteLocaleConfig } from './lib/site-config.js';
 import { resolveLegacyBlogPath } from './lib/routing/articles.js';
-import { supabaseAdmin } from './lib/supabase.js';
 import { buildLocalizedPath, DEFAULT_LOCALE, resolveLocalePath } from './lib/i18n/locales.js';
 import {
   getContentRoutingRuntimeCache,
   getLocaleConfigRuntimeCache,
-  getSetupCompletionRuntimeCache,
   setContentRoutingRuntimeCache,
-  setLocaleConfigRuntimeCache,
-  setSetupCompletionRuntimeCache
+  setLocaleConfigRuntimeCache
 } from './lib/runtime-config-cache.js';
-import {
-  hasRequiredSetupEnv,
-  isMissingRelationError,
-  normalizeBooleanSetting,
-  SETUP_ALLOW_REENTRY_KEY,
-  SETUP_COMPLETION_KEY
-} from './lib/setup/runtime.js';
+import { hasRequiredSetupEnv } from './lib/setup/runtime.js';
+import { getSetupGateState } from './lib/setup/gate.js';
 
-const SETUP_COMPLETION_CACHE_TTL_MS = 5000;
 const CONTENT_ROUTING_CACHE_TTL_MS = 30000;
 const LOCALE_CONFIG_CACHE_TTL_MS = 30000;
 
@@ -73,51 +64,6 @@ const shouldBypassSetupRedirect = (pathname: string) => {
 const shouldRedirectToDefaultLocale = (pathname: string) => {
   if (STATIC_ASSET_PATTERN.test(pathname)) return false;
   return !LOCALE_REDIRECT_BYPASS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-};
-
-const getSetupGateState = async (): Promise<{ completed: boolean; allowReentry: boolean }> => {
-  if (!hasRequiredSetupEnv()) return { completed: false, allowReentry: false };
-
-  const now = Date.now();
-  const cachedSetupCompletion = getSetupCompletionRuntimeCache();
-  if (cachedSetupCompletion && now - cachedSetupCompletion.checkedAt <= SETUP_COMPLETION_CACHE_TTL_MS) {
-    return {
-      completed: cachedSetupCompletion.completed,
-      allowReentry: cachedSetupCompletion.allowReentry
-    };
-  }
-
-  try {
-    const { data, error } = await (supabaseAdmin as any)
-      .from('site_settings')
-      .select('key,value')
-      .in('key', [SETUP_COMPLETION_KEY, SETUP_ALLOW_REENTRY_KEY]);
-
-    if (error) {
-      const message = String(error.message || '').toLowerCase();
-      if (isMissingRelationError(message)) {
-        setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
-        return { completed: false, allowReentry: false };
-      }
-      console.warn('Setup completion check failed:', error.message);
-      setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
-      return { completed: false, allowReentry: false };
-    }
-
-    const rows = Array.isArray(data) ? data : [];
-    const completionRow = rows.find((row: any) => row.key === SETUP_COMPLETION_KEY);
-    const allowReentryRow = rows.find((row: any) => row.key === SETUP_ALLOW_REENTRY_KEY);
-
-    const completed = normalizeBooleanSetting(completionRow?.value);
-    const allowReentry = normalizeBooleanSetting(allowReentryRow?.value);
-
-    setSetupCompletionRuntimeCache({ completed, allowReentry, checkedAt: now });
-    return { completed, allowReentry };
-  } catch (error) {
-    console.warn('Setup completion check failed:', error);
-    setSetupCompletionRuntimeCache({ completed: false, allowReentry: false, checkedAt: now });
-    return { completed: false, allowReentry: false };
-  }
 };
 
 const getContentRoutingForRewrite = async (): Promise<{ articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress' }> => {
@@ -192,6 +138,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const isSetupRoute = requestPolicyPath === '/setup' || requestPolicyPath.startsWith('/setup/');
+  const isSetupApiRoute = url.pathname === '/api/setup' || url.pathname.startsWith('/api/setup/');
   const isAdminRoute = url.pathname.startsWith('/admin');
   const isProfileRoute = requestPolicyPath === '/profile' || requestPolicyPath.startsWith('/profile/');
 
@@ -201,6 +148,58 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (hasRequiredSetupEnv()) {
     const setupGate = await getSetupGateState();
+
+    if (setupGate.completed && (isSetupRoute || isSetupApiRoute)) {
+      try {
+        const user = await authService.getUserFromRequest(context.request);
+        if (!user) {
+          if (isSetupApiRoute) {
+            return new Response(JSON.stringify({ error: 'Authentication required.' }), {
+              status: 401,
+              headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+            });
+          }
+
+          if (!setupGate.allowReentry && isSetupRoute) {
+            return redirect('/');
+          }
+
+          const requestedPath = `${url.pathname}${url.search}`;
+          const loginPath = localePath.hasLocalePrefix
+            ? buildLocalizedPath('/auth/login', localePath.locale)
+            : '/auth/login';
+          return redirect(`${loginPath}?redirect=${encodeURIComponent(requestedPath)}`);
+        }
+
+        if (user.role !== 'admin') {
+          if (isSetupApiRoute) {
+            return new Response(JSON.stringify({ error: 'Admin access required.' }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+            });
+          }
+
+          if (!setupGate.allowReentry && isSetupRoute) {
+            return redirect('/');
+          }
+
+          const unauthorizedPath = localePath.hasLocalePrefix
+            ? buildLocalizedPath('/auth/unauthorized', localePath.locale)
+            : '/auth/unauthorized';
+          return redirect(unauthorizedPath);
+        }
+
+        context.locals.user = user;
+      } catch (error) {
+        if (isSetupApiRoute) {
+          return new Response(JSON.stringify({ error: 'Authentication required.' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+          });
+        }
+        return redirect('/auth/login?error=auth_error');
+      }
+    }
 
     if (isSetupRoute && setupGate.completed && !setupGate.allowReentry) {
       return redirect('/');

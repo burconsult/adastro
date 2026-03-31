@@ -6,6 +6,7 @@ import { DEFAULT_ARTICLE_ROUTING, normalizeArticleBasePath } from '@/lib/routing
 import { getCoreLocalePacks } from '@/lib/i18n/catalog';
 import { DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
+import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
 
 type RoutingPayload = {
   articleBasePath?: string;
@@ -15,6 +16,21 @@ type RoutingPayload = {
 };
 
 export const POST: APIRoute = async ({ request }) => {
+  try {
+    await assertSetupApiAccess(request);
+  } catch (error) {
+    if (error instanceof SetupAccessError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+    throw error;
+  }
+
   if (!isSupabaseAdminConfigured) {
     return new Response(JSON.stringify({
       error: 'SUPABASE_SECRET_KEY is required for setup routing updates.'

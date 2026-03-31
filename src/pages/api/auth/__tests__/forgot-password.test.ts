@@ -4,6 +4,7 @@ import { normalizeCanonicalSiteUrl } from '../../../../lib/url/site-url.js';
 const mocks = vi.hoisted(() => ({
   resetPassword: vi.fn(),
   checkRateLimit: vi.fn(),
+  buildRateLimitHeaders: vi.fn(),
   getClientIp: vi.fn()
 }));
 
@@ -14,7 +15,8 @@ vi.mock('../../../../lib/auth/auth-helpers.js', () => ({
 }));
 
 vi.mock('../../../../lib/security/rate-limit.js', () => ({
-  checkRateLimit: mocks.checkRateLimit
+  checkRateLimit: mocks.checkRateLimit,
+  buildRateLimitHeaders: mocks.buildRateLimitHeaders
 }));
 
 vi.mock('../../../../lib/security/request-guards.js', () => ({
@@ -28,6 +30,11 @@ describe('forgot password api', () => {
     vi.clearAllMocks();
     mocks.getClientIp.mockReturnValue('127.0.0.1');
     mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterSec: 0 });
+    mocks.buildRateLimitHeaders.mockReturnValue({
+      'RateLimit-Limit': '10',
+      'RateLimit-Remaining': '9',
+      'RateLimit-Reset': '600'
+    });
     mocks.resetPassword.mockResolvedValue(undefined);
   });
 
@@ -54,6 +61,7 @@ describe('forgot password api', () => {
     const payload = await response.json();
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
+    expect(response.headers.get('cache-control')).toBe('no-store');
     expect(String(payload.message).toLowerCase()).toContain('if an account exists');
     const expectedSiteUrl = normalizeCanonicalSiteUrl((import.meta.env.SITE_URL as string | undefined) || 'https://adastrocms.vercel.app');
     expect(mocks.resetPassword).toHaveBeenCalledWith(

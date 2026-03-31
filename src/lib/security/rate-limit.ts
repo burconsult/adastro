@@ -14,6 +14,19 @@ export type RateLimitResult = {
   remaining: number;
 };
 
+export function buildRateLimitHeaders(result: RateLimitResult, options: { limit: number; windowMs: number }): Record<string, string> {
+  const resetSec = result.retryAfterSec > 0
+    ? result.retryAfterSec
+    : Math.max(1, Math.ceil(options.windowMs / 1000));
+
+  return {
+    'RateLimit-Limit': String(options.limit),
+    'RateLimit-Remaining': String(result.remaining),
+    'RateLimit-Reset': String(resetSec),
+    ...(result.allowed ? {} : { 'Retry-After': String(result.retryAfterSec) })
+  };
+}
+
 const store = new Map<string, RateLimitBucket>();
 
 export function checkRateLimit(options: RateLimitOptions): RateLimitResult {

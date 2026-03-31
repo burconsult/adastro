@@ -3,7 +3,7 @@
 This document summarizes the security features built into the Adastro CMS and the
 recommended configuration steps for production deployments.
 
-Last updated: 2026-02-23
+Last updated: 2026-03-31
 
 ## Overview
 
@@ -21,13 +21,18 @@ RLS is enabled and forced for all public tables. Policies:
 - Public read on published content and taxonomies
 - Author ownership for content creation and updates
 - Admin-only access for operational tables
+- Authenticated users without explicit `app_metadata.role` now resolve to `reader`, not `author`
 
 Migrations:
 - `infra/supabase/migrations/000_core.sql`
   - Core schema includes the current baseline RLS policies and auth/storage security setup.
+- `infra/supabase/migrations/006_auth_hardening_azure_mfa.sql`
+  - Hardens `public.current_role()` to fail closed to `reader`
+  - Stops automatic author provisioning/linking on `auth.users` creation
 
 ### Helper Functions
 Auth helper functions are restricted to `authenticated` and `service_role`, not `PUBLIC`.
+`service_role` remains server-only and must never be exposed to the browser.
 
 ## Storage Security
 
@@ -47,11 +52,13 @@ Migration:
 All admin endpoints require auth:
 - `requireAdmin` for admin-only endpoints
 - `requireAuthor` for author-access endpoints
+- Setup endpoints (`/setup`, `/api/setup/*`) are open only during initial installation; after setup completion they require an authenticated admin
 
 Additional protections:
 - Error responses are sanitized to avoid leaking sensitive details.
 - Slug validation now requires auth to avoid leaking draft IDs.
 - Invite flow uses Supabase admin invites (no temporary passwords returned).
+- Password change and MFA-factor removal now require `aal2` when `auth.mfa.enabled=true` and the user has a verified MFA factor.
 
 ## App Middleware
 
@@ -85,9 +92,10 @@ Required:
 
 Recommended:
 - Keep `vercel.json` and `netlify.toml` aligned for baseline security headers and API no-store caching.
-- Add edge rate limiting for `/api/auth/*` and `/api/admin/*`.
+- Add edge rate limiting and bot mitigation for `/api/auth/*`, `/api/setup/*`, and `/api/admin/*`.
 - Add a CSP header if you remove inline scripts.
 - Enable SSL enforcement and network restrictions in Supabase.
+- Review Vercel Firewall / Attack Challenge or Netlify edge controls for public deployments.
 
 ## Supabase Auth Hardening
 
@@ -96,11 +104,36 @@ Configure in Supabase Dashboard:
 - Email confirmation required
 - OTP expiration and length
 - CAPTCHA (Turnstile or reCAPTCHA)
-- MFA for org users
+- TOTP/authenticator-app MFA when you want optional user enrollment
+- Social providers only after redirect allow-lists are correct
+
+Azure / Microsoft provider notes:
+- Use Supabase provider `azure`.
+- Register `https://<project-ref>.supabase.co/auth/v1/callback` as the provider callback in Microsoft Entra.
+- AdAstro adds the required `email` scope on the Azure login entrypoint.
+- Use the provider's optional tenant URL in Supabase for single-tenant mode; leave `common` for consumer/multi-tenant mode.
+- Microsoft Entra can return unverified email addresses. Prefer adding the `xms_edov` claim and `email` claim in the Entra application so email-based linking decisions are not made on an unverified address alone.
+
+MFA notes:
+- AdAstro v1.4.0 keeps MFA optional behind `auth.mfa.enabled`.
+- Users can enroll, verify, view, and remove TOTP factors from `/profile`.
+- Only sensitive account actions step up to `aal2` today; routine profile/content flows stay unchanged for users who have not enrolled.
 
 Automation:
 - `infra/supabase/scripts/update-auth-rate-limits.js` can update auth rate limits via the Management API.
   - Requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` (or `SUPABASE_URL`).
+
+## App-Side Rate Limiting
+
+AdAstro keeps a minimal in-process limiter on selected auth endpoints (`login`, `forgot-password`, MFA verify).
+
+This helps against naive brute-force traffic, but it is not a substitute for:
+- Supabase Auth rate limits
+- CAPTCHA / Turnstile
+- Vercel or Netlify edge-layer protections
+- WAF / network-layer filtering
+
+Treat the app-side limiter as best-effort only, especially on horizontally scaled or serverless deployments.
 
 ## Secrets and Credentials
 
@@ -117,3 +150,4 @@ Rotate any credential that has been committed in the past.
 
 - `service_role` bypasses RLS by design. Only use it in server-side code.
 - Storage policies assume uploads live under `uploads/*` in the configured media bucket.
+- Azure/Microsoft trust decisions still depend on correct Entra claim configuration outside the app.
