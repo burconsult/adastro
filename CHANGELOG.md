@@ -2,7 +2,7 @@
 
 All notable changes to AdAstro are documented in this file.
 
-## 1.4.0 "Hardening" - 2026-03-31
+## 1.4.0 "Stingray" - 2026-03-31
 
 ### Added
 - Added Microsoft login through the Supabase `azure` provider, using the same app-level activation model as GitHub and Google.
