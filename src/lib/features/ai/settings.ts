@@ -15,7 +15,7 @@ export const AI_SETTINGS: SettingDefinition[] = [
     description: 'Internal AI settings version.',
     type: 'number',
     category: 'extras',
-    defaultValue: 2,
+    defaultValue: 3,
     adminSurface: 'hidden'
   },
   {
@@ -41,6 +41,14 @@ export const AI_SETTINGS: SettingDefinition[] = [
     type: 'boolean',
     category: 'extras',
     defaultValue: false
+  },
+  {
+    key: 'features.ai.tools.alt.enabled',
+    displayName: 'Enable AI Alt Text',
+    description: 'Allow manual AI-generated alt text for uploaded images.',
+    type: 'boolean',
+    category: 'extras',
+    defaultValue: true
   },
   {
     key: 'features.ai.limits.enabled',
@@ -90,6 +98,23 @@ export const AI_SETTINGS: SettingDefinition[] = [
     key: 'features.ai.capabilities.text.defaultModel',
     displayName: 'Default Text Model',
     description: 'Default model used for AI text generation.',
+    type: 'string',
+    category: 'extras',
+    defaultValue: 'openai/gpt-4o-mini'
+  },
+  {
+    key: 'features.ai.capabilities.text.mediaAnalysisProvider',
+    displayName: 'Media Analysis Provider',
+    description: 'Provider used for image-aware text tasks such as alt text generation.',
+    type: 'string',
+    category: 'extras',
+    defaultValue: 'gateway',
+    validation: { options: ['gateway', 'openai', 'gemini'] }
+  },
+  {
+    key: 'features.ai.capabilities.text.mediaAnalysisModel',
+    displayName: 'Media Analysis Model',
+    description: 'Vision-capable model used for image-aware text tasks.',
     type: 'string',
     category: 'extras',
     defaultValue: 'openai/gpt-4o-mini'
@@ -162,5 +187,21 @@ export const AI_SETTINGS: SettingDefinition[] = [
     type: 'string',
     category: 'extras',
     defaultValue: 'EXAVITQu4vr4xnSDxMaL'
+  },
+  {
+    key: 'features.ai.audio.narrationIntroByLocale',
+    displayName: 'Narration Intro By Locale',
+    description: 'JSON map keyed by locale. Supports {{postTitle}}, {{siteTitle}}, {{authorName}}, and {{locale}} tokens.',
+    type: 'json',
+    category: 'extras',
+    defaultValue: {}
+  },
+  {
+    key: 'features.ai.audio.narrationOutroByLocale',
+    displayName: 'Narration Outro By Locale',
+    description: 'JSON map keyed by locale. Supports {{postTitle}}, {{siteTitle}}, {{authorName}}, and {{locale}} tokens.',
+    type: 'json',
+    category: 'extras',
+    defaultValue: {}
   }
 ];

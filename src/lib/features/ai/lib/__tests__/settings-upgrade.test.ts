@@ -26,8 +26,12 @@ describe('AI settings upgrade', () => {
 
     expect(upgraded['features.ai.tools.seo.enabled']).toBe(true);
     expect(upgraded['features.ai.tools.audio.enabled']).toBe(false);
+    expect(upgraded['features.ai.configVersion']).toBe(3);
+    expect(upgraded['features.ai.tools.alt.enabled']).toBe(true);
     expect(upgraded['features.ai.capabilities.text.defaultProvider']).toBe('openai');
     expect(upgraded['features.ai.capabilities.text.defaultModel']).toBe('gpt-5');
+    expect(upgraded['features.ai.capabilities.text.mediaAnalysisProvider']).toBe('gateway');
+    expect(upgraded['features.ai.capabilities.text.mediaAnalysisModel']).toBe('openai/gpt-4o-mini');
     expect(upgraded['features.ai.capabilities.image.defaultProvider']).toBe('gemini');
     expect(upgraded['features.ai.capabilities.image.defaultModel']).toBe('gemini-2.5-flash-image');
     expect(upgraded['features.ai.capabilities.audio.defaultProvider']).toBe('elevenlabs');
@@ -38,5 +42,7 @@ describe('AI settings upgrade', () => {
     expect(upgraded['features.ai.capabilities.image.defaultResolution']).toBe('2K');
     expect(upgraded['features.ai.limits.enabled']).toBe(true);
     expect(upgraded['features.ai.limits.audioDailyRequests']).toBe(2);
+    expect(upgraded['features.ai.audio.narrationIntroByLocale']).toEqual({});
+    expect(upgraded['features.ai.audio.narrationOutroByLocale']).toEqual({});
   });
 });

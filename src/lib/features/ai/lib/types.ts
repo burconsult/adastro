@@ -9,6 +9,7 @@ export interface AiProviderCapabilitySupport {
   implemented: boolean;
   supportsModelDiscovery?: boolean;
   supportsVoiceDiscovery?: boolean;
+  supportsImageInput?: boolean;
 }
 
 export interface AiProviderDescriptor {
@@ -50,6 +51,10 @@ export interface GenerateTextOptions {
   provider?: AiProviderId;
   responseFormat?: 'text' | 'json_object';
   metadata?: Record<string, unknown>;
+  images?: Array<{
+    url: string;
+    mimeType?: string;
+  }>;
 }
 
 export interface GenerateTextResponse {

@@ -5,8 +5,10 @@ import { mediaManager } from '@/lib/services/media-manager';
 
 import { generateImage } from './lib/image.js';
 import { generateAudio } from './lib/audio.js';
+import { inferAltTextFromPrompt } from './lib/alt.js';
 import { aiConfigService } from './lib/config-service.js';
 import { checkUsageCap, recordUsageEvent } from './lib/usage.js';
+import { buildNarrationText } from './lib/narration.js';
 import type { AiProviderId } from './lib/types.js';
 import type { FeatureMcpExtension } from '../types.js';
 
@@ -49,8 +51,6 @@ const sanitizeFilenameSegment = (value: string, fallback: string) => {
   const normalized = value.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/(^-|-$)/g, '');
   return normalized || fallback;
 };
-
-const stripHtml = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
 const buildImagePrompt = (post: { title: string; excerpt?: string; tags?: { name: string }[] }, style?: string) => {
   const tagLine = Array.isArray(post.tags) && post.tags.length > 0
@@ -132,7 +132,11 @@ const generatePostImage = async (args: Record<string, unknown>) => {
 
   const uploaded = await mediaManager.uploadMedia({
     file,
-    altText: `AI-generated image for "${post.title}"`,
+    altText: inferAltTextFromPrompt({
+      prompt: input.prompt,
+      title: post.title,
+      excerpt: post.excerpt
+    }),
     caption: input.style ? `Generated in ${input.style} style.` : undefined,
     uploadedBy: post.author.id
   });
@@ -192,7 +196,15 @@ const generatePostAudio = async (args: Record<string, unknown>) => {
     throw new Error(`Daily AI audio request cap reached (${usageCap.used}/${usageCap.limit}).`);
   }
 
-  const plainText = stripHtml(post.content).slice(0, 4000);
+  const narration = await buildNarrationText({
+    config,
+    title: post.title,
+    content: post.content,
+    locale: post.locale,
+    authorName: post.author?.name,
+    maxLength: 4000
+  });
+  const plainText = narration.text;
   if (!plainText) {
     throw new Error('Post content is empty after sanitization.');
   }
@@ -231,7 +243,10 @@ const generatePostAudio = async (args: Record<string, unknown>) => {
       source: 'mcp',
       postId: post.id,
       textLength: plainText.length,
-      voice: audio.voice ?? selection.voice
+      voice: audio.voice ?? selection.voice,
+      locale: narration.locale,
+      hasIntro: Boolean(narration.intro),
+      hasOutro: Boolean(narration.outro)
     }
   });
 

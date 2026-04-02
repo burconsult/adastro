@@ -24,12 +24,17 @@ const imageProviders = new Map<AiProviderId, AiImageProvider>();
 const audioProviders = new Map<AiProviderId, AiAudioProvider>();
 
 const createCapabilitySupport = (
-  implemented: Partial<Record<AiCapability, { supportsModelDiscovery?: boolean; supportsVoiceDiscovery?: boolean }>>
+  implemented: Partial<Record<AiCapability, {
+    supportsModelDiscovery?: boolean;
+    supportsVoiceDiscovery?: boolean;
+    supportsImageInput?: boolean;
+  }>>
 ) => ({
   text: {
     supported: Boolean(implemented.text),
     implemented: Boolean(implemented.text),
-    supportsModelDiscovery: implemented.text?.supportsModelDiscovery
+    supportsModelDiscovery: implemented.text?.supportsModelDiscovery,
+    supportsImageInput: implemented.text?.supportsImageInput
   },
   image: {
     supported: Boolean(implemented.image),
@@ -59,7 +64,7 @@ const PROVIDER_MODULES: Record<AiProviderId, ProviderModule> = {
       pricingUrl: 'https://vercel.com/docs/ai-gateway',
       executionMode: 'gateway',
       capabilities: createCapabilitySupport({
-        text: { supportsModelDiscovery: true },
+        text: { supportsModelDiscovery: true, supportsImageInput: true },
         image: { supportsModelDiscovery: true }
       })
     },
@@ -75,7 +80,7 @@ const PROVIDER_MODULES: Record<AiProviderId, ProviderModule> = {
       pricingUrl: 'https://openai.com/api/pricing',
       executionMode: 'direct',
       capabilities: createCapabilitySupport({
-        text: { supportsModelDiscovery: true },
+        text: { supportsModelDiscovery: true, supportsImageInput: true },
         image: { supportsModelDiscovery: true },
         audio: { supportsModelDiscovery: true }
       })
@@ -93,7 +98,7 @@ const PROVIDER_MODULES: Record<AiProviderId, ProviderModule> = {
       pricingUrl: 'https://ai.google.dev/pricing',
       executionMode: 'direct',
       capabilities: createCapabilitySupport({
-        text: { supportsModelDiscovery: true },
+        text: { supportsModelDiscovery: true, supportsImageInput: true },
         image: { supportsModelDiscovery: true }
       })
     },

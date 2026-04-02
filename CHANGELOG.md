@@ -2,6 +2,21 @@
 
 All notable changes to AdAstro are documented in this file.
 
+## Unreleased
+
+### Added
+- Added AI draft assist in the post editor for title, excerpt, slug, category, tag, and SEO suggestions with explicit apply actions.
+- Added AI editorial QA in the post editor with warning-only heuristics plus AI review notes.
+- Added manual AI alt-text generation for uploaded images in the media library using a dedicated media-analysis provider/model path.
+
+### Changed
+- Improved AI-generated image uploads so alt text is inferred from the prompt instead of a generic placeholder.
+- Added locale-aware narration intro/outro templates for AI audio generation and applied the same behavior to MCP audio generation.
+- Refreshed the public audio player with custom seek controls and playback-speed selection for narrated posts.
+- Expanded AI Suite settings with media-analysis provider/model selection and locale-keyed narration template fields.
+- Reworked AI usage reporting so the admin panel now shows provider/model/operation breakdowns plus best-effort cost estimates with exact, estimated, range-based, and unpriced coverage buckets.
+- Captured SEO token usage alongside existing draft/review/alt usage so text-cost reporting has better coverage.
+
 ## 1.4.0 "Stingray" - 2026-03-31
 
 ### Added

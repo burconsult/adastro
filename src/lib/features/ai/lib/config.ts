@@ -1,7 +1,7 @@
 import { getEnv } from '../../../env.js';
 import type { AiCapability, AiProviderId } from './types.js';
 
-export const AI_CONFIG_VERSION = 2;
+export const AI_CONFIG_VERSION = 3;
 export const DEFAULT_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
 
 export const DEFAULT_TEXT_PROVIDER: AiProviderId = 'gateway';
@@ -43,6 +43,8 @@ export const DEFAULT_AUDIO_VOICES: Record<AiProviderId, string | undefined> = {
 export const DEFAULT_IMAGE_SIZE = '1024x1024';
 export const DEFAULT_IMAGE_ASPECT_RATIO = '1:1';
 export const DEFAULT_IMAGE_RESOLUTION = '1K';
+export const DEFAULT_MEDIA_ANALYSIS_PROVIDER: AiProviderId = 'gateway';
+export const DEFAULT_MEDIA_ANALYSIS_MODEL = DEFAULT_TEXT_MODELS.gateway || 'openai/gpt-4o-mini';
 
 export const LEGACY_AI_SETTING_KEYS = [
   'features.ai.enabled',
@@ -76,12 +78,15 @@ export const AI_SETTING_KEYS = [
   'features.ai.tools.seo.enabled',
   'features.ai.tools.image.enabled',
   'features.ai.tools.audio.enabled',
+  'features.ai.tools.alt.enabled',
   'features.ai.limits.enabled',
   'features.ai.limits.seoDailyRequests',
   'features.ai.limits.imageDailyRequests',
   'features.ai.limits.audioDailyRequests',
   'features.ai.capabilities.text.defaultProvider',
   'features.ai.capabilities.text.defaultModel',
+  'features.ai.capabilities.text.mediaAnalysisProvider',
+  'features.ai.capabilities.text.mediaAnalysisModel',
   'features.ai.capabilities.image.defaultProvider',
   'features.ai.capabilities.image.defaultModel',
   'features.ai.capabilities.image.defaultSize',
@@ -89,7 +94,9 @@ export const AI_SETTING_KEYS = [
   'features.ai.capabilities.image.defaultResolution',
   'features.ai.capabilities.audio.defaultProvider',
   'features.ai.capabilities.audio.defaultModel',
-  'features.ai.capabilities.audio.defaultVoice'
+  'features.ai.capabilities.audio.defaultVoice',
+  'features.ai.audio.narrationIntroByLocale',
+  'features.ai.audio.narrationOutroByLocale'
 ] as const;
 
 export function getDefaultModelForCapability(capability: AiCapability, provider: AiProviderId): string | undefined {

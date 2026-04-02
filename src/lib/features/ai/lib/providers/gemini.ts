@@ -55,6 +55,25 @@ const sizeToAspectRatio = (size?: GenerateImageOptions['size']): string => {
 const shouldIncludeImageSize = (model: string): boolean =>
   model.includes('image-preview') || model.includes('pro-image');
 
+const toInlineImagePart = async (image: { url: string; mimeType?: string }) => {
+  const response = await fetch(image.url, {
+    signal: AbortSignal.timeout(getApiTimeoutMs())
+  });
+  if (!response.ok) {
+    throw new Error(`Gemini image fetch failed: ${response.status} ${response.statusText}`.trim());
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const mimeType = image.mimeType || response.headers.get('content-type') || 'image/png';
+
+  return {
+    inlineData: {
+      mimeType,
+      data: Buffer.from(arrayBuffer).toString('base64')
+    }
+  };
+};
+
 export class GeminiTextProvider implements AiTextProvider {
   async generateText(options: GenerateTextOptions): Promise<GenerateTextResponse> {
     const {
@@ -62,18 +81,20 @@ export class GeminiTextProvider implements AiTextProvider {
       system,
       model = DEFAULT_TEXT_MODELS.gemini,
       temperature = 0.7,
-      maxOutputTokens = 800
+      maxOutputTokens = 800,
+      images = []
     } = options;
 
     if (!model) {
       throw new Error('Gemini text generation model is not configured.');
     }
 
+    const imageParts = await Promise.all(images.map((image) => toInlineImagePart(image)));
     const generativeModel = getClient().getGenerativeModel({ model });
     const result = await generativeModel.generateContent({
       contents: [
         ...(system ? [{ role: 'user', parts: [{ text: system }] }] : []),
-        { role: 'user', parts: [{ text: prompt }] }
+        { role: 'user', parts: [{ text: prompt }, ...imageParts] }
       ],
       generationConfig: {
         temperature,

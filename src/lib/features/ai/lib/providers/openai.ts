@@ -92,7 +92,8 @@ export class OpenAiTextProvider implements AiTextProvider {
       model = DEFAULT_TEXT_MODELS.openai,
       temperature = 0.7,
       maxOutputTokens = 800,
-      responseFormat
+      responseFormat,
+      images = []
     } = options;
 
     if (!model) {
@@ -103,7 +104,20 @@ export class OpenAiTextProvider implements AiTextProvider {
     if (system) {
       input.push({ role: 'system', content: system });
     }
-    input.push({ role: 'user', content: prompt });
+    if (images.length > 0) {
+      input.push({
+        role: 'user',
+        content: [
+          { type: 'input_text', text: prompt },
+          ...images.map((image) => ({
+            type: 'input_image',
+            image_url: image.url
+          }))
+        ] as any
+      });
+    } else {
+      input.push({ role: 'user', content: prompt });
+    }
 
     const requestBase = {
       model,

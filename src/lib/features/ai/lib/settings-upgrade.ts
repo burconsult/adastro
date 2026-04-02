@@ -7,6 +7,8 @@ import {
   DEFAULT_IMAGE_PROVIDER,
   DEFAULT_IMAGE_RESOLUTION,
   DEFAULT_IMAGE_SIZE,
+  DEFAULT_MEDIA_ANALYSIS_MODEL,
+  DEFAULT_MEDIA_ANALYSIS_PROVIDER,
   DEFAULT_TEXT_PROVIDER,
   LEGACY_AI_SETTING_KEYS,
   getDefaultModelForCapability,
@@ -91,6 +93,10 @@ export const buildAiSettingsUpgrade = (source: Record<string, unknown>): Record<
       source['features.ai.tools.audio.enabled'] ?? source['features.ai.enableAudio'],
       false
     ),
+    'features.ai.tools.alt.enabled': pickBoolean(
+      source['features.ai.tools.alt.enabled'],
+      true
+    ),
     'features.ai.limits.enabled': pickBoolean(
       source['features.ai.limits.enabled'] ?? source['features.ai.usageCaps.enabled'],
       false
@@ -109,6 +115,14 @@ export const buildAiSettingsUpgrade = (source: Record<string, unknown>): Record<
     ),
     'features.ai.capabilities.text.defaultProvider': textProvider,
     'features.ai.capabilities.text.defaultModel': textModel,
+    'features.ai.capabilities.text.mediaAnalysisProvider': asProvider(
+      source['features.ai.capabilities.text.mediaAnalysisProvider'],
+      DEFAULT_MEDIA_ANALYSIS_PROVIDER
+    ),
+    'features.ai.capabilities.text.mediaAnalysisModel': pickString(
+      source['features.ai.capabilities.text.mediaAnalysisModel'],
+      DEFAULT_MEDIA_ANALYSIS_MODEL
+    ),
     'features.ai.capabilities.image.defaultProvider': imageProvider,
     'features.ai.capabilities.image.defaultModel': imageModel,
     'features.ai.capabilities.image.defaultSize': pickString(
@@ -125,7 +139,9 @@ export const buildAiSettingsUpgrade = (source: Record<string, unknown>): Record<
     ),
     'features.ai.capabilities.audio.defaultProvider': audioProvider,
     'features.ai.capabilities.audio.defaultModel': audioModel,
-    'features.ai.capabilities.audio.defaultVoice': audioVoice
+    'features.ai.capabilities.audio.defaultVoice': audioVoice,
+    'features.ai.audio.narrationIntroByLocale': source['features.ai.audio.narrationIntroByLocale'] ?? {},
+    'features.ai.audio.narrationOutroByLocale': source['features.ai.audio.narrationOutroByLocale'] ?? {}
   };
 };
 

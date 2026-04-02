@@ -288,8 +288,12 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   const extensionFormData = useMemo(
     () => ({
       title: formData.title,
+      slug: formData.slug,
+      locale: formData.locale,
       excerpt: formData.excerpt,
       content: formData.content,
+      authorId: formData.authorId,
+      categoryIds: formData.categoryIds,
       tagIds: formData.tagIds,
       featuredImage: formData.featuredImage,
       audioAsset: formData.audioAsset,
@@ -325,6 +329,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
         key={id}
         post={normalizedPost}
         formData={extensionFormData}
+        categories={categories}
         tags={tagOptions}
         updateField={updateField}
         setFeaturedImage={setFeaturedImage}

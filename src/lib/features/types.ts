@@ -1,6 +1,6 @@
 import type { SettingDefinition, SiteSetting } from '../settings/types.js';
 import type { EditorJSData } from '../editorjs/types.js';
-import type { BlogPost, MediaAsset, SEOMetadata, Tag } from '../types/index.js';
+import type { BlogPost, Category, MediaAsset, SEOMetadata, Tag } from '../types/index.js';
 import type { ComponentType, ReactNode } from 'react';
 import type { AuthUser } from '../auth/auth-helpers.js';
 
@@ -37,8 +37,12 @@ export type EditorJsToolsLoader = (data?: EditorJSData) => Promise<Record<string
 
 export interface PostEditorFormSnapshot {
   title: string;
+  slug: string;
+  locale: string;
   excerpt: string;
   content: string;
+  authorId: string;
+  categoryIds: string[];
   tagIds: string[];
   featuredImage?: MediaAsset | null;
   audioAsset?: MediaAsset | null;
@@ -48,6 +52,7 @@ export interface PostEditorFormSnapshot {
 export interface PostEditorExtensionProps {
   post?: BlogPost;
   formData: PostEditorFormSnapshot;
+  categories: Category[];
   tags: Tag[];
   updateField: (field: keyof PostEditorFormSnapshot, value: any) => void;
   setFeaturedImage: (asset: MediaAsset) => void;

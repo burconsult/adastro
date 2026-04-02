@@ -23,7 +23,18 @@ export interface GenerateSeoInput {
   model?: string;
 }
 
-export async function generateSeoMetadata(input: GenerateSeoInput): Promise<SEOMetadata> {
+export interface GenerateSeoResult {
+  seoMetadata: SEOMetadata;
+  provider: string;
+  model: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+}
+
+export async function generateSeoMetadata(input: GenerateSeoInput): Promise<GenerateSeoResult> {
   const { title, excerpt, content, tags = [], provider, model } = input;
   const trimmedContent = content?.replace(/\s+/g, ' ').trim() || '';
   const snippet = trimmedContent.slice(0, 1200);
@@ -80,17 +91,22 @@ export async function generateSeoMetadata(input: GenerateSeoInput): Promise<SEOM
   const twitterDescription = clamp(parsed.twitterDescription || ogDescription || metaDescription || '', 200);
 
   return {
-    metaTitle,
-    metaDescription,
-    openGraph: {
-      title: ogTitle,
-      description: ogDescription,
-      type: 'article'
+    seoMetadata: {
+      metaTitle,
+      metaDescription,
+      openGraph: {
+        title: ogTitle,
+        description: ogDescription,
+        type: 'article'
+      },
+      twitterCard: {
+        card: 'summary_large_image',
+        title: twitterTitle,
+        description: twitterDescription
+      }
     },
-    twitterCard: {
-      card: 'summary_large_image',
-      title: twitterTitle,
-      description: twitterDescription
-    }
+    provider: response.provider,
+    model: response.model,
+    usage: response.usage
   };
 }

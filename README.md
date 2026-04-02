@@ -8,7 +8,8 @@ AdAstro pairs Astro + React with Supabase Auth, Postgres, and Storage to deliver
 - **Social login + step-up auth** – GitHub, Google, and Microsoft login via Supabase plus optional TOTP MFA for sensitive account actions.
 - **Admin workspace** – React components power Astro SSR routes under `src/pages/admin/*`.
 - **Pages system** – editable pages with reusable section layouts and SEO metadata.
-- **Media pipeline** – upload + CDN-aware delivery with optional AI alt-text suggestions.
+- **Media pipeline** – upload + CDN-aware delivery with manual AI alt-text generation for uploaded images and prompt-derived alt text for AI-generated images.
+- **AI editorial assist** – post editor draft suggestions, warning-only editorial QA, AI SEO, featured images, and locale-aware narration.
 - **SEO + performance** – JSON‑LD, OG metadata, fast SSR, and PageSpeed-friendly defaults.
 - **Locale-first routing** – locale-prefixed public URLs (`/{locale}/...`) with locale-scoped post/page slugs.
 - **Bundled modular features** – AI, comments, and newsletter ship in the repo but stay disabled until enabled.
@@ -179,6 +180,7 @@ See `docs/mcp-server.md` for the endpoint details, auth, tool list, and security
 
 ## Media Pipeline Cheat Sheet
 - `src/lib/services/media-manager.ts` orchestrates uploads, metadata, and AI-generated alt text.
+- AI Suite adds `/api/features/ai/draft`, `/api/features/ai/review`, `/api/features/ai/alt`, locale-aware narration templates, a richer public narration player, and best-effort usage/cost reporting in the AI admin settings.
 - `src/lib/services/cdn-manager.ts` abstracts Vercel/Netlify/Cloudflare/custom CDN URL building and cache purges.
 - React helpers (`OptimizedImage`, `MediaUpload`, `MediaManager`) live under `src/lib/components`.
 - Detailed behavior lives in `src/lib/services/README-media.md`.

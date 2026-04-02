@@ -99,6 +99,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
   const [statsError, setStatsError] = useState<string | null>(null);
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [savingMetadata, setSavingMetadata] = useState(false);
+  const [generatingAltText, setGeneratingAltText] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [metadataDraft, setMetadataDraft] = useState({ altText: '', caption: '' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -266,6 +267,37 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
       setSavingMetadata(false);
     }
   }, [metadataDraft.altText, metadataDraft.caption, selectedAsset]);
+
+  const handleGenerateAltText = useCallback(async () => {
+    if (!selectedAsset || !isImageAsset(selectedAsset)) return;
+    setGeneratingAltText(true);
+    try {
+      const response = await fetch('/api/features/ai/alt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId: selectedAsset.id })
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'Failed to generate alt text');
+      }
+
+      const payload = await response.json();
+      const updated = deserializeMediaAsset(payload?.asset);
+      setAssets((prev) => prev.map((asset) => (asset.id === updated.id ? updated : asset)));
+      setMetadataDraft((prev) => ({ ...prev, altText: updated.altText || payload?.altText || prev.altText }));
+      setBanner({ type: 'success', message: 'AI alt text generated and applied.' });
+    } catch (generateError) {
+      console.error('Alt text generation error:', generateError);
+      setBanner({
+        type: 'error',
+        message: generateError instanceof Error ? generateError.message : 'Failed to generate alt text.'
+      });
+    } finally {
+      setGeneratingAltText(false);
+    }
+  }, [selectedAsset]);
 
   const handleDeleteConfirmed = useCallback(async () => {
     if (!selectedAsset) return;
@@ -525,6 +557,16 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
               </div>
 
               <div className="flex flex-col gap-2">
+                {activeFeatureSet.has('ai') && isImageAsset(selectedAsset) && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={handleGenerateAltText}
+                    disabled={generatingAltText}
+                  >
+                    {generatingAltText ? 'Generating Alt Text...' : (selectedAsset.altText ? 'Regenerate Alt Text' : 'Generate Alt Text')}
+                  </button>
+                )}
                 {(() => {
                   const optimizedUrl = selectedAsset.url;
                   const originalUrl = selectedAsset.originalStoragePath
@@ -559,7 +601,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ activeFeatureIds = [
                   type="button"
                   className="btn btn-primary"
                   onClick={handleMetadataSave}
-                  disabled={savingMetadata}
+                  disabled={savingMetadata || generatingAltText}
                 >
                   {savingMetadata ? 'Saving...' : 'Save Metadata'}
                 </button>

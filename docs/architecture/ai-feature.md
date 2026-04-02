@@ -41,7 +41,13 @@ Providers declare capability support and implementation status in one registry, 
   - `features.ai.limits.seoDailyRequests`
   - `features.ai.limits.imageDailyRequests`
   - `features.ai.limits.audioDailyRequests`
-- Reporting returns request/token rollups by day, capability, and provider.
+- Reporting stays feature-local inside `src/lib/features/ai/lib/usage.ts` plus `src/lib/features/ai/lib/pricing.ts`.
+- Reporting returns request/token rollups by day, capability, operation, provider, and model.
+- Cost reporting is best-effort rather than provider-authoritative:
+  - exact where token usage and stable per-token pricing are available
+  - estimated where only image metadata or inferred text-token counts exist
+  - range-based where pricing depends on provider plan or unrecorded output quality
+  - unpriced where the provider/runtime does not expose enough data
 
 ## Settings Shape
 - Master toggle: `features.ai.enabled`
@@ -50,23 +56,33 @@ Providers declare capability support and implementation status in one registry, 
   - `features.ai.tools.seo.enabled`
   - `features.ai.tools.image.enabled`
   - `features.ai.tools.audio.enabled`
+  - `features.ai.tools.alt.enabled`
 - Capability defaults:
   - `features.ai.capabilities.text.defaultProvider`
   - `features.ai.capabilities.text.defaultModel`
+  - `features.ai.capabilities.text.mediaAnalysisProvider`
+  - `features.ai.capabilities.text.mediaAnalysisModel`
   - `features.ai.capabilities.image.defaultProvider`
   - `features.ai.capabilities.image.defaultModel`
   - `features.ai.capabilities.audio.defaultProvider`
   - `features.ai.capabilities.audio.defaultModel`
   - `features.ai.capabilities.audio.defaultVoice`
+- Locale-aware narration templates:
+  - `features.ai.audio.narrationIntroByLocale`
+  - `features.ai.audio.narrationOutroByLocale`
 - A one-time server-side upgrader maps the legacy AI keys into this shape on first AI access.
 
 ## Current CMS AI Surfaces
+- Draft assist in post editor for title, excerpt, slug, category, tag, and SEO suggestions.
+- Editorial QA in post editor with warning-only heuristics plus AI review notes.
 - SEO metadata generation in post editor.
-- Featured image generation in post editor + media library.
-- Audio narration generation in post editor.
+- Featured image generation in post editor + prompt-derived alt text for AI-generated images.
+- Manual AI alt-text generation for uploaded images in media library using a dedicated media-analysis model.
+- Audio narration generation in post editor with locale-aware intro/outro templates.
+- Custom public audio player for narrated posts with seek and playback-speed controls.
 
 ## Near-Term Expansion Targets
-- Draft assist: title/excerpt/tag suggestions.
 - Content transformation: summarize/expand/rewrite blocks.
-- Media assist: auto alt-text and image style presets per theme.
-- Editorial QA: pre-publish checks (SEO length, broken links, readability hints).
+- Media assist: theme-aware image style presets and richer image analysis beyond alt text.
+- Editorial QA: broken-link checks, deeper readability/style hints, and optional publish gating.
+- Conversational site assistant: likely a separate feature module rather than an extension of AI Suite, especially if it grows into public widget deployment, knowledge-base sync, client tools, and MCP-backed operations.

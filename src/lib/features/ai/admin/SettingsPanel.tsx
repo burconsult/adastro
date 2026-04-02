@@ -5,6 +5,7 @@ import type { FeatureSettingsPanelProps } from '../../types.js';
 interface AiStatus {
   aiEnabled?: boolean;
   textProviders?: string[];
+  mediaAnalysisProviders?: string[];
   imageProviders?: string[];
   audioProviders?: string[];
   defaults?: Record<string, any>;
@@ -61,13 +62,12 @@ interface AiProviderCatalogEntry {
 interface AiUsageResponse {
   summary?: {
     days?: number;
-    totals?: {
-      requests?: number;
-      inputTokens?: number;
-      outputTokens?: number;
-      totalTokens?: number;
-    };
-    byCapability?: Record<string, { requests?: number }>;
+    totals?: AiUsageRollup;
+    byCapability?: Record<string, AiUsageRollup>;
+    byOperation?: Record<string, AiUsageRollup & { capabilities?: string[]; providers?: string[]; models?: string[] }>;
+    byProvider?: Record<string, AiUsageRollup & { capabilities?: string[]; operations?: string[]; models?: string[] }>;
+    byModel?: Record<string, AiUsageRollup & { capability?: string; provider?: string; model?: string; operations?: string[] }>;
+    byDay?: Record<string, AiUsageRollup>;
   };
   caps?: {
     enabled?: boolean;
@@ -75,6 +75,25 @@ interface AiUsageResponse {
     imageDailyRequests?: number;
     audioDailyRequests?: number;
   };
+}
+
+interface AiUsageCosts {
+  estimatedUsd?: number;
+  minimumUsd?: number;
+  maximumUsd?: number;
+  exactRequests?: number;
+  estimatedRequests?: number;
+  rangeRequests?: number;
+  pricedRequests?: number;
+  unpricedRequests?: number;
+}
+
+interface AiUsageRollup {
+  requests?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  costs?: AiUsageCosts;
 }
 
 type AiSettingsTab = 'controls' | 'models' | 'usage';
@@ -117,6 +136,39 @@ const matchesCapabilityFromModelId = (provider: string, capability: 'text' | 'im
   return !normalized.includes('image') && !normalized.includes('tts');
 };
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3
+});
+
+const formatUsd = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return '$0.00';
+  if (value < 0.01) return `<$${0.01.toFixed(2)}`;
+  return usdFormatter.format(value);
+};
+
+const formatCostLabel = (costs?: AiUsageCosts) => {
+  const estimated = costs?.estimatedUsd ?? 0;
+  const minimum = costs?.minimumUsd ?? estimated;
+  const maximum = costs?.maximumUsd ?? estimated;
+
+  if (maximum > minimum + 0.0005) {
+    return `${formatUsd(minimum)} to ${formatUsd(maximum)}`;
+  }
+
+  return formatUsd(estimated);
+};
+
+const sortUsageRows = <T extends { requests?: number; costs?: AiUsageCosts }>(entries: Array<[string, T]>) => (
+  [...entries].sort(([, left], [, right]) => {
+    const costDelta = (right.costs?.estimatedUsd ?? 0) - (left.costs?.estimatedUsd ?? 0);
+    if (Math.abs(costDelta) > 0.00001) return costDelta;
+    return (right.requests ?? 0) - (left.requests ?? 0);
+  })
+);
+
 export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   getSetting,
   getValue,
@@ -127,6 +179,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   const seoEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.seo.enabled'), true);
   const imageEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.image.enabled'), true);
   const audioEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.audio.enabled'), false);
+  const altEnabled = aiEnabled && normalizeFeatureFlag(getValue('features.ai.tools.alt.enabled'), true);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [aiModels, setAiModels] = useState<AiModelRegistryResponse | null>(null);
   const [aiUsage, setAiUsage] = useState<AiUsageResponse | null>(null);
@@ -180,10 +233,12 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   }, [aiEnabled]);
 
   const textDefaultProvider = getValue('features.ai.capabilities.text.defaultProvider') || 'gateway';
+  const mediaAnalysisProvider = getValue('features.ai.capabilities.text.mediaAnalysisProvider') || 'gateway';
   const imageDefaultProvider = getValue('features.ai.capabilities.image.defaultProvider') || 'gateway';
   const audioDefaultProvider = getValue('features.ai.capabilities.audio.defaultProvider') || 'elevenlabs';
 
   const textProviders = Array.isArray(aiStatus?.textProviders) ? aiStatus.textProviders ?? [] : [];
+  const mediaAnalysisProviders = Array.isArray(aiStatus?.mediaAnalysisProviders) ? aiStatus.mediaAnalysisProviders ?? [] : [];
   const imageProviders = Array.isArray(aiStatus?.imageProviders) ? aiStatus.imageProviders ?? [] : [];
   const audioProviders = Array.isArray(aiStatus?.audioProviders) ? aiStatus.audioProviders ?? [] : [];
 
@@ -217,6 +272,12 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
       warnings.push(`Default text provider (${providerLabel(textDefaultProvider)}) is not configured. Set ${providerEnvMap[textDefaultProvider] || 'the matching API key'}.`);
     }
 
+    if (altEnabled && mediaAnalysisProviders.length === 0) {
+      warnings.push('AI alt text is enabled but no compatible text providers are configured.');
+    } else if (altEnabled && !mediaAnalysisProviders.includes(mediaAnalysisProvider)) {
+      warnings.push(`Media analysis provider (${providerLabel(mediaAnalysisProvider)}) is not configured. Set ${providerEnvMap[mediaAnalysisProvider] || 'the matching API key'}.`);
+    }
+
     if (imageEnabled && imageProviders.length === 0) {
       warnings.push('Image generation is enabled but no image providers are configured.');
     } else if (imageEnabled && !imageProviders.includes(imageDefaultProvider)) {
@@ -235,10 +296,13 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
     aiStatus,
     audioDefaultProvider,
     audioEnabled,
+    altEnabled,
     audioProviders,
     imageDefaultProvider,
     imageEnabled,
     imageProviders,
+    mediaAnalysisProviders,
+    mediaAnalysisProvider,
     seoEnabled,
     textDefaultProvider,
     textProviders
@@ -284,9 +348,12 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
 
   const optionMap: Record<string, string[] | undefined> = {
     'features.ai.capabilities.text.defaultProvider': getProviderOptionsFor('text', ['gateway', 'openai', 'gemini', 'anthropic']),
+    'features.ai.capabilities.text.mediaAnalysisProvider': getProviderOptionsFor('text', ['gateway', 'openai', 'gemini'])
+      .filter((provider) => provider === 'gateway' || provider === 'openai' || provider === 'gemini'),
     'features.ai.capabilities.image.defaultProvider': getProviderOptionsFor('image', ['gateway', 'openai', 'gemini']),
     'features.ai.capabilities.audio.defaultProvider': getProviderOptionsFor('audio', ['elevenlabs', 'openai']),
     'features.ai.capabilities.text.defaultModel': getDiscoveredModelsFor(String(textDefaultProvider), 'text'),
+    'features.ai.capabilities.text.mediaAnalysisModel': getDiscoveredModelsFor(String(mediaAnalysisProvider), 'text'),
     'features.ai.capabilities.image.defaultModel': getDiscoveredModelsFor(String(imageDefaultProvider), 'image'),
     'features.ai.capabilities.audio.defaultModel': getDiscoveredModelsFor(String(audioDefaultProvider), 'audio'),
     'features.ai.capabilities.audio.defaultVoice': audioDefaultProvider === 'elevenlabs'
@@ -318,6 +385,21 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
   const usageSummary = aiUsage?.summary;
   const usageTotals = usageSummary?.totals;
   const capabilityUsage = usageSummary?.byCapability ?? {};
+  const operationUsage = usageSummary?.byOperation ?? {};
+  const providerUsage = usageSummary?.byProvider ?? {};
+  const modelUsage = usageSummary?.byModel ?? {};
+  const dayUsage = usageSummary?.byDay ?? {};
+  const usageCosts = usageTotals?.costs;
+  const capabilityEntries = sortUsageRows(Object.entries(capabilityUsage));
+  const operationEntries = sortUsageRows(Object.entries(operationUsage));
+  const providerEntries = sortUsageRows(Object.entries(providerUsage));
+  const modelEntries = sortUsageRows(Object.entries(modelUsage));
+  const dayEntries = [...Object.entries(dayUsage)].sort(([left], [right]) => right.localeCompare(left)).slice(0, 7);
+  const pricedRequests = usageCosts?.pricedRequests ?? 0;
+  const unpricedRequests = usageCosts?.unpricedRequests ?? 0;
+  const exactPricedRequests = usageCosts?.exactRequests ?? 0;
+  const estimatedPricedRequests = usageCosts?.estimatedRequests ?? 0;
+  const rangePricedRequests = usageCosts?.rangeRequests ?? 0;
 
   return (
     <div className="space-y-6">
@@ -382,7 +464,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                 <h3 className="text-base font-semibold">Capabilities</h3>
                 <p className="text-xs text-muted-foreground">Turn on the AI surfaces you want available.</p>
               </div>
-              {renderGroup(['features.ai.tools.seo.enabled', 'features.ai.tools.image.enabled', 'features.ai.tools.audio.enabled'], { disabled: !aiEnabled })}
+              {renderGroup(['features.ai.tools.seo.enabled', 'features.ai.tools.image.enabled', 'features.ai.tools.audio.enabled', 'features.ai.tools.alt.enabled'], { disabled: !aiEnabled })}
             </div>
 
             <div className="card p-4 space-y-4">
@@ -392,6 +474,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
               </div>
               {renderGroup([
                 'features.ai.capabilities.text.defaultProvider',
+                'features.ai.capabilities.text.mediaAnalysisProvider',
                 'features.ai.capabilities.image.defaultProvider',
                 'features.ai.capabilities.audio.defaultProvider'
               ], { disabled: !aiEnabled })}
@@ -418,6 +501,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
               </div>
               <div className="space-y-2 text-xs">
                 <p>Text providers: {textProviders.length > 0 ? textProviders.map(providerLabel).join(', ') : 'none'}</p>
+                <p>Media analysis providers: {mediaAnalysisProviders.length > 0 ? mediaAnalysisProviders.map(providerLabel).join(', ') : 'none'}</p>
                 <p>Image providers: {imageProviders.length > 0 ? imageProviders.map(providerLabel).join(', ') : 'none'}</p>
                 <p>Audio providers: {audioProviders.length > 0 ? audioProviders.map(providerLabel).join(', ') : 'none'}</p>
               </div>
@@ -440,6 +524,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
               </div>
               {renderGroup([
                 'features.ai.capabilities.text.defaultModel',
+                'features.ai.capabilities.text.mediaAnalysisModel',
                 'features.ai.capabilities.image.defaultModel',
                 'features.ai.capabilities.audio.defaultModel',
                 'features.ai.capabilities.audio.defaultVoice'
@@ -464,6 +549,10 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                 <div>
                   <p className="font-semibold">Image ({providerLabel(String(imageDefaultProvider))})</p>
                   <p className="text-muted-foreground">{getDiscoveredModelsFor(String(imageDefaultProvider), 'image').slice(0, 8).join(', ') || 'No models reported.'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Media analysis ({providerLabel(String(mediaAnalysisProvider))})</p>
+                  <p className="text-muted-foreground">{getDiscoveredModelsFor(String(mediaAnalysisProvider), 'text').slice(0, 8).join(', ') || 'No models reported.'}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Audio ({providerLabel(String(audioDefaultProvider))})</p>
@@ -511,7 +600,7 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
                       )}
                     </div>
                     {discovered.length > 0 && (
-                      <p className="text-muted-foreground">Discovered models: {discovered.slice(0, 6).join(', ')}{discovered.length > 6 ? '…' : ''}</p>
+                      <p className="text-muted-foreground">Discovered models: {discovered.slice(0, 6).map((model) => model.id).join(', ')}{discovered.length > 6 ? '...' : ''}</p>
                     )}
                     {discoveredVoices.length > 0 && (
                       <p className="text-muted-foreground">Discovered voices: {discoveredVoices.slice(0, 4).map((voice) => voice.name).join(', ')}</p>
@@ -550,37 +639,138 @@ export const AiSettingsPanel: React.FC<FeatureSettingsPanelProps> = ({
           <div className="card p-4 space-y-4">
             <div>
               <h3 className="text-base font-semibold">Usage Report (Last {usageSummary?.days ?? 30} Days)</h3>
-              <p className="text-xs text-muted-foreground">Simple request and token totals from `ai_usage_events`.</p>
+              <p className="text-xs text-muted-foreground">Best-effort spend estimates from `ai_usage_events`, provider token usage, and recorded image/audio metadata.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-md border border-border/60 p-2">
-                <p className="text-muted-foreground">Requests</p>
-                <p className="text-sm font-semibold">{usageTotals?.requests ?? 0}</p>
-              </div>
-              <div className="rounded-md border border-border/60 p-2">
-                <p className="text-muted-foreground">Total Tokens</p>
-                <p className="text-sm font-semibold">{usageTotals?.totalTokens ?? 0}</p>
-              </div>
-              <div className="rounded-md border border-border/60 p-2">
-                <p className="text-muted-foreground">Input Tokens</p>
-                <p className="text-sm font-semibold">{usageTotals?.inputTokens ?? 0}</p>
-              </div>
-              <div className="rounded-md border border-border/60 p-2">
-                <p className="text-muted-foreground">Output Tokens</p>
-                <p className="text-sm font-semibold">{usageTotals?.outputTokens ?? 0}</p>
-              </div>
-            </div>
-            <div className="space-y-1 text-xs">
-              {Object.entries(capabilityUsage).length > 0 ? Object.entries(capabilityUsage).map(([capability, row]) => (
-                <p key={capability} className="flex items-center justify-between">
-                  <span className="capitalize">{capability}</span>
-                  <span>{row?.requests ?? 0} requests</span>
-                </p>
-              )) : (
+            {usageTotals && (usageTotals.requests ?? 0) > 0 ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-xs xl:grid-cols-3">
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Requests</p>
+                    <p className="text-sm font-semibold">{usageTotals?.requests ?? 0}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Estimated Cost</p>
+                    <p className="text-sm font-semibold">{formatCostLabel(usageCosts)}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Priced Requests</p>
+                    <p className="text-sm font-semibold">{pricedRequests}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Unpriced Requests</p>
+                    <p className="text-sm font-semibold">{unpricedRequests}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Total Tokens</p>
+                    <p className="text-sm font-semibold">{usageTotals?.totalTokens ?? 0}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 p-2">
+                    <p className="text-muted-foreground">Models Seen</p>
+                    <p className="text-sm font-semibold">{modelEntries.length}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-border/60 p-3 text-xs text-muted-foreground">
+                  Exact pricing: <span className="font-medium text-foreground">{exactPricedRequests}</span>
+                  {' · '}Estimated: <span className="font-medium text-foreground">{estimatedPricedRequests}</span>
+                  {' · '}Range-based: <span className="font-medium text-foreground">{rangePricedRequests}</span>
+                  {' · '}Unpriced: <span className="font-medium text-foreground">{unpricedRequests}</span>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-semibold">By Capability</h4>
+                    {capabilityEntries.map(([capability, row]) => (
+                      <div key={capability} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                        <div>
+                          <p className="font-medium capitalize">{capability}</p>
+                          <p className="text-muted-foreground">{row?.requests ?? 0} requests</p>
+                        </div>
+                        <p className="font-medium">{formatCostLabel(row?.costs)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-semibold">By Operation</h4>
+                    {operationEntries.length > 0 ? operationEntries.slice(0, 6).map(([operation, row]) => (
+                      <div key={operation} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                        <div>
+                          <p className="font-medium capitalize">{operation}</p>
+                          <p className="text-muted-foreground">{row?.requests ?? 0} requests</p>
+                        </div>
+                        <p className="font-medium">{formatCostLabel(row?.costs)}</p>
+                      </div>
+                    )) : (
+                      <p className="text-muted-foreground">No operation-level data yet.</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-semibold">Top Providers</h4>
+                    {providerEntries.length > 0 ? providerEntries.slice(0, 6).map(([provider, row]) => (
+                      <div key={provider} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                        <div>
+                          <p className="font-medium">{providerLabel(provider)}</p>
+                          <p className="text-muted-foreground">{row?.requests ?? 0} requests</p>
+                        </div>
+                        <p className="font-medium">{formatCostLabel(row?.costs)}</p>
+                      </div>
+                    )) : (
+                      <p className="text-muted-foreground">No provider-level data yet.</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-semibold">Top Models</h4>
+                    {modelEntries.length > 0 ? modelEntries.slice(0, 6).map(([, row]) => (
+                      <div key={`${row.provider}:${row.model}`} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{row.model || 'unknown'}</p>
+                          <p className="text-muted-foreground truncate">{providerLabel(row.provider || 'unknown')} · {row.requests ?? 0} requests</p>
+                        </div>
+                        <p className="font-medium">{formatCostLabel(row?.costs)}</p>
+                      </div>
+                    )) : (
+                      <p className="text-muted-foreground">No model-level data yet.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <h4 className="font-semibold">Recent Days</h4>
+                  {dayEntries.length > 0 ? dayEntries.map(([day, row]) => (
+                    <div key={day} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                      <div>
+                        <p className="font-medium">{day}</p>
+                        <p className="text-muted-foreground">{row?.requests ?? 0} requests · {row?.totalTokens ?? 0} tokens</p>
+                      </div>
+                      <p className="font-medium">{formatCostLabel(row?.costs)}</p>
+                    </div>
+                  )) : (
+                    <p className="text-muted-foreground">No day-level data yet.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-1 text-xs">
                 <p className="text-muted-foreground">No AI usage logged yet.</p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'controls' && (
+        <div className="card p-4 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">Narration Templates</h3>
+            <p className="text-xs text-muted-foreground">Locale-keyed JSON maps for audio intro/outro text. Supported tokens: {'{{postTitle}}'}, {'{{siteTitle}}'}, {'{{authorName}}'}, {'{{locale}}'}.</p>
+          </div>
+          {renderGroup([
+            'features.ai.audio.narrationIntroByLocale',
+            'features.ai.audio.narrationOutroByLocale'
+          ], { disabled: !aiEnabled })}
         </div>
       )}
     </div>

@@ -6,10 +6,13 @@ const mocks = vi.hoisted(() => ({
   generateSeoMetadata: vi.fn(),
   generateImage: vi.fn(),
   generateAudio: vi.fn(),
+  generateDraftSuggestions: vi.fn(),
+  generateEditorialReview: vi.fn(),
   getConfiguredProviders: vi.fn(),
   getConfiguredImageProviders: vi.fn(),
   getConfiguredAudioProviders: vi.fn(),
   getConfiguredProvidersByCapability: vi.fn(),
+  getConfiguredImageInputTextProviders: vi.fn(),
   getProviderCatalog: vi.fn(),
   isProviderConfigured: vi.fn(),
   discoverAllProviderModels: vi.fn(),
@@ -24,7 +27,11 @@ const mocks = vi.hoisted(() => ({
   getClientIp: vi.fn(),
   checkUsageCap: vi.fn(),
   recordUsageEvent: vi.fn(),
-  getUsageSummary: vi.fn()
+  getUsageSummary: vi.fn(),
+  findAuthorById: vi.fn(),
+  findMediaById: vi.fn(),
+  updateMedia: vi.fn(),
+  supabaseFrom: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -45,6 +52,11 @@ vi.mock('../lib/audio.js', () => ({
   getConfiguredAudioProviders: mocks.getConfiguredAudioProviders
 }));
 
+vi.mock('../lib/editorial.js', () => ({
+  generateDraftSuggestions: mocks.generateDraftSuggestions,
+  generateEditorialReview: mocks.generateEditorialReview
+}));
+
 vi.mock('../lib/index.js', () => ({
   getConfiguredProviders: mocks.getConfiguredProviders
 }));
@@ -52,9 +64,13 @@ vi.mock('../lib/index.js', () => ({
 vi.mock('../lib/provider-catalog.js', () => ({
   AI_PROVIDER_CATALOG: {
     gateway: { envKey: 'AI_GATEWAY_API_KEY' },
-    openai: { envKey: 'OPENAI_API_KEY' }
+    openai: { envKey: 'OPENAI_API_KEY' },
+    gemini: { envKey: 'GOOGLE_GENAI_API_KEY' },
+    anthropic: { envKey: 'ANTHROPIC_API_KEY' },
+    elevenlabs: { envKey: 'ELEVENLABS_API_KEY' }
   },
   getConfiguredProvidersByCapability: mocks.getConfiguredProvidersByCapability,
+  getConfiguredImageInputTextProviders: mocks.getConfiguredImageInputTextProviders,
   getProviderCatalog: mocks.getProviderCatalog,
   isProviderConfigured: mocks.isProviderConfigured,
   discoverAllProviderModels: mocks.discoverAllProviderModels,
@@ -91,16 +107,39 @@ vi.mock('@/lib/security/request-guards', () => ({
   getClientIp: mocks.getClientIp
 }));
 
+vi.mock('@/lib/database/repositories/author-repository', () => ({
+  AuthorRepository: vi.fn(() => ({
+    findById: mocks.findAuthorById
+  }))
+}));
+
+vi.mock('@/lib/database/repositories/media-repository', () => ({
+  MediaRepository: vi.fn(() => ({
+    findById: mocks.findMediaById,
+    update: mocks.updateMedia
+  }))
+}));
+
+vi.mock('@/lib/supabase.js', () => ({
+  supabase: {},
+  supabaseAdmin: {
+    from: mocks.supabaseFrom
+  }
+}));
+
 import { AI_FEATURE_API } from '../api.js';
 
 const SETTINGS_DEFAULTS: Record<string, unknown> = {
   'features.ai.enabled': true,
-  'features.ai.configVersion': 2,
+  'features.ai.configVersion': 3,
   'features.ai.tools.seo.enabled': true,
   'features.ai.tools.image.enabled': true,
   'features.ai.tools.audio.enabled': true,
+  'features.ai.tools.alt.enabled': true,
   'features.ai.capabilities.text.defaultProvider': 'openai',
   'features.ai.capabilities.text.defaultModel': 'gpt-5',
+  'features.ai.capabilities.text.mediaAnalysisProvider': 'openai',
+  'features.ai.capabilities.text.mediaAnalysisModel': 'gpt-4o-mini',
   'features.ai.capabilities.image.defaultProvider': 'openai',
   'features.ai.capabilities.image.defaultModel': 'gpt-image-1',
   'features.ai.capabilities.image.defaultSize': '1024x1024',
@@ -109,6 +148,8 @@ const SETTINGS_DEFAULTS: Record<string, unknown> = {
   'features.ai.capabilities.audio.defaultProvider': 'openai',
   'features.ai.capabilities.audio.defaultModel': 'gpt-4o-mini-tts',
   'features.ai.capabilities.audio.defaultVoice': 'alloy',
+  'features.ai.audio.narrationIntroByLocale': {},
+  'features.ai.audio.narrationOutroByLocale': {},
   'features.ai.limits.enabled': false,
   'features.ai.limits.seoDailyRequests': 0,
   'features.ai.limits.imageDailyRequests': 0,
@@ -141,6 +182,7 @@ describe('AI feature API', () => {
       if (capability === 'audio') return ['openai'];
       return [];
     });
+    mocks.getConfiguredImageInputTextProviders.mockReturnValue(['openai']);
     mocks.getProviderCatalog.mockReturnValue([
       {
         id: 'openai',
@@ -148,7 +190,11 @@ describe('AI feature API', () => {
         envKey: 'OPENAI_API_KEY',
         docsUrl: 'https://example.com/docs',
         pricingUrl: 'https://example.com/pricing',
-        capabilities: {}
+        capabilities: {
+          text: { implemented: true, supportsImageInput: true },
+          image: { implemented: true },
+          audio: { implemented: true }
+        }
       }
     ]);
     mocks.isProviderConfigured.mockReturnValue(true);
@@ -191,7 +237,7 @@ describe('AI feature API', () => {
     mocks.getSettings.mockImplementation(async (keys: string[]) =>
       Object.fromEntries(keys.map((key) => [key, SETTINGS_DEFAULTS[key]]))
     );
-    mocks.getSettingsByPrefix.mockResolvedValue({ 'features.ai.configVersion': 2 });
+    mocks.getSettingsByPrefix.mockResolvedValue({ 'features.ai.configVersion': 3 });
     mocks.updateSettings.mockResolvedValue(undefined);
     mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterSec: 0, remaining: 99 });
     mocks.getClientIp.mockReturnValue('127.0.0.1');
@@ -199,10 +245,38 @@ describe('AI feature API', () => {
     mocks.recordUsageEvent.mockResolvedValue(undefined);
     mocks.getUsageSummary.mockResolvedValue({
       days: 30,
-      totals: { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-      byCapability: {}
+      totals: {
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costs: {
+          estimatedUsd: 0,
+          minimumUsd: 0,
+          maximumUsd: 0,
+          exactRequests: 0,
+          estimatedRequests: 0,
+          rangeRequests: 0,
+          pricedRequests: 0,
+          unpricedRequests: 0
+        }
+      },
+      byCapability: {},
+      byOperation: {},
+      byProvider: {},
+      byModel: {},
+      byDay: {}
     });
-    mocks.generateSeoMetadata.mockResolvedValue({ metaTitle: 'Generated' });
+    mocks.generateSeoMetadata.mockResolvedValue({
+      seoMetadata: { metaTitle: 'Generated' },
+      provider: 'openai',
+      model: 'gpt-5',
+      usage: {
+        inputTokens: 120,
+        outputTokens: 60,
+        totalTokens: 180
+      }
+    });
     mocks.generateImage.mockResolvedValue({
       data: new Uint8Array([1, 2, 3]),
       mimeType: 'image/png',
@@ -216,9 +290,64 @@ describe('AI feature API', () => {
       model: 'gpt-4o-mini-tts',
       voice: 'alloy'
     });
+    mocks.generateDraftSuggestions.mockResolvedValue({
+      provider: 'openai',
+      model: 'gpt-5',
+      suggestions: {
+        titleSuggestions: ['A stronger title'],
+        excerpt: 'Suggested excerpt',
+        slug: 'a-stronger-title',
+        seo: {
+          metaTitle: 'SEO title',
+          metaDescription: 'SEO description',
+          keywords: ['alpha']
+        },
+        categoryIds: ['cat-1'],
+        tagIds: ['tag-1'],
+        tagNames: ['Alpha'],
+        unmatchedTagNames: [],
+        notes: ['Lead with the strongest angle.']
+      }
+    });
+    mocks.generateEditorialReview.mockResolvedValue({
+      provider: 'openai',
+      model: 'gpt-5',
+      review: {
+        summary: 'Good draft with a few gaps.',
+        heuristics: [{ field: 'seo', message: 'SEO description is missing.' }],
+        aiWarnings: [{ field: 'excerpt', message: 'Excerpt could be more specific.' }],
+        quickWins: ['Add a more specific excerpt.']
+      }
+    });
+    mocks.findAuthorById.mockResolvedValue({
+      id: 'author-1',
+      name: 'Author Name'
+    });
+    mocks.findMediaById.mockResolvedValue({
+      id: 'asset-1',
+      filename: 'asset.png',
+      url: 'https://example.com/asset.png',
+      storagePath: 'asset.png',
+      mimeType: 'image/png',
+      fileSize: 100,
+      createdAt: new Date(),
+      altText: ''
+    });
+    mocks.updateMedia.mockResolvedValue({
+      id: 'asset-1',
+      altText: 'Generated alt text'
+    });
     mocks.uploadMedia.mockResolvedValue({
       public: { id: 'asset-1', url: 'https://example.com/asset.png' },
       original: null
+    });
+    mocks.supabaseFrom.mockImplementation(() => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        maybeSingle: vi.fn(async () => ({ data: { uploaded_by: 'author-1' }, error: null }))
+      };
+      return query;
     });
   });
 
@@ -233,6 +362,41 @@ describe('AI feature API', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('42');
     expect(mocks.generateSeoMetadata).not.toHaveBeenCalled();
+  });
+
+  it('returns draft assist suggestions', async () => {
+    const response = await AI_FEATURE_API.handlers.draft({
+      request: createRequest('/api/features/ai/draft', 'POST', {
+        title: 'Draft title',
+        content: 'Draft body',
+        categories: [{ id: 'cat-1', name: 'News', slug: 'news' }],
+        tags: [{ id: 'tag-1', name: 'Alpha', slug: 'alpha' }]
+      }),
+      params: {}
+    });
+
+    const payload = await response.json();
+    expect(response.status).toBe(200);
+    expect(payload.suggestions?.slug).toBe('a-stronger-title');
+    expect(mocks.generateDraftSuggestions).toHaveBeenCalled();
+  });
+
+  it('returns editorial QA results', async () => {
+    const response = await AI_FEATURE_API.handlers.review({
+      request: createRequest('/api/features/ai/review', 'POST', {
+        title: 'Draft title',
+        content: 'Draft body',
+        categories: [{ id: 'cat-1', name: 'News', slug: 'news' }],
+        tags: [{ id: 'tag-1', name: 'Alpha', slug: 'alpha' }],
+        hasFeaturedImage: false
+      }),
+      params: {}
+    });
+
+    const payload = await response.json();
+    expect(response.status).toBe(200);
+    expect(payload.review?.summary).toBe('Good draft with a few gaps.');
+    expect(mocks.generateEditorialReview).toHaveBeenCalled();
   });
 
   it('rejects image requests for unconfigured providers', async () => {
@@ -369,8 +533,30 @@ describe('AI feature API', () => {
   it('returns usage summary payload for usage endpoint', async () => {
     mocks.getUsageSummary.mockResolvedValueOnce({
       days: 7,
-      totals: { requests: 5, inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-      byCapability: { text: { requests: 2 }, image: { requests: 3 } }
+      totals: {
+        requests: 5,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costs: {
+          estimatedUsd: 1.25,
+          minimumUsd: 1.25,
+          maximumUsd: 1.25,
+          exactRequests: 2,
+          estimatedRequests: 1,
+          rangeRequests: 1,
+          pricedRequests: 4,
+          unpricedRequests: 1
+        }
+      },
+      byCapability: {
+        text: { requests: 2, costs: { estimatedUsd: 0.75, minimumUsd: 0.75, maximumUsd: 0.75, exactRequests: 2, estimatedRequests: 0, rangeRequests: 0, pricedRequests: 2, unpricedRequests: 0 } },
+        image: { requests: 3, costs: { estimatedUsd: 0.5, minimumUsd: 0.3, maximumUsd: 0.8, exactRequests: 0, estimatedRequests: 1, rangeRequests: 1, pricedRequests: 2, unpricedRequests: 1 } }
+      },
+      byOperation: {},
+      byProvider: {},
+      byModel: {},
+      byDay: {}
     });
 
     const response = await AI_FEATURE_API.handlers.usage({

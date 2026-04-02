@@ -1,13 +1,18 @@
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { ValidationError } from '@/lib/database/connection';
+import { AuthorRepository } from '@/lib/database/repositories/author-repository';
+import { MediaRepository } from '@/lib/database/repositories/media-repository';
 import { normalizeFeatureFlag } from '@/lib/features/flags';
 import { mediaManager } from '@/lib/services/media-manager';
 import { checkRateLimit } from '@/lib/security/rate-limit';
 import { getClientIp } from '@/lib/security/request-guards';
+import { supabaseAdmin } from '@/lib/supabase.js';
 
 import { generateSeoMetadata } from './lib/seo.js';
 import { generateImage } from './lib/image.js';
 import { generateAudio } from './lib/audio.js';
+import { generateMediaAltText, inferAltTextFromPrompt } from './lib/alt.js';
+import { generateDraftSuggestions, generateEditorialReview } from './lib/editorial.js';
 import { aiConfigService } from './lib/config-service.js';
 import { AI_MODEL_REGISTRY } from './lib/model-registry.js';
 import {
@@ -15,10 +20,12 @@ import {
   discoverAllProviderModels,
   discoverProviderVoices,
   getConfiguredProvidersByCapability,
+  getConfiguredImageInputTextProviders,
   getProviderCatalog,
   isProviderConfigured
 } from './lib/provider-catalog.js';
 import { checkUsageCap, getUsageSummary, recordUsageEvent } from './lib/usage.js';
+import { buildNarrationText } from './lib/narration.js';
 import type { AiProviderId } from './lib/types.js';
 import type { FeatureApiHandler, FeatureApiModule } from '../types.js';
 import { z } from 'zod';
@@ -35,6 +42,8 @@ const ALLOWED_IMAGE_SIZES_WITH_LEGACY = [...ALLOWED_IMAGE_SIZES, '1536x1024', '1
 const ALLOWED_ASPECT_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] as const;
 const ALLOWED_IMAGE_RESOLUTIONS = ['1K', '2K', '4K'] as const;
 const AI_PROVIDER_IDS = ['gateway', 'openai', 'gemini', 'anthropic', 'elevenlabs'] as const;
+const authorRepo = new AuthorRepository(true);
+const mediaRepo = new MediaRepository(true);
 
 const seoPayloadSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(180, 'Title is too long'),
@@ -67,7 +76,63 @@ const audioPayloadSchema = z.object({
   provider: z.enum(AI_PROVIDER_IDS).optional(),
   voice: z.string().trim().min(1).max(120).optional(),
   model: z.string().trim().min(1).max(160).optional(),
-  speed: z.number().min(0.25, 'Speed must be at least 0.25').max(2, 'Speed must be 2.0 or lower').optional()
+  speed: z.number().min(0.25, 'Speed must be at least 0.25').max(2, 'Speed must be 2.0 or lower').optional(),
+  locale: z.string().trim().min(2).max(16).optional(),
+  authorId: z.string().uuid().optional()
+}).strict();
+
+const categoryChoiceSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(120),
+  slug: z.string().trim().min(1).max(120)
+}).strict();
+
+const tagChoiceSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(120),
+  slug: z.string().trim().min(1).max(120)
+}).strict();
+
+const seoMetadataInputSchema = z.object({
+  metaTitle: z.string().trim().max(180).optional(),
+  metaDescription: z.string().trim().max(400).optional(),
+  keywords: z.array(z.string().trim().min(1).max(80)).max(20).optional().default([])
+}).partial().strict();
+
+const editorialPayloadBaseSchema = z.object({
+  title: z.string().trim().max(180).optional().default(''),
+  slug: z.string().trim().max(180).optional().default(''),
+  excerpt: z.string().trim().max(2_000).optional().default(''),
+  content: z.string().max(120_000).optional().default(''),
+  locale: z.string().trim().min(2).max(16).optional(),
+  categories: z.array(categoryChoiceSchema).max(100).optional().default([]),
+  tags: z.array(tagChoiceSchema).max(200).optional().default([]),
+  currentCategoryIds: z.array(z.string().trim().min(1).max(120)).max(20).optional().default([]),
+  currentTagIds: z.array(z.string().trim().min(1).max(120)).max(40).optional().default([]),
+  seoMetadata: seoMetadataInputSchema.optional(),
+  provider: z.enum(AI_PROVIDER_IDS).optional(),
+  model: z.string().trim().min(1).max(160).optional()
+}).strict();
+
+const editorialPayloadSchema = editorialPayloadBaseSchema.refine((payload) => Boolean(payload.title || payload.excerpt || payload.content), {
+  message: 'A title, excerpt, or body is required',
+  path: ['title']
+});
+
+const reviewPayloadSchema = editorialPayloadBaseSchema.extend({
+  hasFeaturedImage: z.boolean().optional().default(false),
+  featuredImageAltText: z.string().trim().max(300).optional().default(''),
+  hasAudioAsset: z.boolean().optional().default(false)
+}).strict().refine((payload) => Boolean(payload.title || payload.excerpt || payload.content), {
+  message: 'A title, excerpt, or body is required',
+  path: ['title']
+});
+
+const altPayloadSchema = z.object({
+  assetId: z.string().uuid('Asset ID is required'),
+  provider: z.enum(AI_PROVIDER_IDS).optional(),
+  model: z.string().trim().min(1).max(160).optional(),
+  locale: z.string().trim().min(2).max(16).optional()
 }).strict();
 
 const buildImagePrompt = (title: string, excerpt: string, tags: string[], style?: string) => {
@@ -84,8 +149,6 @@ const buildImagePrompt = (title: string, excerpt: string, tags: string[], style?
     .filter(Boolean)
     .join('\n');
 };
-
-const stripHtml = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
 const normalizeOpenAiSize = (value: string | undefined) => {
   if (value === '1536x1024') return '1792x1024';
@@ -141,14 +204,17 @@ const getAiClientErrorStatus = (message: string): number | null => {
     normalized === 'AI tools are disabled' ||
     normalized === 'SEO generation is disabled' ||
     normalized === 'AI image generation is disabled' ||
-    normalized === 'AI audio generation is disabled'
+    normalized === 'AI audio generation is disabled' ||
+    normalized === 'AI alt text generation is disabled'
   ) {
     return 403;
   }
 
   if (
     /No AI (text|image|audio|video) providers are configured/i.test(normalized) ||
+    /No AI media-analysis providers are configured/i.test(normalized) ||
     /Provider ".*" is not configured for AI/i.test(normalized) ||
+    /Provider ".*" is not configured for AI media analysis/i.test(normalized) ||
     /Model ".*" is not supported by provider/i.test(normalized) ||
     /(Gateway|OpenAI|Gemini|Anthropic|ElevenLabs) provider is not configured/i.test(normalized) ||
     /(text|image|audio) generation model is not configured/i.test(normalized) ||
@@ -211,6 +277,159 @@ const enforceUsageCap = async (
   });
 };
 
+const ensureMediaAssetAccess = async (assetId: string, user: Awaited<ReturnType<typeof requireAuthor>>) => {
+  const asset = await mediaRepo.findById(assetId);
+  if (!asset) {
+    throw new Error(`Media asset not found: ${assetId}`);
+  }
+
+  if (user.role === 'admin') {
+    return asset;
+  }
+
+  if (!user.authorId) {
+    throw new Error('Author profile not found');
+  }
+
+  const { data: ownership } = await supabaseAdmin
+    .from('media_assets')
+    .select('uploaded_by')
+    .eq('id', assetId)
+    .maybeSingle();
+
+  if (!ownership || ownership.uploaded_by !== user.authorId) {
+    throw new ValidationError('Forbidden');
+  }
+
+  return asset;
+};
+
+const resolveAuthorName = async (authorId: string | undefined, fallbackAuthorId: string | undefined) => {
+  const targetAuthorId = authorId || fallbackAuthorId;
+  if (!targetAuthorId) return undefined;
+  const author = await authorRepo.findById(targetAuthorId);
+  return author?.name;
+};
+
+const draftHandler: FeatureApiHandler = async ({ request }) => {
+  if (request.method !== 'POST') return methodNotAllowed();
+
+  try {
+    const user = await requireAuthor(request);
+    const rateLimited = applyAiRateLimit(request, 'draft', user.id, 20, 10 * 60 * 1000);
+    if (rateLimited) {
+      return rateLimited;
+    }
+
+    const parsedPayload = await parsePayload(request, editorialPayloadSchema);
+    if ('response' in parsedPayload) {
+      return parsedPayload.response;
+    }
+    const payload = parsedPayload.data;
+
+    const draft = await generateDraftSuggestions({
+      title: payload.title,
+      slug: payload.slug,
+      excerpt: payload.excerpt,
+      content: payload.content,
+      locale: payload.locale,
+      categories: payload.categories,
+      tags: payload.tags,
+      currentCategoryIds: payload.currentCategoryIds,
+      currentTagIds: payload.currentTagIds,
+      seoMetadata: payload.seoMetadata,
+      provider: asProvider(payload.provider),
+      model: payload.model
+    });
+
+    await recordUsageEvent({
+      capability: 'text',
+      operation: 'draft',
+      provider: draft.provider,
+      model: draft.model,
+      authUserId: user.id,
+      authorId: user.authorId,
+      inputTokens: draft.usage?.inputTokens,
+      outputTokens: draft.usage?.outputTokens,
+      totalTokens: draft.usage?.totalTokens,
+      metadata: {
+        locale: draft.locale,
+        suggestedTitles: draft.suggestions.titleSuggestions.length,
+        suggestedCategories: draft.suggestions.categoryIds.length,
+        suggestedTags: draft.suggestions.tagNames.length
+      }
+    });
+
+    return json({
+      suggestions: draft.suggestions,
+      provider: draft.provider,
+      model: draft.model
+    });
+  } catch (error) {
+    return handleAiError(error, 'AI draft assist', 'Failed to generate draft suggestions');
+  }
+};
+
+const reviewHandler: FeatureApiHandler = async ({ request }) => {
+  if (request.method !== 'POST') return methodNotAllowed();
+
+  try {
+    const user = await requireAuthor(request);
+    const rateLimited = applyAiRateLimit(request, 'review', user.id, 20, 10 * 60 * 1000);
+    if (rateLimited) {
+      return rateLimited;
+    }
+
+    const parsedPayload = await parsePayload(request, reviewPayloadSchema);
+    if ('response' in parsedPayload) {
+      return parsedPayload.response;
+    }
+    const payload = parsedPayload.data;
+
+    const review = await generateEditorialReview({
+      title: payload.title,
+      excerpt: payload.excerpt,
+      content: payload.content,
+      locale: payload.locale,
+      categories: payload.categories,
+      tags: payload.tags,
+      currentCategoryIds: payload.currentCategoryIds,
+      currentTagIds: payload.currentTagIds,
+      seoMetadata: payload.seoMetadata,
+      hasFeaturedImage: payload.hasFeaturedImage,
+      featuredImageAltText: payload.featuredImageAltText,
+      hasAudioAsset: payload.hasAudioAsset,
+      provider: asProvider(payload.provider),
+      model: payload.model
+    });
+
+    await recordUsageEvent({
+      capability: 'text',
+      operation: 'review',
+      provider: review.provider,
+      model: review.model,
+      authUserId: user.id,
+      authorId: user.authorId,
+      inputTokens: review.usage?.inputTokens,
+      outputTokens: review.usage?.outputTokens,
+      totalTokens: review.usage?.totalTokens,
+      metadata: {
+        locale: review.locale,
+        heuristicWarnings: review.review.heuristics.length,
+        aiWarnings: review.review.aiWarnings.length
+      }
+    });
+
+    return json({
+      review: review.review,
+      provider: review.provider,
+      model: review.model
+    });
+  } catch (error) {
+    return handleAiError(error, 'AI editorial review', 'Failed to run editorial QA');
+  }
+};
+
 const seoHandler: FeatureApiHandler = async ({ request }) => {
   if (request.method !== 'POST') return methodNotAllowed();
 
@@ -240,7 +459,7 @@ const seoHandler: FeatureApiHandler = async ({ request }) => {
       payload.model
     );
 
-    const seoMetadata = await generateSeoMetadata({
+    const seoResult = await generateSeoMetadata({
       title: payload.title,
       excerpt: payload.excerpt,
       content: payload.content,
@@ -252,10 +471,13 @@ const seoHandler: FeatureApiHandler = async ({ request }) => {
     await recordUsageEvent({
       capability: 'text',
       operation: 'seo',
-      provider: selection.provider,
-      model: selection.model,
+      provider: seoResult.provider,
+      model: seoResult.model,
       authUserId: user.id,
       authorId: user.authorId,
+      inputTokens: seoResult.usage?.inputTokens,
+      outputTokens: seoResult.usage?.outputTokens,
+      totalTokens: seoResult.usage?.totalTokens,
       metadata: {
         hasExcerpt: Boolean(payload.excerpt),
         tagCount: payload.tags.length
@@ -263,9 +485,9 @@ const seoHandler: FeatureApiHandler = async ({ request }) => {
     });
 
     return json({
-      seoMetadata,
-      provider: selection.provider,
-      model: selection.model
+      seoMetadata: seoResult.seoMetadata,
+      provider: seoResult.provider,
+      model: seoResult.model
     });
   } catch (error) {
     return handleAiError(error, 'AI SEO generation', 'Failed to generate SEO metadata');
@@ -321,10 +543,15 @@ const imageHandler: FeatureApiHandler = async ({ request }) => {
     const baseName = (payload.title || prompt).slice(0, 80).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
     const filename = `ai-${Date.now()}-${baseName || 'image'}.png`;
     const file = new File([image.data], filename, { type: image.mimeType });
+    const inferredAltText = inferAltTextFromPrompt({
+      prompt: payload.prompt,
+      title: payload.title,
+      excerpt: payload.excerpt
+    });
 
     const result = await mediaManager.uploadMedia({
       file,
-      altText: payload.title ? `AI-generated image for "${payload.title}"` : 'AI-generated image',
+      altText: inferredAltText,
       caption: payload.style ? `Generated in ${payload.style} style.` : 'AI-generated image',
       uploadedBy: user.authorId
     });
@@ -382,9 +609,16 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
       payload.model,
       payload.voice
     );
-
-    const plainText = stripHtml(payload.content);
-    const trimmed = plainText.slice(0, 4000);
+    const authorName = await resolveAuthorName(payload.authorId, user.authorId);
+    const narration = await buildNarrationText({
+      config,
+      title: payload.title,
+      content: payload.content,
+      locale: payload.locale,
+      authorName,
+      maxLength: 4000
+    });
+    const trimmed = narration.text;
     if (!trimmed) {
       return json({ error: 'Content is required' }, 400);
     }
@@ -416,7 +650,10 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
       authorId: user.authorId,
       metadata: {
         voice: audio.voice ?? selection.voice,
-        textLength: trimmed.length
+        textLength: trimmed.length,
+        locale: narration.locale,
+        hasIntro: Boolean(narration.intro),
+        hasOutro: Boolean(narration.outro)
       }
     });
 
@@ -431,6 +668,62 @@ const audioHandler: FeatureApiHandler = async ({ request }) => {
   }
 };
 
+const altHandler: FeatureApiHandler = async ({ request }) => {
+  if (request.method !== 'POST') return methodNotAllowed();
+
+  try {
+    const user = await requireAuthor(request);
+    const rateLimited = applyAiRateLimit(request, 'alt', user.id, 20, 10 * 60 * 1000);
+    if (rateLimited) {
+      return rateLimited;
+    }
+
+    const parsedPayload = await parsePayload(request, altPayloadSchema);
+    if ('response' in parsedPayload) {
+      return parsedPayload.response;
+    }
+    const payload = parsedPayload.data;
+
+    const asset = await ensureMediaAssetAccess(payload.assetId, user);
+    if (!asset.mimeType.startsWith('image/')) {
+      return json({ error: 'Alt text generation is only available for image assets.' }, 400);
+    }
+
+    const generated = await generateMediaAltText({
+      asset,
+      locale: payload.locale,
+      provider: asProvider(payload.provider),
+      model: payload.model
+    });
+    const updated = await mediaRepo.update(asset.id, { altText: generated.altText });
+
+    await recordUsageEvent({
+      capability: 'text',
+      operation: 'alt',
+      provider: generated.provider,
+      model: generated.model,
+      authUserId: user.id,
+      authorId: user.authorId,
+      inputTokens: generated.usage?.inputTokens,
+      outputTokens: generated.usage?.outputTokens,
+      totalTokens: generated.usage?.totalTokens,
+      metadata: {
+        assetId: asset.id,
+        locale: generated.locale
+      }
+    });
+
+    return json({
+      asset: updated,
+      altText: generated.altText,
+      provider: generated.provider,
+      model: generated.model
+    });
+  } catch (error) {
+    return handleAiError(error, 'AI alt text generation', 'Failed to generate alt text');
+  }
+};
+
 const statusHandler: FeatureApiHandler = async ({ request }) => {
   if (request.method !== 'GET') return methodNotAllowed();
 
@@ -441,12 +734,14 @@ const statusHandler: FeatureApiHandler = async ({ request }) => {
     return json({
       aiEnabled: config.enabled,
       textProviders: getConfiguredProvidersByCapability('text'),
+      mediaAnalysisProviders: getConfiguredImageInputTextProviders(),
       imageProviders: getConfiguredProvidersByCapability('image'),
       audioProviders: getConfiguredProvidersByCapability('audio'),
       defaults: config.capabilities,
       tools: config.tools,
       capabilityProviders: {
         text: getConfiguredProvidersByCapability('text'),
+        mediaAnalysis: getConfiguredImageInputTextProviders(),
         image: getConfiguredProvidersByCapability('image'),
         audio: getConfiguredProvidersByCapability('audio'),
         video: getConfiguredProvidersByCapability('video')
@@ -540,6 +835,7 @@ const catalogHandler: FeatureApiHandler = async ({ request }) => {
       tools: config.tools,
       capabilityProviders: {
         text: getConfiguredProvidersByCapability('text'),
+        mediaAnalysis: getConfiguredImageInputTextProviders(),
         image: getConfiguredProvidersByCapability('image'),
         audio: getConfiguredProvidersByCapability('audio'),
         video: getConfiguredProvidersByCapability('video')
@@ -579,9 +875,12 @@ const usageHandler: FeatureApiHandler = async ({ request }) => {
 
 export const AI_FEATURE_API: FeatureApiModule = {
   handlers: {
+    draft: draftHandler,
+    review: reviewHandler,
     seo: seoHandler,
     image: imageHandler,
     audio: audioHandler,
+    alt: altHandler,
     status: statusHandler,
     models: modelsHandler,
     catalog: catalogHandler,

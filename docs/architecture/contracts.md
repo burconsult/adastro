@@ -51,9 +51,12 @@ Invariant:
 ## 3.2 AI Feature API Contract
 
 Actions currently exposed by AI feature module:
+- `POST /api/features/ai/draft`
+- `POST /api/features/ai/review`
 - `POST /api/features/ai/seo`
 - `POST /api/features/ai/image`
 - `POST /api/features/ai/audio`
+- `POST /api/features/ai/alt`
 - `GET /api/features/ai/status`
 - `GET /api/features/ai/models`
 - `GET /api/features/ai/catalog`
@@ -62,7 +65,10 @@ Actions currently exposed by AI feature module:
 Invariants:
 - Request payloads are schema-validated server-side.
 - Provider/model values are allowlisted against registry/catalog.
-- Rate limit + usage-cap checks run before provider calls.
+- Rate limits run before provider calls on every action.
+- Usage-cap checks currently gate SEO/image/audio requests; other text actions still log usage but do not hard-stop on caps yet.
+- Usage reporting remains feature-scoped and must continue to work when the AI feature is installed/uninstalled independently of other modules.
+- `/api/features/ai/usage` may return best-effort estimated cost data, but it must not invent authoritative provider billing when the provider/runtime did not expose enough data.
 - Errors fail closed with generic server messages.
 
 ## 3.3 MCP Endpoint Contract

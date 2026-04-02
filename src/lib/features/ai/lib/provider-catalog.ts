@@ -304,6 +304,12 @@ export const getConfiguredProvidersByCapability = (capability: AiCapability): Ai
     .filter((entry) => isProviderConfigured(entry.id))
     .map((entry) => entry.id);
 
+export const getConfiguredImageInputTextProviders = (): AiProviderId[] =>
+  getProviderCatalog()
+    .filter((entry) => entry.capabilities.text?.implemented && entry.capabilities.text?.supportsImageInput)
+    .filter((entry) => isProviderConfigured(entry.id))
+    .map((entry) => entry.id);
+
 export const getConfiguredTextProviders = (): AiProviderId[] =>
   getConfiguredProvidersByCapability('text');
 
