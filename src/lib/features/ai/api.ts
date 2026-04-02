@@ -97,7 +97,7 @@ const seoMetadataInputSchema = z.object({
   metaTitle: z.string().trim().max(180).optional(),
   metaDescription: z.string().trim().max(400).optional(),
   keywords: z.array(z.string().trim().min(1).max(80)).max(20).optional().default([])
-}).partial().strict();
+}).partial().passthrough();
 
 const editorialPayloadBaseSchema = z.object({
   title: z.string().trim().max(180).optional().default(''),

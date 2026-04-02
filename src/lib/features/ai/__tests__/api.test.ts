@@ -369,6 +369,22 @@ describe('AI feature API', () => {
       request: createRequest('/api/features/ai/draft', 'POST', {
         title: 'Draft title',
         content: 'Draft body',
+        seoMetadata: {
+          metaTitle: 'Existing title',
+          metaDescription: 'Existing description',
+          openGraph: {
+            title: 'OG title',
+            description: 'OG description'
+          },
+          twitterCard: {
+            card: 'summary_large_image',
+            title: 'Twitter title',
+            description: 'Twitter description'
+          },
+          alternateLocales: [
+            { locale: 'nb', slug: 'utkast-tittel' }
+          ]
+        },
         categories: [{ id: 'cat-1', name: 'News', slug: 'news' }],
         tags: [{ id: 'tag-1', name: 'Alpha', slug: 'alpha' }]
       }),
@@ -386,6 +402,22 @@ describe('AI feature API', () => {
       request: createRequest('/api/features/ai/review', 'POST', {
         title: 'Draft title',
         content: 'Draft body',
+        seoMetadata: {
+          metaTitle: 'Existing title',
+          metaDescription: 'Existing description',
+          openGraph: {
+            title: 'OG title',
+            description: 'OG description'
+          },
+          twitterCard: {
+            card: 'summary_large_image',
+            title: 'Twitter title',
+            description: 'Twitter description'
+          },
+          alternateLocales: [
+            { locale: 'nb', slug: 'utkast-tittel' }
+          ]
+        },
         categories: [{ id: 'cat-1', name: 'News', slug: 'news' }],
         tags: [{ id: 'tag-1', name: 'Alpha', slug: 'alpha' }],
         hasFeaturedImage: false
