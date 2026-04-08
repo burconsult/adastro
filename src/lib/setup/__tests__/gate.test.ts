@@ -52,7 +52,7 @@ describe('setup gate', () => {
     });
   });
 
-  it('allows unauthenticated setup access before completion', async () => {
+  it('allows unauthenticated setup status access before completion when explicitly enabled', async () => {
     mocks.hasRequiredSetupEnv.mockReturnValue(true);
     mocks.selectRows.mockResolvedValue({
       data: [
@@ -62,9 +62,51 @@ describe('setup gate', () => {
       error: null
     });
 
-    await expect(assertSetupApiAccess(new Request('https://adastrocms.vercel.app/api/setup/status'))).resolves.toEqual({
-      completed: false,
-      allowReentry: false
+    await expect(
+      assertSetupApiAccess(
+        new Request('https://adastrocms.vercel.app/api/setup/status'),
+        { allowUnauthenticatedBeforeCompletion: true }
+      )
+    ).resolves.toEqual({ completed: false, allowReentry: false });
+  });
+
+  it('requires authentication for setup mutations before completion', async () => {
+    mocks.hasRequiredSetupEnv.mockReturnValue(true);
+    mocks.selectRows.mockResolvedValue({
+      data: [
+        { key: 'setup.completed', value: false },
+        { key: 'setup.allowReentry', value: false }
+      ],
+      error: null
+    });
+    mocks.getUserFromRequest.mockResolvedValue(null);
+
+    await expect(
+      assertSetupApiAccess(new Request('https://adastrocms.vercel.app/api/setup/automate'))
+    ).rejects.toMatchObject({
+      status: 401
+    });
+  });
+
+  it('requires admin role for setup mutations before completion', async () => {
+    mocks.hasRequiredSetupEnv.mockReturnValue(true);
+    mocks.selectRows.mockResolvedValue({
+      data: [
+        { key: 'setup.completed', value: false },
+        { key: 'setup.allowReentry', value: false }
+      ],
+      error: null
+    });
+    mocks.getUserFromRequest.mockResolvedValue({
+      id: 'user-1',
+      email: 'reader@example.com',
+      role: 'reader'
+    });
+
+    await expect(
+      assertSetupApiAccess(new Request('https://adastrocms.vercel.app/api/setup/automate'))
+    ).rejects.toMatchObject({
+      status: 403
     });
   });
 

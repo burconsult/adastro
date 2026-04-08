@@ -2,16 +2,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+
+const { uploadMediaMock, lookupMock } = vi.hoisted(() => ({
+  uploadMediaMock: vi.fn(),
+  lookupMock: vi.fn()
+}));
+
+vi.mock('node:dns/promises', () => ({
+  default: {
+    lookup: lookupMock
+  },
+  lookup: lookupMock
+}));
+
 import {
   WXRParser, 
   ImageAnalysisService,
   AdvancedMediaOptimizer,
   WordPressMigrationService
 } from '../wordpress-migration.js';
-
-const { uploadMediaMock } = vi.hoisted(() => ({
-  uploadMediaMock: vi.fn()
-}));
 
 vi.mock('../media-manager.js', () => ({
   mediaManager: {
@@ -20,6 +29,12 @@ vi.mock('../media-manager.js', () => ({
 }));
 
 describe('WordPress Migration Unit Tests', () => {
+  beforeEach(() => {
+    lookupMock.mockResolvedValue([
+      { address: '93.184.216.34', family: 4 }
+    ]);
+  });
+
   describe('WXRParser', () => {
     let parser: WXRParser;
 

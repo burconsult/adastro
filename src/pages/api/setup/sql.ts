@@ -21,7 +21,7 @@ const templates: Record<string, { name: string; sql: string }> = {
 
 export const GET: APIRoute = async ({ request, url }) => {
   try {
-    await assertSetupApiAccess(request);
+    await assertSetupApiAccess(request, { allowUnauthenticatedBeforeCompletion: true });
   } catch (error) {
     if (error instanceof SetupAccessError) {
       return new Response(JSON.stringify({ error: error.message }), {

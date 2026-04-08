@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { assertSafeOutboundHttpUrl, UnsafeOutboundUrlError } from '@/lib/security/outbound-urls.js';
 import { mediaManager } from '../media-manager.js';
 import { cdnManager } from '../cdn-manager.js';
 import type {
@@ -12,12 +13,14 @@ import type {
 } from './types.js';
 
 const MEDIA_FETCH_TIMEOUT_MS = 15000;
+const MAX_MEDIA_FETCH_REDIRECTS = 5;
+const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 
 export class MediaFetchError extends Error {
   status?: number;
-  code?: 'not_found' | 'timeout' | 'http_error';
+  code?: 'not_found' | 'timeout' | 'http_error' | 'unsafe_url';
 
-  constructor(message: string, status?: number, code?: 'not_found' | 'timeout' | 'http_error') {
+  constructor(message: string, status?: number, code?: 'not_found' | 'timeout' | 'http_error' | 'unsafe_url') {
     super(message);
     this.name = 'MediaFetchError';
     this.status = status;
@@ -30,9 +33,32 @@ export const fetchWithTimeout = async (url: string, timeoutMs = MEDIA_FETCH_TIME
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
-    return response;
+    let currentUrl = (await assertSafeOutboundHttpUrl(url)).toString();
+
+    for (let redirectCount = 0; redirectCount <= MAX_MEDIA_FETCH_REDIRECTS; redirectCount += 1) {
+      const response = await fetch(currentUrl, {
+        redirect: 'manual',
+        signal: controller.signal
+      });
+
+      if (!REDIRECT_STATUS_CODES.has(response.status)) {
+        return response;
+      }
+
+      const location = response.headers.get('location');
+      if (!location) {
+        throw new MediaFetchError(`Redirect response missing location header: ${currentUrl}`, response.status, 'http_error');
+      }
+
+      const nextUrl = new URL(location, currentUrl);
+      currentUrl = (await assertSafeOutboundHttpUrl(nextUrl)).toString();
+    }
+
+    throw new MediaFetchError(`Too many redirects fetching media: ${url}`, 310, 'http_error');
   } catch (error) {
+    if (error instanceof UnsafeOutboundUrlError) {
+      throw new MediaFetchError(`Blocked outbound media URL: ${url}`, undefined, 'unsafe_url');
+    }
     if (error instanceof Error && error.name === 'AbortError') {
       throw new MediaFetchError(`Timed out fetching media: ${url}`, undefined, 'timeout');
     }

@@ -16,6 +16,7 @@ import {
   FALLBACK_SITE_URL,
   normalizeCanonicalSiteUrl,
   resolveAlternateLocalePath,
+  resolveAuthSiteUrl,
   resolveSiteUrl
 } from '../site-url.ts';
 
@@ -111,6 +112,60 @@ describe('resolveSiteUrl', () => {
     const url = resolveSiteUrl(new Request('https://invalid.local/rss.xml'), '');
 
     expect(url).toBe(FALLBACK_SITE_URL);
+  });
+});
+
+describe('resolveAuthSiteUrl', () => {
+  const compileTimeSiteUrl = (import.meta.env.SITE_URL as string | undefined) || '';
+  const hasCompileTimeSiteUrl = compileTimeSiteUrl.trim().length > 0;
+
+  it('prefers configured SITE_URL values for auth redirects', () => {
+    if (hasCompileTimeSiteUrl) {
+      expect(compileTimeSiteUrl).toBeTruthy();
+      return;
+    }
+
+    mocks.getRuntimeEnv.mockReturnValue('https://env.example.com');
+    mocks.sanitizeBaseUrl.mockImplementation((value?: string) => value || null);
+
+    const url = resolveAuthSiteUrl(
+      new Request('https://request.example.com/auth/oauth/google'),
+      'https://build.example.com'
+    );
+
+    expect(url).toBe('https://env.example.com');
+  });
+
+  it('allows localhost-style request origins in local development', () => {
+    if (hasCompileTimeSiteUrl) {
+      expect(compileTimeSiteUrl).toBeTruthy();
+      return;
+    }
+
+    mocks.getRuntimeEnv.mockReturnValue('');
+    mocks.sanitizeBaseUrl.mockImplementation((value?: string) => value || null);
+
+    const url = resolveAuthSiteUrl(
+      new Request('http://127.0.0.1:4321/auth/oauth/google'),
+      ''
+    );
+
+    expect(url).toBe('http://127.0.0.1:4321');
+  });
+
+  it('fails closed for non-local request origins when SITE_URL is missing', () => {
+    if (hasCompileTimeSiteUrl) {
+      expect(compileTimeSiteUrl).toBeTruthy();
+      return;
+    }
+
+    mocks.getRuntimeEnv.mockReturnValue('');
+    mocks.sanitizeBaseUrl.mockImplementation((value?: string) => value || null);
+
+    expect(() => resolveAuthSiteUrl(
+      new Request('https://request.example.com/auth/oauth/google'),
+      FALLBACK_SITE_URL
+    )).toThrow('SITE_URL must be configured');
   });
 });
 

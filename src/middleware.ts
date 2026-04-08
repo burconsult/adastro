@@ -29,6 +29,8 @@ const LOCALE_CONFIG_CACHE_TTL_MS = 30000;
 const SETUP_ALLOWED_PREFIXES = [
   '/setup',
   '/installation',
+  '/auth',
+  '/api/auth',
   '/api/setup',
   '/_astro',
   '/images',

@@ -13,7 +13,7 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION exec_sql(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION exec_sql(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION exec_sql(text) TO service_role;
 
 DO $$

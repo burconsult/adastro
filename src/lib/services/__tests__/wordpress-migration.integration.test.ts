@@ -1,4 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const { lookupMock } = vi.hoisted(() => ({
+  lookupMock: vi.fn()
+}));
+
+vi.mock('node:dns/promises', () => ({
+  default: {
+    lookup: lookupMock
+  },
+  lookup: lookupMock
+}));
+
 import { 
   WordPressMigrationService, 
   WXRParser, 
@@ -155,6 +167,9 @@ describe.skip('WordPress Migration Integration Tests', () => {
   let imageAnalyzer: ImageAnalysisService;
 
   beforeEach(() => {
+    lookupMock.mockResolvedValue([
+      { address: '93.184.216.34', family: 4 }
+    ]);
     migrationService = new WordPressMigrationService();
     wxrParser = new WXRParser();
     mediaOptimizer = new AdvancedMediaOptimizer();

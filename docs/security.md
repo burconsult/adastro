@@ -29,9 +29,13 @@ Migrations:
 - `infra/supabase/migrations/006_auth_hardening_azure_mfa.sql`
   - Hardens `public.current_role()` to fail closed to `reader`
   - Stops automatic author provisioning/linking on `auth.users` creation
+- `infra/supabase/migrations/007_function_acl_hardening.sql`
+  - Re-applies sensitive helper-function grants explicitly so `public.exec_sql(text)` stays service-role-only
+  - Hardens future default function ACLs for Supabase owner roles (`postgres`, `supabase_admin`)
 
 ### Helper Functions
-Auth helper functions are restricted to `authenticated` and `service_role`, not `PUBLIC`.
+Sensitive helper functions explicitly revoke execution from `anon`, `authenticated`, and `PUBLIC` before re-granting only the minimal required roles.
+`public.exec_sql(text)` is service-role-only and should be treated as a migration/bootstrap helper, not a public RPC surface.
 `service_role` remains server-only and must never be exposed to the browser.
 
 ## Storage Security
@@ -52,7 +56,9 @@ Migration:
 All admin endpoints require auth:
 - `requireAdmin` for admin-only endpoints
 - `requireAuthor` for author-access endpoints
-- Setup endpoints (`/setup`, `/api/setup/*`) are open only during initial installation; after setup completion they require an authenticated admin
+- Setup read endpoints (`GET /api/setup/status`, `GET /api/setup/sql`) stay reachable during installation
+- Setup mutation endpoints (`POST /api/setup/automate`, `POST /api/setup/routing`, `POST /api/setup/complete`) now require an authenticated admin even before setup completion
+- `/auth/*` and `/api/auth/*` stay reachable during installation so the bootstrap admin can sign in before running mutating setup actions
 
 Additional protections:
 - Error responses are sanitized to avoid leaking sensitive details.
@@ -134,6 +140,19 @@ This helps against naive brute-force traffic, but it is not a substitute for:
 - WAF / network-layer filtering
 
 Treat the app-side limiter as best-effort only, especially on horizontally scaled or serverless deployments.
+On Vercel and Netlify, AdAstro trusts the platform-specific client-IP headers that those platforms pin. On custom/self-hosted proxy chains, set `TRUSTED_PROXY_IP_HEADERS` explicitly if you want app-side throttles to key off a proxy-provided client IP.
+
+## Hosted Redirect Origins
+
+- `SITE_URL` should be treated as mandatory on hosted deployments for auth callbacks, invite links, and password-reset links.
+- AdAstro now fails closed for auth-sensitive redirects unless `SITE_URL` or another trusted configured site URL is available.
+- Only local development origins such as `http://127.0.0.1:4321` or `http://localhost:4321` may fall back to the request origin.
+
+## Outbound Fetches
+
+- Author link previews and WordPress migration media downloads now validate both the requested hostname and the DNS-resolved IP addresses before fetching.
+- Loopback, RFC1918, link-local, metadata, multicast, documentation, and other non-public address ranges are rejected.
+- WordPress media downloads now re-validate each redirect hop before following it.
 
 ## Secrets and Credentials
 
@@ -145,6 +164,8 @@ Rotate any credential that has been committed in the past.
 - Run periodic security scans (SAST + DAST).
 - Review Supabase Security Advisor findings after schema changes.
 - Audit admin access logs and rotate keys regularly.
+- After applying database migrations, verify helper-function grants and default function ACLs in Supabase so `anon`/`authenticated` do not regain execution on sensitive `SECURITY DEFINER` helpers.
+- On hosted Supabase projects, `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin ...` may require the Supabase SQL Editor or another owner-level session. If helper-function migrations run through the app/service-role path, verify `pg_default_acl` afterwards and apply any remaining `supabase_admin` function-default revokes manually.
 
 ## Known Limitations
 

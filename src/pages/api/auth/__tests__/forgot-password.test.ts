@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeCanonicalSiteUrl } from '../../../../lib/url/site-url.js';
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +28,7 @@ import { POST } from '../forgot-password.ts';
 describe('forgot password api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SITE_URL = 'https://adastrocms.vercel.app';
     mocks.getClientIp.mockReturnValue('127.0.0.1');
     mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterSec: 0 });
     mocks.buildRateLimitHeaders.mockReturnValue({
@@ -36,6 +37,10 @@ describe('forgot password api', () => {
       'RateLimit-Reset': '600'
     });
     mocks.resetPassword.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    delete process.env.SITE_URL;
   });
 
   it('validates email input', async () => {
@@ -89,5 +94,19 @@ describe('forgot password api', () => {
         redirectPath: '/nb/auth/reset-password'
       }
     );
+  });
+
+  it('fails closed when SITE_URL is missing outside local development', async () => {
+    delete process.env.SITE_URL;
+
+    const request = new Request('https://adastrocms.vercel.app/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'reader@example.com' })
+    });
+
+    const response = await POST({ request } as any);
+    expect(response.status).toBe(500);
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 });

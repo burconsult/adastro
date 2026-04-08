@@ -201,7 +201,7 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.exec_sql(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.exec_sql(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.exec_sql(text) TO service_role;
 
 -- Storage bucket helpers keep bucket names configurable per installation.
@@ -781,16 +781,34 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC;
 
+DO $$
+DECLARE
+  target_role text;
+BEGIN
+  FOREACH target_role IN ARRAY ARRAY[current_user::text, 'postgres', 'supabase_admin'] LOOP
+    BEGIN
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated, PUBLIC',
+        target_role
+      );
+    EXCEPTION
+      WHEN insufficient_privilege OR undefined_object THEN
+        RAISE NOTICE 'Skipping default function privilege hardening for role %.', target_role;
+    END;
+  END LOOP;
+END;
+$$;
+
 -- 4) Restrict helper function execution from PUBLIC
-REVOKE EXECUTE ON FUNCTION public.current_author_id() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.current_role() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.is_author() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_site_setting_text(text, text) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.media_storage_bucket() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.migration_uploads_bucket() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.current_author_id() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.current_role() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_author() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_site_setting_text(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.media_storage_bucket() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.migration_uploads_bucket() FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.current_author_id() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.current_role() TO authenticated, service_role;

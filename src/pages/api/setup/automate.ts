@@ -20,6 +20,7 @@ import { ensureLocalizedSystemPages } from '@/lib/services/system-pages';
 import { getCoreLocalePacks } from '@/lib/i18n/catalog';
 import { buildLocalizedPath, DEFAULT_LOCALE, ensureDefaultLocaleInList, normalizeLocaleCode, normalizeLocaleList } from '@/lib/i18n/locales';
 import { assertSetupApiAccess, SetupAccessError } from '@/lib/setup/gate';
+import { resolveAuthSiteUrl } from '@/lib/url/site-url';
 
 type AutomationActionStatus = 'ok' | 'warn' | 'fail';
 
@@ -646,6 +647,13 @@ export const POST: APIRoute = async ({ request }) => {
     const resolvedSiteUrl = sanitizeSiteUrl(payload.siteUrl)
       || sanitizeSiteUrl((import.meta.env.SITE_URL as string | undefined) || getRuntimeEnv('SITE_URL'))
       || detectRequestSiteUrl(request);
+    const resolvedAuthSiteUrl = sanitizeSiteUrl(payload.siteUrl) || (() => {
+      try {
+        return resolveAuthSiteUrl(request, import.meta.env.SITE);
+      } catch {
+        return null;
+      }
+    })();
 
     const coreSchema = await probeCoreSchema();
     if (!coreSchema.exists) {
@@ -690,7 +698,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
     actions.push(await ensureBuckets(bucketConfig));
 
-    const adminAction = await bootstrapAdminUser(payload, resolvedSiteUrl);
+    const adminAction = await bootstrapAdminUser(payload, resolvedAuthSiteUrl);
     if (adminAction) {
       actions.push(adminAction);
     }

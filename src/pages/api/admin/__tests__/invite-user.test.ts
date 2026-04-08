@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeCanonicalSiteUrl } from '@/lib/url/site-url';
 
 const mocks = vi.hoisted(() => ({
@@ -38,18 +38,15 @@ import { POST } from '../invite-user.ts';
 const resolveExpectedRedirectBase = (requestUrl: string) => {
   const configuredSiteUrl = typeof import.meta.env.SITE_URL === 'string'
     ? import.meta.env.SITE_URL.trim()
-    : '';
+    : process.env.SITE_URL || '';
 
-  if (configuredSiteUrl) {
-    return normalizeCanonicalSiteUrl(configuredSiteUrl) || new URL(requestUrl).origin;
-  }
-
-  return normalizeCanonicalSiteUrl(new URL(requestUrl).origin) || new URL(requestUrl).origin;
+  return normalizeCanonicalSiteUrl(configuredSiteUrl) || new URL(requestUrl).origin;
 };
 
 describe('invite user api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SITE_URL = 'https://adastrocms.vercel.app';
     mocks.requireAdmin.mockResolvedValue({ id: 'admin-1' });
     mocks.getSiteLocaleConfig.mockResolvedValue({ defaultLocale: 'en', locales: ['en'] });
     mocks.inviteUserByEmail.mockResolvedValue({
@@ -58,7 +55,11 @@ describe('invite user api', () => {
     });
   });
 
-  it('uses configured SITE_URL callback, falling back to request origin', async () => {
+  afterEach(() => {
+    delete process.env.SITE_URL;
+  });
+
+  it('uses configured SITE_URL for invite callbacks', async () => {
     const requestUrl = 'https://adastrocms.vercel.app/api/admin/invite-user';
     const request = new Request(requestUrl, {
       method: 'POST',
@@ -107,6 +108,24 @@ describe('invite user api', () => {
       })
     );
     expect(mocks.setUserRole).toHaveBeenCalledWith('user-1', 'reader');
+  });
+
+  it('fails closed when SITE_URL is missing outside local development', async () => {
+    delete process.env.SITE_URL;
+
+    const request = new Request('https://adastrocms.vercel.app/api/admin/invite-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'writer@example.com',
+        role: 'author'
+      })
+    });
+
+    const response = await POST({ request } as any);
+
+    expect(response.status).toBe(500);
+    expect(mocks.inviteUserByEmail).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported role values', async () => {

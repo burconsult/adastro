@@ -16,11 +16,11 @@ SITE_URL=https://your-domain.com
 ```
 
 Notes:
-- `SITE_URL` is strongly recommended for canonical URLs, auth callbacks, invite/recovery redirects, sitemap/RSS, and email links.
-- If `SITE_URL` is not set, AdAstro can fall back to detected request origin in some flows, but production installs should still set it explicitly.
+- `SITE_URL` should be treated as required on hosted deployments for canonical URLs, auth callbacks, invite/recovery redirects, sitemap/RSS, and email links.
+- If `SITE_URL` is not set, AdAstro now fails closed for auth-sensitive redirects outside local development instead of trusting request-derived hosts.
 - Any env var change requires a redeploy on Vercel/Netlify before the app can use it.
 - Keep hosted environments isolated. If `www.adastro.no` stays on the existing production Supabase project, give the Netlify site and any Vercel test project their own Supabase-backed env values instead of reusing production secrets.
-- Netlify Deploy Previews and branch deploys need the same required core vars in the relevant preview/branch context if you want hosted smoke tests to exercise the full app instead of stopping at `/setup`.
+- Netlify Deploy Previews and branch deploys need the same required core vars plus `SITE_URL` in the relevant preview/branch context if you want hosted smoke tests to exercise auth flows instead of failing closed.
 - Azure/Microsoft login and TOTP MFA do not require extra app env vars. Configure those in Supabase Auth and enable the matching app settings in AdAstro.
 
 ## Core (Local Development)
@@ -50,12 +50,14 @@ ASTRO_ADAPTER=                 # optional override: vercel | netlify
 MEDIA_STORAGE_BUCKET=
 MIGRATION_UPLOADS_BUCKET=
 MCP_SERVER_TOKEN=              # enables authenticated /mcp endpoint (remote MCP tools)
+TRUSTED_PROXY_IP_HEADERS=      # optional comma-separated allowlist for custom reverse-proxy client IP headers
 ```
 
 Notes:
 - `ASTRO_ADAPTER` is optional because AdAstro auto-detects Vercel/Netlify at runtime/build time.
 - Bucket names are auto-derived per instance by setup; override only if you need explicit naming.
 - `MCP_SERVER_TOKEN` enables the built-in AdAstro MCP endpoint at `/mcp`. Use a long random secret and rotate if shared.
+- `TRUSTED_PROXY_IP_HEADERS` is only for custom/self-hosted reverse proxies. AdAstro now trusts Vercel/Netlify-specific IP headers automatically and otherwise fails closed to `unknown` unless you explicitly allow trusted header names such as `cf-connecting-ip`.
 - Do not add Azure client secrets or MFA secrets to AdAstro env. OAuth provider credentials and MFA factor settings belong in Supabase/Auth dashboard configuration.
 
 ## Newsletter Feature (Optional)

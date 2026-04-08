@@ -68,4 +68,4 @@ Notes
 - Invite and recovery links route through `/auth/callback` and are forced through `/auth/reset-password` before role-specific destinations.
 - Role-safe redirects are centralized in `src/lib/auth/access-policy.ts` and enforced by both middleware and login APIs.
 - Optional MFA is controlled by `auth.mfa.enabled`; when enabled and a user has a verified factor, sensitive account actions require `aal2`.
-- `/setup` and `/api/setup/*` stay open only before setup completion. After that, setup access requires an authenticated admin and can be disabled entirely with `setup.allowReentry=false`.
+- `/setup` stays reachable before setup completion, but mutating `/api/setup/*` actions require an authenticated admin even during bootstrap. After completion, setup access still requires an authenticated admin and can be disabled entirely with `setup.allowReentry=false`.

@@ -19,6 +19,10 @@ export type SetupGateState = {
   allowReentry: boolean;
 };
 
+export type SetupApiAccessOptions = {
+  allowUnauthenticatedBeforeCompletion?: boolean;
+};
+
 export class SetupAccessError extends Error {
   status: number;
 
@@ -74,9 +78,26 @@ export const getSetupGateState = async (): Promise<SetupGateState> => {
   }
 };
 
-export const assertSetupApiAccess = async (request: Request): Promise<SetupGateState> => {
+export const assertSetupApiAccess = async (
+  request: Request,
+  options: SetupApiAccessOptions = {}
+): Promise<SetupGateState> => {
+  const { allowUnauthenticatedBeforeCompletion = false } = options;
   const gate = await getSetupGateState();
   if (!gate.completed) {
+    if (allowUnauthenticatedBeforeCompletion) {
+      return gate;
+    }
+
+    const user = await authService.getUserFromRequest(request);
+    if (!user) {
+      throw new SetupAccessError('Authentication required. Sign in as an admin bootstrap user to continue setup.', 401);
+    }
+
+    if (user.role !== 'admin') {
+      throw new SetupAccessError('Admin access required.', 403);
+    }
+
     return gate;
   }
 

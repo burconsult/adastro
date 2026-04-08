@@ -249,6 +249,7 @@ export function AuthStep({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Run automation here, then finish Auth URL + email sender settings in Supabase.</p>
+      <p className="text-xs text-muted-foreground">Hosted installs now require you to sign in as the bootstrap admin before setup actions can change state.</p>
 
       <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
         <p className="text-sm font-medium text-foreground">Automated in wizard</p>

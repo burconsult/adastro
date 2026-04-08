@@ -1,53 +1,9 @@
 import type { APIRoute } from 'astro';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
+import { UnsafeOutboundUrlError, assertSafeOutboundHttpUrl } from '@/lib/security/outbound-urls';
 
 const MAX_HTML_BYTES = 200_000;
 const REQUEST_TIMEOUT_MS = 5000;
-
-const isPrivateHostname = (hostname: string): boolean => {
-  const lower = hostname.toLowerCase();
-
-  if (
-    lower === 'localhost' ||
-    lower.endsWith('.localhost') ||
-    lower.endsWith('.local') ||
-    lower.endsWith('.internal') ||
-    lower === '0.0.0.0'
-  ) {
-    return true;
-  }
-
-  if (lower.includes(':')) {
-    return lower === '::1' || lower.startsWith('fe80:') || lower.startsWith('fc') || lower.startsWith('fd');
-  }
-
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(lower)) {
-    const [a, b] = lower.split('.').map(Number);
-    if (a === 10 || a === 127 || a === 169 && b === 254 || a === 192 && b === 168) {
-      return true;
-    }
-    if (a === 172 && b >= 16 && b <= 31) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
-const isSafeUrl = (value: string): boolean => {
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return false;
-    }
-    if (parsed.username || parsed.password) {
-      return false;
-    }
-    return !isPrivateHostname(parsed.hostname);
-  } catch {
-    return false;
-  }
-};
 
 const parseMetadata = (html: string) => {
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -121,33 +77,41 @@ const buildPreviewPayload = async (url: string) => {
   };
 };
 
+const jsonResponse = (body: unknown, status: number) => new Response(JSON.stringify(body), {
+  status,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+const toPreviewErrorResponse = (error: unknown): Response => {
+  if (error instanceof UnsafeOutboundUrlError) {
+    return jsonResponse({ success: 0, error: 'URL not allowed' }, 400);
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('Authentication required')) {
+      return jsonResponse({ success: 0, error: 'Authentication required' }, 401);
+    }
+    if (error.message.includes('Author access required')) {
+      return jsonResponse({ success: 0, error: 'Author access required' }, 403);
+    }
+  }
+
+  return jsonResponse({ success: 0, error: 'Failed to preview link' }, 500);
+};
+
 export const GET: APIRoute = async ({ request }) => {
   try {
     await requireAuthor(request);
     const url = new URL(request.url).searchParams.get('url')?.trim() || '';
     if (!url) {
-      return new Response(JSON.stringify({ success: 0, error: 'Missing URL' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    if (!isSafeUrl(url)) {
-      return new Response(JSON.stringify({ success: 0, error: 'URL not allowed' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return jsonResponse({ success: 0, error: 'Missing URL' }, 400);
     }
 
-    const payload = await buildPreviewPayload(url);
-    return new Response(JSON.stringify(payload), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch {
-    return new Response(JSON.stringify({ success: 0, error: 'Failed to preview link' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const safeUrl = await assertSafeOutboundHttpUrl(url);
+    const payload = await buildPreviewPayload(safeUrl.toString());
+    return jsonResponse(payload, 200);
+  } catch (error) {
+    return toPreviewErrorResponse(error);
   }
 };
 
@@ -157,27 +121,13 @@ export const POST: APIRoute = async ({ request }) => {
     const body = await request.json().catch(() => ({}));
     const url = typeof body?.url === 'string' ? body.url.trim() : '';
     if (!url) {
-      return new Response(JSON.stringify({ success: 0, error: 'Missing URL' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    if (!isSafeUrl(url)) {
-      return new Response(JSON.stringify({ success: 0, error: 'URL not allowed' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return jsonResponse({ success: 0, error: 'Missing URL' }, 400);
     }
 
-    const payload = await buildPreviewPayload(url);
-    return new Response(JSON.stringify(payload), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const safeUrl = await assertSafeOutboundHttpUrl(url);
+    const payload = await buildPreviewPayload(safeUrl.toString());
+    return jsonResponse(payload, 200);
   } catch (error) {
-    return new Response(JSON.stringify({ success: 0, error: 'Failed to preview link' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return toPreviewErrorResponse(error);
   }
 };

@@ -16,6 +16,13 @@ All notable changes to AdAstro are documented in this file.
 - Expanded AI Suite settings with media-analysis provider/model selection and locale-keyed narration template fields.
 - Reworked AI usage reporting so the admin panel now shows provider/model/operation breakdowns plus best-effort cost estimates with exact, estimated, range-based, and unpriced coverage buckets.
 - Captured SEO token usage alongside existing draft/review/alt usage so text-cost reporting has better coverage.
+- Hardened app-side IP extraction so request throttles trust only platform-pinned headers on Vercel/Netlify by default and require an explicit `TRUSTED_PROXY_IP_HEADERS` allowlist for custom proxy chains.
+- Re-applied sensitive Supabase helper-function grants explicitly and added function-default ACL hardening so `public.exec_sql(text)` remains service-role-only on new and upgraded installs.
+- Hardened setup and hosted auth flows so mutating `/api/setup/*` actions now require an authenticated admin even before setup completion, `/auth` + `/api/auth` stay reachable for bootstrap sign-in, and auth-sensitive redirects fail closed unless `SITE_URL` (or a trusted local-dev origin) is available.
+- Added DNS-aware outbound URL validation for author link previews and WordPress media imports to block loopback, RFC1918, metadata, and other non-public targets.
+
+### Security
+- Added `infra/supabase/migrations/007_function_acl_hardening.sql` to correct helper-function privileges on existing installs and reduce the risk of `anon`/`authenticated` regaining execute access through permissive default ACLs.
 
 ## 1.4.0 "Stingray" - 2026-03-31
 

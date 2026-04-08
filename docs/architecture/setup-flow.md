@@ -8,6 +8,7 @@ Predictable install on Vercel/Netlify + Supabase with setup enforced until compl
 - Enforced in `src/middleware.ts`.
 - If required env vars are missing, non-setup routes redirect to `/setup`.
 - If env vars exist but `setup.completed` is false, non-setup routes still redirect to `/setup`.
+- During setup, `/auth/*` and `/api/auth/*` stay reachable so the bootstrap admin can sign in before mutating setup state.
 - If `setup.completed` is true and `setup.allowReentry` is false, `/setup` redirects to `/`.
 
 Required setup env keys:
@@ -19,9 +20,10 @@ Required setup env keys:
 
 1. Status/readiness: `GET /api/setup/status`
 2. Core SQL template fetch: `GET /api/setup/sql?template=core`
-3. Automated setup: `POST /api/setup/automate`
-4. Routing config: `POST /api/setup/routing`
-5. Finalize gate: `POST /api/setup/complete`
+3. Sign in as the bootstrap admin through `/auth/login`
+4. Automated setup: `POST /api/setup/automate`
+5. Routing config: `POST /api/setup/routing`
+6. Finalize gate: `POST /api/setup/complete`
 
 Re-entry control:
 - `setup.allowReentry` in settings controls whether `/setup` remains available after completion.
@@ -38,6 +40,10 @@ Automated after core schema + env:
 - Storage bucket resolution/creation.
 - Admin role bootstrap/invite/password.
 - Routing settings persistence.
+
+Auth requirement:
+- Setup mutations require an authenticated admin even before `setup.completed=true`.
+- The CLI/bootstrap-admin path is the intended way to create or repair that first admin on hosted installs.
 
 Manual after automation:
 - Supabase Auth URL config (`Site URL`, redirect allow-list).

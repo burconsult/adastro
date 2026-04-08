@@ -42,8 +42,8 @@ SUPABASE_SECRET_KEY=
 ```
 
 Notes:
-- `SITE_URL` is strongly recommended for canonical URLs and redirects.
-- If `SITE_URL` is missing, setup can fall back to the detected deployment URL.
+- `SITE_URL` is required for stable auth callbacks, invite links, password-reset links, and canonical URLs on hosted deployments.
+- Only local development may fall back to the request origin for auth redirects.
 - Any env var change requires a redeploy before the app can use it.
 - Full env var reference (feature keys, CDN overrides, adapter/storage overrides) lives in `docs/environment-variables.md`.
 
@@ -69,13 +69,13 @@ Keep `SUPABASE_SECRET_KEY` server-only.
 #### Vercel
 
 1. Open Project -> Settings -> Environment Variables.
-2. Add required Supabase vars (optionally add `SITE_URL` now or later).
+2. Add required Supabase vars and set `SITE_URL` to the deployed root domain before testing auth flows.
 3. Redeploy the project.
 
 #### Netlify
 
 1. Open Site configuration -> Environment variables.
-2. Add required Supabase vars (optionally add `SITE_URL` now or later).
+2. Add required Supabase vars and set `SITE_URL` to the deployed root domain before testing auth flows.
 3. Trigger a new deploy.
 
 ### 4) Open `/setup`
@@ -151,7 +151,9 @@ In Supabase Auth settings:
    - Configure Supabase Auth rate limits for sign-in, OTP, password reset, MFA challenge, and MFA verify.
    - Enable Supabase CAPTCHA / Turnstile for the auth flows you expose publicly.
    - Review Supabase Security Advisor after running migrations.
-   - Keep Vercel Firewall / Attack Challenge or equivalent Netlify edge protections enabled for public deployments.
+   - After applying helper-function hardening migrations, verify `pg_default_acl` for `public` functions. If `supabase_admin` still grants `EXECUTE` to `anon` or `authenticated`, run the remaining `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin ... REVOKE EXECUTE ON FUNCTIONS ...` statement in Supabase SQL Editor.
+- Keep Vercel Firewall / Attack Challenge or equivalent Netlify edge protections enabled for public deployments.
+- On hosted installs, create or repair the admin account with `npm run admin:bootstrap ...`, then sign in through `/auth/login` before using setup actions that mutate state (`/api/setup/automate`, `/api/setup/routing`, `/api/setup/complete`).
 
 Important:
 - If invite emails still point to `localhost`, your Supabase Auth URL configuration is still using a local value. Update it to match `SITE_URL`.
@@ -185,6 +187,7 @@ In `/setup` Step 5 (**Verification**), click **Mark Setup Complete**.
 
 Until this flag is set:
 - the app keeps redirecting non-setup routes to `/setup`
+- `/auth/*` and `/api/auth/*` remain reachable so the bootstrap admin can sign in during setup
 - env and core checks must be complete before launch
 
 ## Admin Password + Role Script (Optional Final Step)

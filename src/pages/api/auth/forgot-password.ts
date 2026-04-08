@@ -3,7 +3,7 @@ import { authService } from '../../../lib/auth/auth-helpers.js';
 import { sanitizeRedirectPath } from '../../../lib/auth/redirects.js';
 import { buildRateLimitHeaders, checkRateLimit } from '../../../lib/security/rate-limit.js';
 import { getClientIp } from '../../../lib/security/request-guards.js';
-import { resolveSiteUrl } from '../../../lib/url/site-url.js';
+import { resolveAuthSiteUrl } from '../../../lib/url/site-url.js';
 
 const GENERIC_RESPONSE = {
   success: true,
@@ -70,11 +70,28 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
+    let authSiteUrl: string;
+    try {
+      authSiteUrl = resolveAuthSiteUrl(request, import.meta.env.SITE);
+    } catch (error) {
+      console.error('Forgot password API configuration error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Password reset is temporarily unavailable. Configure SITE_URL and try again.' }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store'
+          }
+        }
+      );
+    }
+
     try {
       await authService.resetPassword(
         { email },
         {
-          siteUrl: resolveSiteUrl(request, import.meta.env.SITE),
+          siteUrl: authSiteUrl,
           redirectPath
         }
       );

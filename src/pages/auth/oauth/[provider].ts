@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { sanitizeRedirectPath } from '@/lib/auth/redirects';
 import { isOAuthProviderAvailable } from '@/lib/auth/oauth-providers';
-import { resolveSiteUrl } from '@/lib/url/site-url';
+import { resolveAuthSiteUrl } from '@/lib/url/site-url';
 import { buildLocalizedPath, normalizeLocaleCode } from '@/lib/i18n/locales';
 
 const allowedProviders = new Set(['github', 'google', 'azure']);
@@ -21,7 +21,12 @@ export const GET: APIRoute = async ({ params, url, request, locals }) => {
   }
 
   const redirectTarget = sanitizeRedirectPath(url.searchParams.get('redirect'), buildLocalizedPath('/profile', locale));
-  const siteUrl = resolveSiteUrl(request, import.meta.env.SITE);
+  let siteUrl: string;
+  try {
+    siteUrl = resolveAuthSiteUrl(request, import.meta.env.SITE);
+  } catch (error) {
+    return new Response('SITE_URL must be configured for OAuth redirects.', { status: 500 });
+  }
   const supabaseUrl = import.meta.env.SUPABASE_URL;
 
   if (!supabaseUrl) {

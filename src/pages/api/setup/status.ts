@@ -471,7 +471,7 @@ const buildPayload = async (request: Request): Promise<SetupStatusPayload> => {
 
 export const GET: APIRoute = async ({ request }) => {
   try {
-    await assertSetupApiAccess(request);
+    await assertSetupApiAccess(request, { allowUnauthenticatedBeforeCompletion: true });
     const payload = await buildPayload(request);
     return new Response(JSON.stringify(payload), {
       status: 200,
