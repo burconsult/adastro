@@ -120,6 +120,7 @@ export {
 export {
   getPublishedPosts,
   getPublishedPostBySlug,
+  resolvePublishedPostBySlug,
   getPublishedPages,
   getPublishedPageBySlug,
   getPostsByTag,
@@ -133,5 +134,6 @@ export {
   getTagStaticPaths,
   getCategoryStaticPaths,
   calculatePagination,
+  type PublishedPostResolution,
   type PaginationInfo,
 } from '../astro-helpers.js';

@@ -405,6 +405,39 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     return this.populateRelations(sorted[0]);
   }
 
+  async findByLegacySlugInLocales(legacySlug: string, locales: string[]): Promise<BlogPost | null> {
+    const normalizedLegacySlug = typeof legacySlug === 'string' ? legacySlug.trim() : '';
+    const normalizedLocales = Array.from(new Set(
+      locales
+        .map((locale) => normalizeLocaleCode(locale, ''))
+        .filter((locale) => locale.length > 0)
+    ));
+    if (!normalizedLegacySlug || normalizedLocales.length === 0) return null;
+
+    const matches = await this.db.executeArrayQuery(
+      async (client) => {
+        const result = await client
+          .from('posts')
+          .select('*')
+          .contains('custom_fields', { legacySlugs: [normalizedLegacySlug] })
+          .in('locale', normalizedLocales);
+
+        if (result.data) {
+          result.data = result.data.map((row) => this.mapFromDatabase(row));
+        }
+
+        return result;
+      },
+      'findByLegacySlugInLocales posts'
+    );
+
+    if (matches.length === 0) return null;
+    const sorted = [...matches].sort((a, b) => (
+      normalizedLocales.indexOf(a.locale || DEFAULT_LOCALE) - normalizedLocales.indexOf(b.locale || DEFAULT_LOCALE)
+    ));
+    return this.populateRelations(sorted[0]);
+  }
+
   async findBySlugOrThrow(slug: string): Promise<BlogPost> {
     const post = await this.findBySlug(slug);
     if (!post) {

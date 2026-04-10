@@ -261,6 +261,66 @@ describe('Repository Mapping Functions', () => {
       (repo as any).currentUpdatePostId = null;
     });
 
+    it('finds legacy slug matches using locale order', async () => {
+      const contains = vi.fn().mockReturnThis();
+      const inQuery = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'post-nb',
+            title: 'Ny slug',
+            slug: 'ny-slug',
+            locale: 'nb',
+            content: 'Innhold',
+            blocks: { blocks: [] },
+            excerpt: 'Kort',
+            author_id: 'author-1',
+            status: 'published',
+            published_at: '2026-04-10T00:00:00Z',
+            created_at: '2026-04-10T00:00:00Z',
+            updated_at: '2026-04-10T00:00:00Z',
+            seo_metadata: null,
+            custom_fields: { legacySlugs: ['old-slug'] },
+            featured_image_id: null,
+            audio_asset_id: null
+          },
+          {
+            id: 'post-en',
+            title: 'New slug',
+            slug: 'new-slug',
+            locale: 'en',
+            content: 'Content',
+            blocks: { blocks: [] },
+            excerpt: 'Short',
+            author_id: 'author-1',
+            status: 'published',
+            published_at: '2026-04-10T00:00:00Z',
+            created_at: '2026-04-10T00:00:00Z',
+            updated_at: '2026-04-10T00:00:00Z',
+            seo_metadata: null,
+            custom_fields: { legacySlugs: ['old-slug'] },
+            featured_image_id: null,
+            audio_asset_id: null
+          }
+        ],
+        error: null
+      });
+      const select = vi.fn().mockReturnValue({ contains, in: inQuery });
+      const from = vi.fn().mockReturnValue({ select });
+      vi.spyOn((repo as any).db, 'executeArrayQuery').mockImplementation(async (operation: any) => {
+        const result = await operation({ from });
+        return result.data || [];
+      });
+      vi.spyOn(repo as any, 'populateRelations').mockImplementation(async (post: any) => post);
+
+      const result = await repo.findByLegacySlugInLocales('old-slug', ['en', 'nb']);
+
+      expect(from).toHaveBeenCalledWith('posts');
+      expect(contains).toHaveBeenCalledWith('custom_fields', { legacySlugs: ['old-slug'] });
+      expect(inQuery).toHaveBeenCalledWith('locale', ['en', 'nb']);
+      expect(result?.id).toBe('post-en');
+      expect(result?.slug).toBe('new-slug');
+    });
+
     it('populates featured image when present', async () => {
       const post = repo.mapFromDatabase({
         id: 'post-1',

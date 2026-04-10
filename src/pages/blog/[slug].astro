@@ -3,7 +3,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro"
 import ResponsiveImage from "@/components/ResponsiveImage.astro"
 import AudioPlayer from "@/components/AudioPlayer"
 import BlogCommentsSlot from "@/lib/components/BlogCommentsSlot"
-import { getPostStaticPaths, getPublishedPostBySlug } from "@/lib/database/index.js"
+import { getPostStaticPaths, resolvePublishedPostBySlug } from "@/lib/database/index.js"
 import { getSiteContentRouting, getSiteIdentity, getSiteLocaleConfig, getSiteSeoDefaults } from "@/lib/site-config"
 import { sanitizeHtml } from "@/lib/utils/data-transform"
 import { buildArticlePostPath, buildArticlesIndexPath } from "@/lib/routing/articles"
@@ -18,19 +18,24 @@ export async function getStaticPaths() {
 const { slug } = Astro.params
 const localeConfig = await getSiteLocaleConfig()
 const localeMessages = getLocaleMessages(localeConfig.defaultLocale)
-const post = await getPublishedPostBySlug(slug!, { locale: localeConfig.defaultLocale, includeFallback: false })
-
-if (!post) {
-  return Astro.redirect('/404')
-}
-
-const siteIdentity = await getSiteIdentity()
-const siteSeoDefaults = await getSiteSeoDefaults()
 const contentRouting = await getSiteContentRouting()
 const articleRouting = {
   basePath: contentRouting.articleBasePath,
   permalinkStyle: contentRouting.articlePermalinkStyle
 }
+const postResolution = await resolvePublishedPostBySlug(slug!, { locale: localeConfig.defaultLocale, includeFallback: false })
+const post = postResolution.post
+
+if (!post) {
+  return Astro.redirect('/404')
+}
+
+if (postResolution.matchedViaLegacySlug) {
+  return Astro.redirect(buildArticlePostPath(post.slug, post.publishedAt || post.createdAt, articleRouting), 301)
+}
+
+const siteIdentity = await getSiteIdentity()
+const siteSeoDefaults = await getSiteSeoDefaults()
 const siteUrl = resolveSiteUrl(Astro.request, Astro.site?.toString())
 const pageTitle = post.seoMetadata?.metaTitle || post.title
 const pageDescription = post.seoMetadata?.metaDescription || post.excerpt || `Read ${post.title} by ${post.author.name}`

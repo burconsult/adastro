@@ -27,6 +27,11 @@ type LocalizedLookupOptions = {
   fallbackLocale?: string;
 };
 
+export type PublishedPostResolution = {
+  post: BlogPost | null;
+  matchedViaLegacySlug: boolean;
+};
+
 async function withFallback<T>(scope: string, fallback: T, operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
@@ -73,15 +78,41 @@ export async function getPublishedPosts(limit?: number, offset?: number, locale?
 }
 
 export async function getPublishedPostBySlug(slug: string, options?: LocalizedLookupOptions): Promise<BlogPost | null> {
-  return withFallback('getPublishedPostBySlug', null, async () => {
+  const result = await resolvePublishedPostBySlug(slug, options);
+  return result.post;
+}
+
+export async function resolvePublishedPostBySlug(
+  slug: string,
+  options?: LocalizedLookupOptions
+): Promise<PublishedPostResolution> {
+  const result = await withFallback('getPublishedPostBySlug', null, async () => {
     const locales = await resolveLocaleSequence(options);
-    const post = await postRepo.findBySlugInLocales(slug, locales);
-    if (!post || post.status !== 'published') {
-      return null;
+    const directMatch = await postRepo.findBySlugInLocales(slug, locales);
+    if (directMatch && directMatch.status === 'published') {
+      const requestedLocale = normalizeLocaleCode(options?.locale, DEFAULT_LOCALE);
+      return {
+        post: localizeBlogPost(directMatch, requestedLocale),
+        matchedViaLegacySlug: false
+      };
     }
+
+    const legacyMatch = await postRepo.findByLegacySlugInLocales(slug, locales);
+    if (!legacyMatch || legacyMatch.status !== 'published') {
+      return {
+        post: null,
+        matchedViaLegacySlug: false
+      };
+    }
+
     const requestedLocale = normalizeLocaleCode(options?.locale, DEFAULT_LOCALE);
-    return localizeBlogPost(post, requestedLocale);
+    return {
+      post: localizeBlogPost(legacyMatch, requestedLocale),
+      matchedViaLegacySlug: true
+    };
   });
+
+  return result ?? { post: null, matchedViaLegacySlug: false };
 }
 
 export async function getPublishedPages(locale?: string): Promise<Page[]> {
