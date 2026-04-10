@@ -7,6 +7,14 @@
       "entryRoots": [
         "src/pages/[locale]",
         "src/pages/blog"
+      ],
+      "articleRoutes": [
+        "src/pages/blog/[slug].astro",
+        "src/pages/[locale]/blog/[slug].astro"
+      ],
+      "publishedContentResolution": [
+        "src/lib/astro-helpers.ts",
+        "src/lib/database/repositories/post-repository.ts"
       ]
     },
     "admin": {
