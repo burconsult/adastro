@@ -199,6 +199,7 @@ The EditorJS block editor renders inside `PostEditor` when `editor.blocks.enable
 - `docs/architecture/i18n.md` – public multilingual model, locale pack metadata/versioning, and activation workflow.
 - `docs/architecture/data-ownership.md` – table ownership and schema change protocol.
 - `docs/engineering/ai-collab-playbook.md` – workflow/rules for AI-assisted implementation.
+- `docs/engineering/ai-assisted-coding-lessons.md` – project-specific lessons on what worked and did not work with AI-assisted coding in AdAstro.
 - `docs/engineering/local-testing.md` – local Supabase-first validation workflow and verify commands.
 - `docs/environment-variables.md` – canonical env var matrix (core, optional, feature-specific).
 - `docs/database-sql-layout.md` – canonical SQL file layout and install order (core/demo/features).
