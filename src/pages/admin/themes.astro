@@ -4,7 +4,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
 import { ThemeManager } from "@/lib/components/ThemeManager";
 ---
 
-<AdminLayout title="Themes" description="Install and manage appearance themes">
+<AdminLayout title="Themes" description="Install and manage appearance themes" includeAllThemeStyles={true}>
   <div class="space-y-6">
     <AdminPageHeader title="Themes" description="Preview, activate, and install themes." />
     <noscript>

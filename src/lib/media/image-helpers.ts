@@ -10,28 +10,53 @@ export interface ResponsiveSourceSet {
 
 const FORMAT_LIST: ResponsiveSourceSet['format'][] = ['avif', 'webp', 'jpeg'];
 
+const buildTransformOptions = (
+  width: number,
+  format?: ResponsiveSourceSet['format']
+) => {
+  const options: {
+    width: number;
+    quality: number;
+    format?: ResponsiveSourceSet['format'];
+  } = {
+    width,
+    quality: width >= 1280 ? 82 : 88
+  };
+
+  if (format && cdnManager.supportsExplicitFormatSelection()) {
+    options.format = format;
+  }
+
+  return options;
+};
+
 export function buildSourceSets(asset: MediaAsset, breakpoints: number[] = MEDIA_BREAKPOINTS): ResponsiveSourceSet[] {
+  if (!cdnManager.supportsExplicitFormatSelection()) {
+    return [];
+  }
+
   return FORMAT_LIST.map((format) => ({
     format,
     srcset: breakpoints
       .map((width) => {
-        const optimized = cdnManager.generateOptimizedUrl(asset, {
-          width,
-          quality: width >= 1280 ? 82 : 88,
-          format
-        });
+        const optimized = cdnManager.generateOptimizedUrl(asset, buildTransformOptions(width, format));
         return `${optimized} ${width}w`;
       })
       .join(', ')
   }));
 }
 
+export function buildImgSrcSet(asset: MediaAsset, breakpoints: number[] = MEDIA_BREAKPOINTS): string {
+  return breakpoints
+    .map((width) => {
+      const optimized = cdnManager.generateOptimizedUrl(asset, buildTransformOptions(width, 'jpeg'));
+      return `${optimized} ${width}w`;
+    })
+    .join(', ');
+}
+
 export function buildFallbackSrc(asset: MediaAsset, width = 960): string {
-  return cdnManager.generateOptimizedUrl(asset, {
-    width,
-    quality: width >= 1280 ? 82 : 88,
-    format: 'jpeg'
-  });
+  return cdnManager.generateOptimizedUrl(asset, buildTransformOptions(width, 'jpeg'));
 }
 
 export function approximateSizes(breakpoints: number[] = MEDIA_BREAKPOINTS): string {

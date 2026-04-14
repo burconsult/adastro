@@ -30,6 +30,10 @@ export class CDNManager {
     this.config = config;
   }
 
+  supportsExplicitFormatSelection(): boolean {
+    return this.config.provider !== 'vercel';
+  }
+
   /**
    * Generate optimized CDN URL for media asset
    */
@@ -87,47 +91,65 @@ export class CDNManager {
     const { alt, className = '', loading = 'lazy', sizes = '100vw' } = options;
     
     const responsiveUrls = this.generateResponsiveUrls(mediaAsset);
+    const responsiveSrcSet = Object.entries(responsiveUrls)
+      .map(([size, url]) => {
+        void url;
+        return `${this.generateOptimizedUrl(mediaAsset, this.getSizeOptions(size))} ${this.getSizeOptions(size).width}w`;
+      })
+      .join(', ');
     
-    // Generate AVIF sources
-    const avifSources = Object.entries(responsiveUrls)
-      .map(([size, url]) => {
-        const avifUrl = this.generateOptimizedUrl(mediaAsset, { 
-          ...this.getSizeOptions(size), 
-          format: 'avif' 
-        });
-        return `${avifUrl} ${this.getSizeOptions(size).width}w`;
-      })
-      .join(', ');
-
-    // Generate WebP sources
-    const webpSources = Object.entries(responsiveUrls)
-      .map(([size, url]) => {
-        const webpUrl = this.generateOptimizedUrl(mediaAsset, { 
-          ...this.getSizeOptions(size), 
-          format: 'webp' 
-        });
-        return `${webpUrl} ${this.getSizeOptions(size).width}w`;
-      })
-      .join(', ');
-
-    // Generate JPEG fallback sources
-    const jpegSources = Object.entries(responsiveUrls)
-      .map(([size, url]) => {
-        const jpegUrl = this.generateOptimizedUrl(mediaAsset, { 
-          ...this.getSizeOptions(size), 
-          format: 'jpeg' 
-        });
-        return `${jpegUrl} ${this.getSizeOptions(size).width}w`;
-      })
-      .join(', ');
+    const explicitFormatSources = this.supportsExplicitFormatSelection()
+      ? [
+          {
+            type: 'image/avif',
+            srcset: Object.entries(responsiveUrls)
+              .map(([size, url]) => {
+                void url;
+                const avifUrl = this.generateOptimizedUrl(mediaAsset, {
+                  ...this.getSizeOptions(size),
+                  format: 'avif'
+                });
+                return `${avifUrl} ${this.getSizeOptions(size).width}w`;
+              })
+              .join(', ')
+          },
+          {
+            type: 'image/webp',
+            srcset: Object.entries(responsiveUrls)
+              .map(([size, url]) => {
+                void url;
+                const webpUrl = this.generateOptimizedUrl(mediaAsset, {
+                  ...this.getSizeOptions(size),
+                  format: 'webp'
+                });
+                return `${webpUrl} ${this.getSizeOptions(size).width}w`;
+              })
+              .join(', ')
+          },
+          {
+            type: 'image/jpeg',
+            srcset: Object.entries(responsiveUrls)
+              .map(([size, url]) => {
+                void url;
+                const jpegUrl = this.generateOptimizedUrl(mediaAsset, {
+                  ...this.getSizeOptions(size),
+                  format: 'jpeg'
+                });
+                return `${jpegUrl} ${this.getSizeOptions(size).width}w`;
+              })
+              .join(', ')
+          }
+        ]
+      : [];
 
     return `
       <picture>
-        <source type="image/avif" srcset="${avifSources}" sizes="${sizes}">
-        <source type="image/webp" srcset="${webpSources}" sizes="${sizes}">
-        <source type="image/jpeg" srcset="${jpegSources}" sizes="${sizes}">
+        ${explicitFormatSources
+          .map((source) => `<source type="${source.type}" srcset="${source.srcset}" sizes="${sizes}">`)
+          .join('\n        ')}
         <img 
           src="${responsiveUrls.medium}" 
+          srcset="${responsiveSrcSet}"
           alt="${alt}" 
           class="${className}"
           loading="${loading}"
@@ -141,6 +163,14 @@ export class CDNManager {
    * Preload critical images
    */
   generatePreloadLinks(mediaAssets: MediaAsset[]): string[] {
+    if (!this.supportsExplicitFormatSelection()) {
+      return mediaAssets.map((asset) => {
+        const width = asset.dimensions?.width ? Math.min(asset.dimensions.width, 1200) : 1200;
+        const href = this.generateOptimizedUrl(asset, { width, quality: 85 });
+        return `<link rel="preload" as="image" href="${href}">`;
+      });
+    }
+
     return mediaAssets.map(asset => {
       const webpUrl = this.generateOptimizedUrl(asset, { format: 'webp', quality: 85 });
       const avifUrl = this.generateOptimizedUrl(asset, { format: 'avif', quality: 75 });
@@ -194,16 +224,25 @@ export class CDNManager {
    * Generate Vercel-optimized URL
    */
   private generateVercelUrl(baseUrl: string, options: ImageTransformOptions): string {
-    const params = new URLSearchParams();
-    
-    if (options.width) params.set('w', options.width.toString());
-    if (options.height) params.set('h', options.height.toString());
-    if (options.quality) params.set('q', options.quality.toString());
-    if (options.format) params.set('f', options.format);
-    if (options.fit) params.set('fit', options.fit);
+    if (
+      !options.width
+      && !options.height
+      && !options.quality
+      && !options.format
+      && !options.fit
+    ) {
+      return baseUrl;
+    }
 
-    const queryString = params.toString();
-    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    const params = new URLSearchParams();
+
+    params.set('url', baseUrl);
+    params.set('w', (options.width || 960).toString());
+    if (options.quality) {
+      params.set('q', options.quality.toString());
+    }
+
+    return `/_vercel/image?${params.toString()}`;
   }
 
   /**

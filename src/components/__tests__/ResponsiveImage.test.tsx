@@ -22,6 +22,7 @@ const ResponsiveImage = ({
   priority?: boolean;
 }) => {
   const finalLoading = priority ? 'eager' : loading;
+  const fetchPriority = priority ? 'high' : undefined;
 
   return (
     <picture data-testid="responsive-image" className={className}>
@@ -34,6 +35,7 @@ const ResponsiveImage = ({
         width={width}
         height={height}
         loading={finalLoading}
+        fetchPriority={fetchPriority}
         sizes={sizes}
         className="responsive-image"
         decoding="async"
@@ -71,6 +73,7 @@ describe('ResponsiveImage', () => {
     const picture = getByTestId('responsive-image');
     const img = picture.querySelector('img')!;
     expect(img).toHaveAttribute('loading', 'eager');
+    expect(img).toHaveAttribute('fetchpriority', 'high');
   });
 
   it('applies custom className', () => {

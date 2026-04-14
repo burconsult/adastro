@@ -1,4 +1,25 @@
-<script is:inline>
+---
+type Props = {
+  themeStylesheetUrls?: Record<string, string>;
+  themeFontStylesheetUrls?: Record<string, string>;
+  legacyFontStylesheetUrl?: string | null;
+};
+
+const {
+  themeStylesheetUrls = {},
+  themeFontStylesheetUrls = {},
+  legacyFontStylesheetUrl = null
+} = Astro.props as Props;
+---
+
+<script
+  is:inline
+  define:vars={{
+    themeStylesheetUrls,
+    themeFontStylesheetUrls,
+    legacyFontStylesheetUrl
+  }}
+>
   // Initialize theme as early as possible to avoid flash on first paint.
   (() => {
     try {
@@ -26,6 +47,26 @@
       const preset = previewPreset || serverPreset;
       const storedMode = allowModeLocal ? (localStorage.getItem(MODE_KEY) || localStorage.getItem(LEGACY_MODE_KEY)) : null;
       const modeSetting = previewMode || normalizeMode(storedMode) || serverMode;
+
+      const ensureThemeAsset = (href, kind) => {
+        if (!href || typeof href !== 'string') return;
+        if (document.head.querySelector(`link[data-theme-asset="${kind}"][href="${href}"]`)) return;
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.dataset.themeAsset = kind;
+        document.head.appendChild(link);
+      };
+
+      if (previewPreset && previewPreset !== serverPreset) {
+        const previewThemeHref = themeStylesheetUrls?.[previewPreset];
+        const previewFontHref = themeFontStylesheetUrls?.[previewPreset]
+          || (previewPreset !== 'adastro' ? legacyFontStylesheetUrl : null);
+
+        ensureThemeAsset(previewThemeHref, 'theme-style');
+        ensureThemeAsset(previewFontHref, 'theme-font');
+      }
 
       if (previewPreset) {
         root.dataset.themePreview = 'true';

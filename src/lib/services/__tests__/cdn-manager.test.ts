@@ -34,7 +34,7 @@ describe('CDNManager', () => {
         format: 'webp'
       });
 
-      expect(optimizedUrl).toBe('https://example.com/test-image.jpg?w=800&h=600&q=85&f=webp');
+      expect(optimizedUrl).toBe('/_vercel/image?url=https%3A%2F%2Fexample.com%2Ftest-image.jpg&w=800&q=85');
     });
 
     it('should return original URL when no options provided', () => {
@@ -45,7 +45,8 @@ describe('CDNManager', () => {
     it('should generate responsive URLs for different screen sizes', () => {
       const responsiveUrls = cdnManager.generateResponsiveUrls(mockMediaAsset);
 
-      expect(responsiveUrls.thumbnail).toContain('w=150&h=150&fit=cover');
+      expect(responsiveUrls.thumbnail).toContain('/_vercel/image?');
+      expect(responsiveUrls.thumbnail).toContain('w=150');
       expect(responsiveUrls.small).toContain('w=400&q=85');
       expect(responsiveUrls.medium).toContain('w=800&q=85');
       expect(responsiveUrls.large).toContain('w=1200&q=90');
@@ -146,9 +147,9 @@ describe('CDNManager', () => {
       });
 
       expect(pictureElement).toContain('<picture>');
-      expect(pictureElement).toContain('type="image/avif"');
-      expect(pictureElement).toContain('type="image/webp"');
-      expect(pictureElement).toContain('type="image/jpeg"');
+      expect(pictureElement).not.toContain('type="image/avif"');
+      expect(pictureElement).toContain('srcset="');
+      expect(pictureElement).toContain('/_vercel/image?');
       expect(pictureElement).toContain('alt="Test image"');
       expect(pictureElement).toContain('class="responsive-image"');
       expect(pictureElement).toContain('loading="lazy"');
@@ -174,17 +175,16 @@ describe('CDNManager', () => {
     it('should generate preload links for critical images', () => {
       const preloadLinks = cdnManager.generatePreloadLinks([mockMediaAsset]);
 
-      expect(preloadLinks).toHaveLength(2);
+      expect(preloadLinks).toHaveLength(1);
       expect(preloadLinks[0]).toContain('rel="preload"');
-      expect(preloadLinks[0]).toContain('type="image/avif"');
-      expect(preloadLinks[1]).toContain('type="image/webp"');
+      expect(preloadLinks[0]).toContain('/_vercel/image?');
     });
 
     it('should handle multiple assets', () => {
       const secondAsset = { ...mockMediaAsset, id: '456', filename: 'second-image.jpg' };
       const preloadLinks = cdnManager.generatePreloadLinks([mockMediaAsset, secondAsset]);
 
-      expect(preloadLinks).toHaveLength(4); // 2 links per asset
+      expect(preloadLinks).toHaveLength(2);
     });
   });
 

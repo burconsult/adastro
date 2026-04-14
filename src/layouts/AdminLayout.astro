@@ -1,7 +1,5 @@
 ---
 import "@/styles/global.css";
-import "@/styles/theme-fonts";
-import "@/lib/themes/manifest";
 import AdminSidebar from "@/components/AdminSidebar.tsx";
 import AdminMobileNav from "@/components/AdminMobileNav.tsx";
 import ModeToggle from "@/components/ModeToggle.tsx";
@@ -13,23 +11,44 @@ import { getSiteIdentity, getSiteTheme } from "@/lib/site-config";
 import { isFeatureActive } from "@/lib/features/state";
 import { loadFeatureModules } from "@/lib/features/loader";
 import adminLogoutScriptUrl from "@/lib/client/admin/logout.js?url";
+import {
+  getAllThemeStylesheetUrls,
+  getLegacyThemeFontStylesheetUrl,
+  getThemeFontStylesheetAssetMap,
+  getThemeFontPreloadUrls,
+  getThemeFontStylesheetUrl,
+  getThemeStylesheetAssetMap,
+  getThemeStylesheetUrl
+} from "@/lib/themes/assets";
 
 type Props = { 
   title?: string; 
   description?: string; 
   user?: AuthUser;
+  includeAllThemeStyles?: boolean;
 }
 
 const { 
   title = 'Admin Dashboard', 
   description = 'Adastro Admin',
-  user = Astro.locals.user
+  user = Astro.locals.user,
+  includeAllThemeStyles = false
 } = Astro.props as Props;
 
 const site = Astro.site?.toString() ?? '';
 const url = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.href;
 const siteIdentity = await getSiteIdentity();
 const siteTheme = await getSiteTheme();
+const themeStylesheetUrls = includeAllThemeStyles
+  ? getAllThemeStylesheetUrls()
+  : [getThemeStylesheetUrl(siteTheme.preset)].filter((value): value is string => Boolean(value));
+const themeFontStylesheetUrls = includeAllThemeStyles
+  ? [getLegacyThemeFontStylesheetUrl()].filter((value): value is string => Boolean(value))
+  : [getThemeFontStylesheetUrl(siteTheme.preset)].filter((value): value is string => Boolean(value));
+const themeFontPreloadUrls = includeAllThemeStyles ? [] : getThemeFontPreloadUrls(siteTheme.preset);
+const themeStylesheetAssetMap = getThemeStylesheetAssetMap();
+const themeFontStylesheetAssetMap = getThemeFontStylesheetAssetMap();
+const legacyThemeFontStylesheetUrl = getLegacyThemeFontStylesheetUrl();
 const themeClass = siteTheme.mode === 'dark' ? 'min-h-full dark' : 'min-h-full';
 const installedFeatureIds = new Set(loadFeatureModules().map((module) => module.id));
 const [aiActive, commentsActive, newsletterActive] = await Promise.all([
@@ -57,7 +76,20 @@ const [aiActive, commentsActive, newsletterActive] = await Promise.all([
     <meta name="description" content={description} />
     <link rel="canonical" href={url} />
     <meta name="robots" content="noindex, nofollow" />
-    <ThemeInitScript />
+    <ThemeInitScript
+      themeStylesheetUrls={themeStylesheetAssetMap}
+      themeFontStylesheetUrls={themeFontStylesheetAssetMap}
+      legacyFontStylesheetUrl={legacyThemeFontStylesheetUrl}
+    />
+    {themeFontPreloadUrls.map((href) => (
+      <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+    ))}
+    {themeStylesheetUrls.map((href) => (
+      <link rel="stylesheet" href={href} data-theme-asset="theme-style" />
+    ))}
+    {themeFontStylesheetUrls.map((href) => (
+      <link rel="stylesheet" href={href} data-theme-asset="theme-font" />
+    ))}
     <AuthHashRecoveryScript />
   </head>
   <body class="min-h-full bg-background text-foreground">

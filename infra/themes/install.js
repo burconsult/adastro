@@ -51,14 +51,14 @@ const toIdentifier = (value) => {
   return `THEME_${base || 'MODULE'}_MODULE`;
 };
 
-const updateManifest = (themeId, entryImportPath) => {
+const updateManifest = (themeId) => {
   if (!existsSync(MANIFEST_PATH)) {
     throw new Error(`Manifest not found at ${MANIFEST_PATH}`);
   }
 
   const importName = toIdentifier(themeId);
-  const importLine = `import { THEME_MODULE as ${importName} } from './installed/${themeId}/${entryImportPath}.js';`;
-  const listLine = `  ${importName},`;
+  const importLine = `import ${importName} from './installed/${themeId}/theme.json';`;
+  const listLine = `  createInstalledThemeModule(${importName}),`;
 
   let content = readFileSync(MANIFEST_PATH, 'utf-8');
   if (!content.includes(IMPORT_MARKER) || !content.includes(LIST_MARKER)) {
@@ -163,8 +163,7 @@ const main = async () => {
     ensureDir(INSTALLED_ROOT);
     copyDir(packageRoot, installDir);
 
-    const entryImport = normalizeEntryImport(entry);
-    updateManifest(themeId, entryImport);
+    updateManifest(themeId);
 
     console.log(`✅ Installed theme "${themeId}"`);
     console.log(`📍 Manifest updated: ${MANIFEST_PATH}`);

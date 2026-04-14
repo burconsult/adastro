@@ -1,6 +1,6 @@
 import React from 'react';
 import { cdnManager } from '../services/cdn-manager.js';
-import { buildFallbackSrc, buildSourceSets } from '../media/image-helpers.js';
+import { buildFallbackSrc, buildImgSrcSet, buildSourceSets } from '../media/image-helpers.js';
 import type { MediaAsset } from '../types/index.js';
 
 interface OptimizedImageProps {
@@ -26,6 +26,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   const sources = buildSourceSets(asset);
   const fallbackSrc = buildFallbackSrc(asset);
+  const imgSrcSet = buildImgSrcSet(asset);
 
   // Generate preload links for critical images
   const preloadLinks = priority ? cdnManager.generatePreloadLinks([asset]) : [];
@@ -57,8 +58,10 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         {/* Fallback img element */}
         <img
           src={fallbackSrc}
+          srcSet={imgSrcSet}
           alt={altText}
           loading={loading}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
           sizes={sizes}
           style={{

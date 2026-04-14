@@ -1,5 +1,5 @@
 ---
-import { assetFromUrl, buildFallbackSrc, buildSourceSets, approximateSizes } from '@/lib/media/image-helpers';
+import { assetFromUrl, buildFallbackSrc, buildImgSrcSet, buildSourceSets, approximateSizes } from '@/lib/media/image-helpers';
 
 export interface Props {
   src: string;
@@ -26,6 +26,7 @@ const {
 const asset = assetFromUrl(src, alt);
 const sources = buildSourceSets(asset);
 const fallbackSrc = buildFallbackSrc(asset);
+const imgSrcSet = buildImgSrcSet(asset);
 const finalLoading = priority ? "eager" : loading;
 const resolvedSizes = sizes || approximateSizes();
 ---
@@ -36,10 +37,12 @@ const resolvedSizes = sizes || approximateSizes();
   ))}
   <img
     src={fallbackSrc}
+    srcset={imgSrcSet}
     alt={alt}
     width={width}
     height={height}
     loading={finalLoading}
+    fetchpriority={priority ? "high" : undefined}
     sizes={resolvedSizes}
     class={`responsive-image ${className}`}
     decoding="async"

@@ -27,7 +27,7 @@ const removeManifestEntries = (themeId) => {
 
   const importName = toIdentifier(themeId);
   const importFragment = `./installed/${themeId}/`;
-  const listLine = `  ${importName},`;
+  const listLine = `  createInstalledThemeModule(${importName}),`;
 
   const lines = readFileSync(MANIFEST_PATH, 'utf-8').split('\n');
   const nextLines = lines.filter((line) => {
