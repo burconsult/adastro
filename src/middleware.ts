@@ -13,6 +13,10 @@ import {
 import { isSameOriginRequest, isUnsafeMethod } from './lib/security/request-guards.js';
 import { getSiteContentRouting, getSiteLocaleConfig } from './lib/site-config.js';
 import { resolveLegacyBlogPath } from './lib/routing/articles.js';
+import {
+  shouldBypassSetupRedirect,
+  shouldRedirectToDefaultLocale
+} from './lib/routing/middleware-paths.js';
 import { buildLocalizedPath, DEFAULT_LOCALE, resolveLocalePath } from './lib/i18n/locales.js';
 import {
   getContentRoutingRuntimeCache,
@@ -26,47 +30,9 @@ import { getSetupGateState } from './lib/setup/gate.js';
 const CONTENT_ROUTING_CACHE_TTL_MS = 30000;
 const LOCALE_CONFIG_CACHE_TTL_MS = 30000;
 
-const SETUP_ALLOWED_PREFIXES = [
-  '/setup',
-  '/installation',
-  '/auth',
-  '/api/auth',
-  '/api/setup',
-  '/_astro',
-  '/images',
-  '/scripts',
-  '/favicon'
-];
-const STATIC_ASSET_PATTERN = /\.[a-z0-9]+$/i;
-const LOCALE_REDIRECT_BYPASS_PREFIXES = [
-  '/admin',
-  '/api',
-  '/auth',
-  '/profile',
-  '/setup',
-  '/mcp',
-  '/_astro',
-  '/images',
-  '/scripts',
-  '/favicon',
-  '/404',
-  '/500'
-];
-
 const getRequestPolicyPath = (pathname: string, localePath: { hasLocalePrefix: boolean; pathnameWithoutLocale: string }) => (
   localePath.hasLocalePrefix ? localePath.pathnameWithoutLocale : pathname
 );
-
-const shouldBypassSetupRedirect = (pathname: string) => {
-  if (STATIC_ASSET_PATTERN.test(pathname)) return true;
-  if (pathname === '/') return false;
-  return SETUP_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-};
-
-const shouldRedirectToDefaultLocale = (pathname: string) => {
-  if (STATIC_ASSET_PATTERN.test(pathname)) return false;
-  return !LOCALE_REDIRECT_BYPASS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-};
 
 const getContentRoutingForRewrite = async (): Promise<{ articleBasePath: string; articlePermalinkStyle: 'segment' | 'wordpress' }> => {
   const now = Date.now();

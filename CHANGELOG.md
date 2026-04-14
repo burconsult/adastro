@@ -10,6 +10,7 @@ All notable changes to AdAstro are documented in this file.
 - Added manual AI alt-text generation for uploaded images in the media library using a dedicated media-analysis provider/model path.
 
 ### Changed
+- Bypassed locale redirects for Vercel image optimizer requests so `/_vercel/image` URLs continue to resolve on localized deployments.
 - Improved AI-generated image uploads so alt text is inferred from the prompt instead of a generic placeholder.
 - Added locale-aware narration intro/outro templates for AI audio generation and applied the same behavior to MCP audio generation.
 - Refreshed the public audio player with custom seek controls and playback-speed selection for narrated posts.

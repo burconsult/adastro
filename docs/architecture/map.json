@@ -1,7 +1,7 @@
 {
   "project": "adastro",
   "version": "1.3.0",
-  "lastUpdated": "2026-03-24",
+  "lastUpdated": "2026-04-14",
   "surfaces": {
     "public": {
       "entryRoots": [
@@ -52,7 +52,10 @@
     }
   },
   "coreModules": {
-    "middleware": "src/middleware.ts",
+    "middleware": [
+      "src/middleware.ts",
+      "src/lib/routing/middleware-paths.ts"
+    ],
     "settings": [
       "src/lib/settings/core-definitions.ts",
       "src/lib/settings/registry.ts",
@@ -88,7 +91,10 @@
       "src/lib/mcp/server.ts",
       "src/lib/mcp/auth.ts"
     ],
-    "routing": "src/lib/routing/articles.ts",
+    "routing": [
+      "src/lib/routing/articles.ts",
+      "src/lib/routing/middleware-paths.ts"
+    ],
     "i18n": [
       "src/lib/i18n/locales.ts",
       "src/lib/i18n/catalog.ts",
