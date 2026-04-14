@@ -37,7 +37,7 @@ const resolvedSizes = sizes || approximateSizes();
   ))}
   <img
     src={fallbackSrc}
-    srcset={imgSrcSet}
+    srcset={imgSrcSet || undefined}
     alt={alt}
     width={width}
     height={height}

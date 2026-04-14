@@ -58,7 +58,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         {/* Fallback img element */}
         <img
           src={fallbackSrc}
-          srcSet={imgSrcSet}
+          srcSet={imgSrcSet || undefined}
           alt={altText}
           loading={loading}
           fetchPriority={priority ? 'high' : undefined}

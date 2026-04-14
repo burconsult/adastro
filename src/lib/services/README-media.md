@@ -157,6 +157,7 @@ Generate AI-assisted alt text suggestions.
 #### `generateOptimizedUrl(asset: MediaAsset, options: ImageTransformOptions): string`
 
 Generate CDN-optimized URL with transformations.
+The default Vercel provider returns the original asset URL because this Astro adapter does not expose a supported image-transform endpoint. Use Netlify, Cloudflare with `IMAGE_CDN_BASE_URL`, or a custom provider for generated transformation URLs.
 
 **Options:**
 - `width?: number` - Target width

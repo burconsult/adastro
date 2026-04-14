@@ -47,6 +47,10 @@ export function buildSourceSets(asset: MediaAsset, breakpoints: number[] = MEDIA
 }
 
 export function buildImgSrcSet(asset: MediaAsset, breakpoints: number[] = MEDIA_BREAKPOINTS): string {
+  if (!cdnManager.supportsUrlTransforms()) {
+    return '';
+  }
+
   return breakpoints
     .map((width) => {
       const optimized = cdnManager.generateOptimizedUrl(asset, buildTransformOptions(width, 'jpeg'));

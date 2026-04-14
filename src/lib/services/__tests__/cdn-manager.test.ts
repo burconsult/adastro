@@ -26,7 +26,7 @@ describe('CDNManager', () => {
       cdnManager = createCDNManager({ provider: 'vercel' });
     });
 
-    it('should generate optimized URL with Vercel parameters', () => {
+    it('should return the original URL when Vercel transform options are provided', () => {
       const optimizedUrl = cdnManager.generateOptimizedUrl(mockMediaAsset, {
         width: 800,
         height: 600,
@@ -34,7 +34,7 @@ describe('CDNManager', () => {
         format: 'webp'
       });
 
-      expect(optimizedUrl).toBe('/_vercel/image?url=https%3A%2F%2Fexample.com%2Ftest-image.jpg&w=800&q=85');
+      expect(optimizedUrl).toBe('https://example.com/test-image.jpg');
     });
 
     it('should return original URL when no options provided', () => {
@@ -45,12 +45,18 @@ describe('CDNManager', () => {
     it('should generate responsive URLs for different screen sizes', () => {
       const responsiveUrls = cdnManager.generateResponsiveUrls(mockMediaAsset);
 
-      expect(responsiveUrls.thumbnail).toContain('/_vercel/image?');
-      expect(responsiveUrls.thumbnail).toContain('w=150');
-      expect(responsiveUrls.small).toContain('w=400&q=85');
-      expect(responsiveUrls.medium).toContain('w=800&q=85');
-      expect(responsiveUrls.large).toContain('w=1200&q=90');
-      expect(responsiveUrls.xlarge).toContain('w=1920&q=90');
+      expect(Object.values(responsiveUrls)).toEqual([
+        mockMediaAsset.url,
+        mockMediaAsset.url,
+        mockMediaAsset.url,
+        mockMediaAsset.url,
+        mockMediaAsset.url
+      ]);
+    });
+
+    it('should report that Vercel URL transforms are not supported by this adapter', () => {
+      expect(cdnManager.supportsUrlTransforms()).toBe(false);
+      expect(cdnManager.supportsExplicitFormatSelection()).toBe(false);
     });
   });
 
@@ -148,8 +154,9 @@ describe('CDNManager', () => {
 
       expect(pictureElement).toContain('<picture>');
       expect(pictureElement).not.toContain('type="image/avif"');
-      expect(pictureElement).toContain('srcset="');
-      expect(pictureElement).toContain('/_vercel/image?');
+      expect(pictureElement).not.toContain('srcset="');
+      expect(pictureElement).not.toContain('/_vercel/image?');
+      expect(pictureElement).toContain('src="https://example.com/test-image.jpg"');
       expect(pictureElement).toContain('alt="Test image"');
       expect(pictureElement).toContain('class="responsive-image"');
       expect(pictureElement).toContain('loading="lazy"');
@@ -177,7 +184,8 @@ describe('CDNManager', () => {
 
       expect(preloadLinks).toHaveLength(1);
       expect(preloadLinks[0]).toContain('rel="preload"');
-      expect(preloadLinks[0]).toContain('/_vercel/image?');
+      expect(preloadLinks[0]).toContain('href="https://example.com/test-image.jpg"');
+      expect(preloadLinks[0]).not.toContain('/_vercel/image?');
     });
 
     it('should handle multiple assets', () => {

@@ -30,8 +30,22 @@ export class CDNManager {
     this.config = config;
   }
 
+  supportsUrlTransforms(): boolean {
+    switch (this.config.provider) {
+      case 'vercel':
+        return false;
+      case 'cloudflare':
+        return Boolean(this.config.baseUrl);
+      case 'netlify':
+      case 'custom':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   supportsExplicitFormatSelection(): boolean {
-    return this.config.provider !== 'vercel';
+    return this.supportsUrlTransforms();
   }
 
   /**
@@ -91,12 +105,14 @@ export class CDNManager {
     const { alt, className = '', loading = 'lazy', sizes = '100vw' } = options;
     
     const responsiveUrls = this.generateResponsiveUrls(mediaAsset);
-    const responsiveSrcSet = Object.entries(responsiveUrls)
-      .map(([size, url]) => {
-        void url;
-        return `${this.generateOptimizedUrl(mediaAsset, this.getSizeOptions(size))} ${this.getSizeOptions(size).width}w`;
-      })
-      .join(', ');
+    const responsiveSrcSet = this.supportsUrlTransforms()
+      ? Object.entries(responsiveUrls)
+          .map(([size, url]) => {
+            void url;
+            return `${this.generateOptimizedUrl(mediaAsset, this.getSizeOptions(size))} ${this.getSizeOptions(size).width}w`;
+          })
+          .join(', ')
+      : '';
     
     const explicitFormatSources = this.supportsExplicitFormatSelection()
       ? [
@@ -149,7 +165,7 @@ export class CDNManager {
           .join('\n        ')}
         <img 
           src="${responsiveUrls.medium}" 
-          srcset="${responsiveSrcSet}"
+          ${responsiveSrcSet ? `srcset="${responsiveSrcSet}"` : ''}
           alt="${alt}" 
           class="${className}"
           loading="${loading}"
@@ -224,25 +240,8 @@ export class CDNManager {
    * Generate Vercel-optimized URL
    */
   private generateVercelUrl(baseUrl: string, options: ImageTransformOptions): string {
-    if (
-      !options.width
-      && !options.height
-      && !options.quality
-      && !options.format
-      && !options.fit
-    ) {
-      return baseUrl;
-    }
-
-    const params = new URLSearchParams();
-
-    params.set('url', baseUrl);
-    params.set('w', (options.width || 960).toString());
-    if (options.quality) {
-      params.set('q', options.quality.toString());
-    }
-
-    return `/_vercel/image?${params.toString()}`;
+    void options;
+    return baseUrl;
   }
 
   /**
