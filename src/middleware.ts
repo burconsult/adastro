@@ -18,6 +18,7 @@ import {
   shouldRedirectToDefaultLocale
 } from './lib/routing/middleware-paths.js';
 import { buildLocalizedPath, DEFAULT_LOCALE, resolveLocalePath } from './lib/i18n/locales.js';
+import { resolveLegacyVercelImageRedirect } from './lib/media/vercel-image-redirect.js';
 import {
   getContentRoutingRuntimeCache,
   getLocaleConfigRuntimeCache,
@@ -103,6 +104,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.localizedPath = localePath.pathnameWithoutLocale;
   if (typeof context.locals.requestPathname !== 'string' || context.locals.requestPathname.length === 0) {
     context.locals.requestPathname = url.pathname;
+  }
+
+  if (
+    url.pathname === '/_vercel/image'
+    && (context.request.method === 'GET' || context.request.method === 'HEAD')
+  ) {
+    const target = resolveLegacyVercelImageRedirect(url.searchParams.get('url'), url.origin);
+
+    if (target) {
+      return redirect(target, 302);
+    }
+
+    return new Response('Not found', {
+      status: 404,
+      headers: {
+        'Cache-Control': 'public, max-age=0, must-revalidate',
+        'Content-Type': 'text/plain; charset=utf-8'
+      }
+    });
   }
 
   const isSetupRoute = requestPolicyPath === '/setup' || requestPolicyPath.startsWith('/setup/');

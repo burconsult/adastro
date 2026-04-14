@@ -54,6 +54,7 @@
   "coreModules": {
     "middleware": [
       "src/middleware.ts",
+      "src/lib/media/vercel-image-redirect.ts",
       "src/lib/routing/middleware-paths.ts"
     ],
     "settings": [
