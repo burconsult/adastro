@@ -86,6 +86,10 @@ const parseFirstAstroAssetPath = (html) => {
   return match?.[1] || null;
 };
 
+const isProtectedPreviewHtml = (body) => /authentication required/i.test(body)
+  || /_vercel_sso_nonce/i.test(body)
+  || /x-vercel-protection-bypass/i.test(body);
+
 const assertSetupMode = async (defaultLocale, setupStatus) => {
   const setupPage = await getHtml('/setup');
   expectHeader(setupPage.response, '/setup', 'cache-control', /no-store/i);
@@ -123,7 +127,15 @@ const main = async () => {
     headers: { accept: 'application/json' }
   });
   expectHeader(setupStatusResult.response, '/api/setup/status', 'cache-control', /no-store/i);
-  const setupStatus = await setupStatusResult.response.json();
+  const setupStatusContentType = setupStatusResult.response.headers.get('content-type') || '';
+  const setupStatusBody = await setupStatusResult.response.text();
+  if (!setupStatusContentType.includes('application/json')) {
+    if (setupStatusResult.response.status === 401 && isProtectedPreviewHtml(setupStatusBody)) {
+      fail('/api/setup/status', 'deployment is protected by Vercel preview authentication; disable preview protection or provide an authenticated smoke-test URL');
+    }
+    fail('/api/setup/status', `expected JSON response, received ${setupStatusContentType || 'unknown content type'}`);
+  }
+  const setupStatus = JSON.parse(setupStatusBody);
   const setupStatusLocked = setupStatusResult.response.status === 401 || setupStatusResult.response.status === 403;
   let defaultLocale = process.env.DEFAULT_LOCALE || setupStatus?.contentLocales?.defaultLocale || 'en';
   const configuredArticleBasePath = process.env.ARTICLE_BASE_PATH || setupStatus?.contentRouting?.articleBasePath;
