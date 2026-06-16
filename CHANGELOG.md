@@ -10,6 +10,8 @@ All notable changes to AdAstro are documented in this file.
 - Added manual AI alt-text generation for uploaded images in the media library using a dedicated media-analysis provider/model path.
 
 ### Changed
+- Upgraded the Astro/Vercel/Netlify runtime stack and related client/editor dependencies for Node 22, including patched transitive build overrides for current audit advisories.
+- Aligned media CDN integration coverage with Supabase Storage on Vercel: Supabase-hosted image URLs are still optimized through `/_vercel/image`, but Vercel does not expose explicit format query parameters or separate AVIF/WebP `<source>` entries.
 - Bypassed locale redirects for Vercel image optimizer requests so `/_vercel/image` URLs continue to resolve on localized deployments.
 - Improved AI-generated image uploads so alt text is inferred from the prompt instead of a generic placeholder.
 - Added locale-aware narration intro/outro templates for AI audio generation and applied the same behavior to MCP audio generation.

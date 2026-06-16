@@ -56,7 +56,7 @@ Migration:
 All admin endpoints require auth:
 - `requireAdmin` for admin-only endpoints
 - `requireAuthor` for author-access endpoints
-- Setup read endpoints (`GET /api/setup/status`, `GET /api/setup/sql`) stay reachable during installation
+- Setup read endpoints (`GET /api/setup/status`, `GET /api/setup/sql`) stay reachable before setup completion, then require admin access when setup re-entry is enabled or return `403` when re-entry is disabled
 - Setup mutation endpoints (`POST /api/setup/automate`, `POST /api/setup/routing`, `POST /api/setup/complete`) now require an authenticated admin even before setup completion
 - `/auth/*` and `/api/auth/*` stay reachable during installation so the bootstrap admin can sign in before running mutating setup actions
 

@@ -1,6 +1,6 @@
 # Release Execution Board
 
-Use this board to drive v1.3.0 "Schneller" release readiness with deterministic gate progression.
+Use this board to drive stable release readiness with deterministic gate progression.
 
 ## Autonomous Execution Protocol
 
