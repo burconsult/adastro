@@ -23,6 +23,14 @@ export interface CDNAnalytics {
   averageResponseTime: number;
 }
 
+const VERCEL_IMAGE_SIZES = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+
+const nearestVercelImageSize = (width: number): number => (
+  VERCEL_IMAGE_SIZES.reduce((nearest, candidate) => (
+    Math.abs(candidate - width) < Math.abs(nearest - width) ? candidate : nearest
+  ))
+);
+
 export class CDNManager {
   private config: CDNConfig;
 
@@ -235,9 +243,10 @@ export class CDNManager {
     }
 
     const params = new URLSearchParams();
+    const width = nearestVercelImageSize(options.width || 960);
 
     params.set('url', baseUrl);
-    params.set('w', (options.width || 960).toString());
+    params.set('w', width.toString());
     if (options.quality) {
       params.set('q', options.quality.toString());
     }

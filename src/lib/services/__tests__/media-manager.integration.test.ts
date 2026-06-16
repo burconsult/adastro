@@ -92,7 +92,7 @@ describe('MediaManager Integration Tests', () => {
       expect(cdnManager.supportsExplicitFormatSelection()).toBe(false);
       expect(cdnUrl).toContain('/_vercel/image?');
       expect(cdnUrl).toContain(encodeURIComponent(primaryAsset.url));
-      expect(cdnUrl).toContain('w=800');
+      expect(cdnUrl).toContain('w=828');
       expect(cdnUrl).not.toContain('f=webp');
       expect(cdnUrl).toContain('q=85');
 

@@ -34,7 +34,7 @@ describe('CDNManager', () => {
         format: 'webp'
       });
 
-      expect(optimizedUrl).toBe('/_vercel/image?url=https%3A%2F%2Fexample.com%2Ftest-image.jpg&w=800&q=85');
+      expect(optimizedUrl).toBe('/_vercel/image?url=https%3A%2F%2Fexample.com%2Ftest-image.jpg&w=828&q=85');
     });
 
     it('should return original URL when no options provided', () => {
@@ -46,9 +46,9 @@ describe('CDNManager', () => {
       const responsiveUrls = cdnManager.generateResponsiveUrls(mockMediaAsset);
 
       expect(responsiveUrls.thumbnail).toContain('/_vercel/image?');
-      expect(responsiveUrls.thumbnail).toContain('w=150');
-      expect(responsiveUrls.small).toContain('w=400&q=85');
-      expect(responsiveUrls.medium).toContain('w=800&q=85');
+      expect(responsiveUrls.thumbnail).toContain('w=640');
+      expect(responsiveUrls.small).toContain('w=640&q=85');
+      expect(responsiveUrls.medium).toContain('w=828&q=85');
       expect(responsiveUrls.large).toContain('w=1200&q=90');
       expect(responsiveUrls.xlarge).toContain('w=1920&q=90');
     });
