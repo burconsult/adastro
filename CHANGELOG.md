@@ -4,6 +4,8 @@ All notable changes to AdAstro are documented in this file.
 
 ## Unreleased
 
+## 1.5.0 "Sunshine" - 2026-06-16
+
 ### Added
 - Added AI draft assist in the post editor for title, excerpt, slug, category, tag, and SEO suggestions with explicit apply actions.
 - Added AI editorial QA in the post editor with warning-only heuristics plus AI review notes.
@@ -11,8 +13,8 @@ All notable changes to AdAstro are documented in this file.
 
 ### Changed
 - Upgraded the Astro/Vercel/Netlify runtime stack and related client/editor dependencies for Node 22, including patched transitive build overrides for current audit advisories.
-- Aligned media CDN integration coverage with Supabase Storage on Vercel: Supabase-hosted image URLs are still optimized through `/_vercel/image`, but Vercel does not expose explicit format query parameters or separate AVIF/WebP `<source>` entries.
-- Bypassed locale redirects for Vercel image optimizer requests so `/_vercel/image` URLs continue to resolve on localized deployments.
+- Enabled Vercel image optimization for Supabase Storage media, including remote Supabase image patterns and Vercel-supported width normalization for article header images.
+- Bypassed locale redirects for Astro and Vercel image optimizer requests so `/_image` and `/_vercel/image` URLs continue to resolve on localized deployments.
 - Improved AI-generated image uploads so alt text is inferred from the prompt instead of a generic placeholder.
 - Added locale-aware narration intro/outro templates for AI audio generation and applied the same behavior to MCP audio generation.
 - Refreshed the public audio player with custom seek controls and playback-speed selection for narrated posts.
@@ -26,6 +28,11 @@ All notable changes to AdAstro are documented in this file.
 
 ### Security
 - Added `infra/supabase/migrations/007_function_acl_hardening.sql` to correct helper-function privileges on existing installs and reduce the risk of `anon`/`authenticated` regaining execute access through permissive default ACLs.
+
+### Migration Notes
+- Existing installs should apply `infra/supabase/migrations/007_function_acl_hardening.sql`.
+- Hosted Vercel installs should redeploy after upgrading so the adapter image service and Supabase Storage remote image patterns are active.
+- Fresh installs should use the updated setup flow to create/repair Supabase Storage buckets and policies before publishing media-heavy articles.
 
 ## 1.4.0 "Stingray" - 2026-03-31
 

@@ -45,6 +45,16 @@ Use this board to drive stable release readiness with deterministic gate progres
 
 - Multilingual expansion beyond current shipped locales (`en`, `nb`, `es`, `zh`) with full feature-pack parity and translation QA automation.
 
+## Release Candidate Notes
+
+### 2026-06-16 - v1.5.0 "Sunshine"
+
+- Bumped release metadata to `1.5.0` in `package.json` and `package-lock.json`.
+- Promoted the changelog to `1.5.0 "Sunshine"` with AI Suite, runtime dependency, setup/auth hardening, Supabase Storage media, and helper-function ACL notes.
+- Verified the latest Vercel preview after the Supabase Storage image fixes: article headers render through Vercel image optimization with valid image widths.
+- Release validation evidence from this branch includes `npm run test:run`, `npm run build`, `npm run build:netlify`, `npm run verify:full`, `npm run verify:netlify`, `npm run verify:stability`, `npm run local:doctor`, `npm run test:smoke:local`, and hosted smoke against production.
+- Post-metadata RC validation passed on 2026-06-16: `npm run ci:check-release-hygiene`, `npm run ci:check-architecture-map`, `npm run test:run`, `npm run build`, `npm run verify:full`, and `npm run verify:netlify`.
+
 ## Gate Definitions
 
 ### G1 - Setup/install flow

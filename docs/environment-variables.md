@@ -1,4 +1,4 @@
-# Environment Variables (v1.4.0)
+# Environment Variables (v1.5.0)
 
 Use this as the canonical env var reference for AdAstro.
 
@@ -119,6 +119,8 @@ IMAGE_CDN_ZONE_ID=
 Use these only if you are wiring a custom CDN integration and understand the provider-specific behavior.
 
 `IMAGE_CDN_PROVIDER` accepts `vercel`, `netlify`, `cloudflare`, or `custom`.
+
+On Vercel, AdAstro enables the Vercel image service for Supabase Storage media by default. Custom CDN env vars are only needed when replacing that hosted path.
 
 ## Netlify CLI Operations (Optional, Ops Only)
 

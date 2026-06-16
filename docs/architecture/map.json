@@ -1,7 +1,7 @@
 {
   "project": "adastro",
-  "version": "1.3.0",
-  "lastUpdated": "2026-04-14",
+  "version": "1.5.0",
+  "lastUpdated": "2026-06-16",
   "surfaces": {
     "public": {
       "entryRoots": [
