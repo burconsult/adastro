@@ -30,7 +30,7 @@ const NETLIFY_EXCLUDE_FILES = [
 
 const adapter = resolvedAdapter === 'netlify'
   ? netlify({ excludeFiles: NETLIFY_EXCLUDE_FILES })
-  : vercel();
+  : vercel({ imageService: true });
 
 const resolvedSiteUrl = normalizeCanonicalSiteUrl(process.env.SITE_URL) || FALLBACK_SITE_URL;
 
