@@ -64,10 +64,31 @@ const getHtml = async (pathname) => {
   return { response, html };
 };
 
+const getFirstAvailableHtml = async (pathnames) => {
+  const checked = [];
+
+  for (const pathname of pathnames) {
+    const { response } = await request(pathname, {
+      headers: { accept: 'text/html' }
+    });
+    checked.push(`${pathname} -> ${response.status}`);
+    if (response.status === 200) {
+      const html = await response.text();
+      return { pathname, response, html };
+    }
+  }
+
+  fail(pathnames[0] || 'html-route', `none of the candidate routes resolved: ${checked.join(', ')}`);
+};
+
 const parseFirstAstroAssetPath = (html) => {
   const match = html.match(/(?:src|href)="(\/_astro\/[^"]+)"/);
   return match?.[1] || null;
 };
+
+const isProtectedPreviewHtml = (body) => /authentication required/i.test(body)
+  || /_vercel_sso_nonce/i.test(body)
+  || /x-vercel-protection-bypass/i.test(body);
 
 const assertSetupMode = async (defaultLocale, setupStatus) => {
   const setupPage = await getHtml('/setup');
@@ -102,26 +123,48 @@ const assertSetupMode = async (defaultLocale, setupStatus) => {
 };
 
 const main = async () => {
-  const setupStatusResult = await expectStatus('/api/setup/status', [200], {
+  const setupStatusResult = await expectStatus('/api/setup/status', [200, 401, 403], {
     headers: { accept: 'application/json' }
   });
   expectHeader(setupStatusResult.response, '/api/setup/status', 'cache-control', /no-store/i);
-  const setupStatus = await setupStatusResult.response.json();
-  const defaultLocale = process.env.DEFAULT_LOCALE || setupStatus?.contentLocales?.defaultLocale || 'en';
-  const articleBasePath = setupStatus?.contentRouting?.articleBasePath || 'blog';
+  const setupStatusContentType = setupStatusResult.response.headers.get('content-type') || '';
+  const setupStatusBody = await setupStatusResult.response.text();
+  if (!setupStatusContentType.includes('application/json')) {
+    if (setupStatusResult.response.status === 401 && isProtectedPreviewHtml(setupStatusBody)) {
+      fail('/api/setup/status', 'deployment is protected by Vercel preview authentication; disable preview protection or provide an authenticated smoke-test URL');
+    }
+    fail('/api/setup/status', `expected JSON response, received ${setupStatusContentType || 'unknown content type'}`);
+  }
+  const setupStatus = JSON.parse(setupStatusBody);
+  const setupStatusLocked = setupStatusResult.response.status === 401 || setupStatusResult.response.status === 403;
+  let defaultLocale = process.env.DEFAULT_LOCALE || setupStatus?.contentLocales?.defaultLocale || 'en';
+  const configuredArticleBasePath = process.env.ARTICLE_BASE_PATH || setupStatus?.contentRouting?.articleBasePath;
+  let articleBasePath = configuredArticleBasePath || 'articles';
 
-  logPass('/api/setup/status', `default locale ${defaultLocale}, article base path ${articleBasePath}`);
+  if (setupStatusLocked) {
+    logPass('/api/setup/status', `locked after setup (${setupStatusResult.response.status})`);
+  } else {
+    logPass('/api/setup/status', `default locale ${defaultLocale}, article base path ${articleBasePath}`);
+  }
 
   const rootResult = await expectStatus('/', [301, 302, 307, 308]);
   const rootLocation = rootResult.response.headers.get('location') || '';
+  const rootLocaleMatch = rootLocation.match(/^\/([a-z]{2})(?:\/|$)/i);
+  if (!process.env.DEFAULT_LOCALE && rootLocaleMatch?.[1]) {
+    defaultLocale = rootLocaleMatch[1];
+  }
   if (!rootLocation.startsWith(`/${defaultLocale}`) && rootLocation !== '/setup') {
     fail('/', `unexpected redirect location ${rootLocation}`);
   }
   logPass('/', `redirects to ${rootLocation}`);
 
-  if (!setupStatus?.setupCompleted || rootLocation === '/setup') {
+  if (!setupStatusLocked && (!setupStatus?.setupCompleted || rootLocation === '/setup')) {
     await assertSetupMode(defaultLocale, setupStatus);
     return;
+  }
+
+  if (setupStatusLocked && rootLocation === '/setup') {
+    fail('/', 'setup status is locked but root still redirects to /setup');
   }
 
   const localeHome = await getHtml(`/${defaultLocale}`);
@@ -133,9 +176,17 @@ const main = async () => {
   }
   logPass(`/${defaultLocale}`, 'HTML and security headers look correct');
 
-  const articleIndex = await getHtml(`/${defaultLocale}/${articleBasePath}`);
-  expectHeader(articleIndex.response, `/${defaultLocale}/${articleBasePath}`, 'content-security-policy', /default-src 'self'/i);
-  logPass(`/${defaultLocale}/${articleBasePath}`, 'article index resolved');
+  const articleBasePathCandidates = [
+    articleBasePath,
+    'articles',
+    'blog'
+  ].filter((value, index, values) => value && values.indexOf(value) === index);
+  const articleIndex = await getFirstAvailableHtml(
+    articleBasePathCandidates.map((candidate) => `/${defaultLocale}/${candidate}`)
+  );
+  articleBasePath = articleIndex.pathname.split('/').pop() || articleBasePath;
+  expectHeader(articleIndex.response, articleIndex.pathname, 'content-security-policy', /default-src 'self'/i);
+  logPass(articleIndex.pathname, 'article index resolved');
 
   const adminRedirect = await expectStatus('/admin', [301, 302, 307, 308]);
   const adminLocation = adminRedirect.response.headers.get('location') || '';

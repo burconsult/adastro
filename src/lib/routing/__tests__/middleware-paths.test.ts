@@ -8,10 +8,13 @@ describe('middleware path bypasses', () => {
   it('does not localize Vercel image optimizer requests', () => {
     expect(shouldRedirectToDefaultLocale('/_vercel/image')).toBe(false);
     expect(shouldRedirectToDefaultLocale('/_vercel/image/foo')).toBe(false);
+    expect(shouldRedirectToDefaultLocale('/_image')).toBe(false);
+    expect(shouldRedirectToDefaultLocale('/_image/foo')).toBe(false);
   });
 
   it('allows internal optimizer requests before setup is complete', () => {
     expect(shouldBypassSetupRedirect('/_vercel/image')).toBe(true);
+    expect(shouldBypassSetupRedirect('/_image')).toBe(true);
   });
 
   it('still redirects public content routes to the default locale', () => {

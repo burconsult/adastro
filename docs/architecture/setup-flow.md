@@ -18,8 +18,8 @@ Required setup env keys:
 
 ## 2. Setup Wizard API Sequence
 
-1. Status/readiness: `GET /api/setup/status`
-2. Core SQL template fetch: `GET /api/setup/sql?template=core`
+1. Status/readiness: `GET /api/setup/status` before setup completion
+2. Core SQL template fetch: `GET /api/setup/sql?template=core` before setup completion
 3. Sign in as the bootstrap admin through `/auth/login`
 4. Automated setup: `POST /api/setup/automate`
 5. Routing config: `POST /api/setup/routing`
@@ -28,6 +28,7 @@ Required setup env keys:
 Re-entry control:
 - `setup.allowReentry` in settings controls whether `/setup` remains available after completion.
 - Recommended production value: `false`.
+- After setup completion, setup read APIs require an authenticated admin when re-entry is enabled and return `403` when re-entry is disabled.
 
 ## 3. Manual vs Automated Boundaries
 
@@ -71,7 +72,7 @@ flowchart TD
 
 ## 5. Debug Priority for Setup Issues
 
-1. Check env status in `/api/setup/status`.
+1. Check env status in `/api/setup/status` before setup completion, or sign in as an admin first when debugging a completed install with re-entry enabled.
 2. Check core schema check (`db.coreSchema`) in setup status.
 3. Check `exec_sql` availability (required by feature migration helper + setup automation internals).
 4. Check Supabase Auth URL config for localhost leaks.

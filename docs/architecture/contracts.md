@@ -21,8 +21,8 @@ Invariant:
 
 ## 2. Setup API Contract
 
-- `GET /api/setup/status`: returns readiness checks, routing info, env requirements.
-- `GET /api/setup/sql?template=<core|seed|admin>`: returns SQL templates.
+- `GET /api/setup/status`: returns readiness checks, routing info, env requirements before setup completion; after completion it requires admin access when setup re-entry is enabled and returns `403` when setup re-entry is disabled.
+- `GET /api/setup/sql?template=<core|seed|admin>`: returns SQL templates before setup completion; after completion it follows the same admin/re-entry gate as setup status.
 - `POST /api/setup/automate`: applies safe setup automation tasks.
 - `POST /api/setup/routing`: saves article route config.
 - `POST /api/setup/complete`: validates blockers and sets `setup.completed`.
