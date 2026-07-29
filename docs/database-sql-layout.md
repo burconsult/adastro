@@ -30,6 +30,7 @@ Path:
 - `infra/supabase/migrations/008_content_versioning.sql`
 - `infra/supabase/migrations/009_privileged_function_surface_hardening.sql`
 - `infra/supabase/migrations/010_scheduled_publishing.sql`
+- `infra/supabase/migrations/011_editorial_audit_trail.sql`
 
 Migration notes:
 - `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
@@ -38,6 +39,7 @@ Migration notes:
 - `008_content_versioning.sql` adds private `post_versions` and `page_versions` tables for admin/author version history and restore workflows; inserts are restricted to the server-side allocator functions.
 - `009_privileged_function_surface_hardening.sql` removes the generic privileged settings reader, narrows public storage helpers to fixed bucket-name keys, and revokes direct access to trigger functions.
 - `010_scheduled_publishing.sql` synchronizes scheduled posts into a durable queue and installs an atomic, retrying one-minute worker through Supabase Cron.
+- `011_editorial_audit_trail.sql` adds an immutable admin-readable audit ledger, explicit grants, cursor indexes, and a bounded service-role retention worker.
 
 ### 3) Demo Data (optional)
 

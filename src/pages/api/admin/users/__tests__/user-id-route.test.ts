@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   findProfileByAuthUserId: vi.fn(),
   upsertProfileByAuthUserId: vi.fn(),
   findAuthorByAuthUserId: vi.fn(),
-  updateAuthorById: vi.fn()
+  updateAuthorById: vi.fn(),
+  recordAuditEvent: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -23,6 +24,10 @@ vi.mock('@/lib/auth/auth-helpers', () => ({
 
 vi.mock('@/lib/auth/author-provisioning', () => ({
   ensureAuthorProfileForAuthUser: mocks.ensureAuthorProfileForAuthUser
+}));
+
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: mocks.recordAuditEvent
 }));
 
 vi.mock('@/lib/supabase', () => ({

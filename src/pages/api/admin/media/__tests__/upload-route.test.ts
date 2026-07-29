@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   requireAuthor: vi.fn(),
   uploadMedia: vi.fn(),
-  uploadMediaFromStorage: vi.fn()
+  uploadMediaFromStorage: vi.fn(),
+  recordAuditEvent: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -15,6 +16,10 @@ vi.mock('@/lib/services/media-manager.js', () => ({
     uploadMedia: mocks.uploadMedia,
     uploadMediaFromStorage: mocks.uploadMediaFromStorage
   }
+}));
+
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: mocks.recordAuditEvent
 }));
 
 vi.mock('@/lib/services/cdn-manager.js', async () => {
@@ -98,6 +103,12 @@ describe('admin media upload api', () => {
     expect(payload.responsiveUrls.thumbnail).toContain('fit=cover');
     expect(payload.responsiveUrls.medium).toContain('w=800');
     expect(payload.public.url).toBe('https://example.com/uploads/hero.jpg');
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'media.upload',
+      entityType: 'media',
+      entityId: 'media-1',
+      entityLabel: 'hero.jpg'
+    }));
   });
 
   it('accepts staged uploads that were sent directly to storage', async () => {

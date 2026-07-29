@@ -4,6 +4,7 @@ import { MediaRepository } from '@/lib/database/repositories/media-repository';
 import { mediaManager } from '@/lib/services/media-manager.js';
 import type { MediaAsset } from '@/lib/types/index.js';
 import { supabaseAdmin } from '@/lib/supabase.js';
+import { recordAuditEvent } from '@/lib/audit';
 
 const serializeAsset = (asset: MediaAsset) => ({
   ...asset,
@@ -114,6 +115,18 @@ export const PATCH: APIRoute = async ({ params, request }) => {
 
     const repo = new MediaRepository(true);
     const updated = await repo.update(id, { altText, caption, filename });
+    await recordAuditEvent({
+      actor: user,
+      action: 'media.update',
+      entityType: 'media',
+      entityId: updated.id,
+      entityLabel: updated.filename,
+      metadata: {
+        changedFields: Object.entries({ altText, caption, filename })
+          .filter(([, value]) => value !== undefined)
+          .map(([key]) => key)
+      }
+    });
 
     return new Response(JSON.stringify(serializeAsset(updated)), {
       status: 200,
@@ -164,7 +177,19 @@ export const DELETE: APIRoute = async ({ params, request }) => {
       }
     }
 
+    const repo = new MediaRepository(true);
+    const asset = await repo.findById(id);
     await mediaManager.deleteMediaAsset(id);
+    await recordAuditEvent({
+      actor: user,
+      action: 'media.delete',
+      entityType: 'media',
+      entityId: id,
+      entityLabel: asset?.filename ?? null,
+      metadata: {
+        mimeType: asset?.mimeType ?? null
+      }
+    });
 
     return new Response(null, { status: 204 });
   } catch (error) {

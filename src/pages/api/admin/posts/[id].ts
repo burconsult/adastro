@@ -2,6 +2,15 @@ import type { APIRoute } from 'astro';
 import { PostRepository, type UpdatePost } from '@/lib/database/repositories/post-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
+import { recordAuditEvent } from '@/lib/audit';
+
+const resolvePostAction = (previousStatus: string, nextStatus: string): string => {
+  if (nextStatus === 'scheduled') return 'post.schedule';
+  if (nextStatus === 'published' && previousStatus !== 'published') return 'post.publish';
+  if (previousStatus === 'published' && nextStatus === 'draft') return 'post.unpublish';
+  if (previousStatus === 'scheduled' && nextStatus === 'draft') return 'post.unschedule';
+  return 'post.update';
+};
 
 export const GET: APIRoute = async ({ params, request }) => {
   try {
@@ -134,6 +143,19 @@ export const PUT: APIRoute = async ({ params, request }) => {
     const post = await postRepo.update(id, updatePayload, { actorAuthorId: user.authorId ?? updatePayload.authorId });
 
     const postWithRelations = await postRepo.findByIdWithRelations(post.id);
+    await recordAuditEvent({
+      actor: user,
+      action: resolvePostAction(existingPost.status, post.status),
+      entityType: 'post',
+      entityId: post.id,
+      entityLabel: post.title,
+      metadata: {
+        previousStatus: existingPost.status,
+        status: post.status,
+        locale: post.locale,
+        scheduledFor: post.status === 'scheduled' ? post.publishedAt?.toISOString() : null
+      }
+    });
 
     return new Response(JSON.stringify(postWithRelations ?? post), {
       status: 200,
@@ -189,6 +211,14 @@ export const DELETE: APIRoute = async ({ params, request }) => {
     }
 
     await postRepo.delete(id);
+    await recordAuditEvent({
+      actor: user,
+      action: 'post.delete',
+      entityType: 'post',
+      entityId: id,
+      entityLabel: existingPost.title,
+      metadata: { status: existingPost.status, locale: existingPost.locale }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

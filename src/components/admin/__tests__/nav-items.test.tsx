@@ -60,4 +60,12 @@ describe('resolveAdminNavItems', () => {
     expect(locales).toBeDefined();
     expect(locales?.isActive).toBe(true);
   });
+
+  it('includes the audit activity ledger in top-level admin navigation', () => {
+    const items = resolveAdminNavItems('/admin/activity');
+    const activity = items.find((item) => item.href === '/admin/activity');
+
+    expect(activity).toBeDefined();
+    expect(activity?.isActive).toBe(true);
+  });
 });

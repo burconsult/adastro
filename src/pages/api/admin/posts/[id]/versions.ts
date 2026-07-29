@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { PostRepository } from '@/lib/database/repositories/post-repository';
 import { NotFoundError } from '@/lib/database/connection';
+import { recordAuditEvent } from '@/lib/audit';
 
 const canAccessPost = async (postRepo: PostRepository, postId: string, user: Awaited<ReturnType<typeof requireAuthor>>) => {
   const post = await postRepo.findByIdWithRelations(postId);
@@ -97,6 +98,14 @@ export const POST: APIRoute = async ({ params, request }) => {
     const restored = await postRepo.restoreVersion(id, versionId, {
       actorAuthorId: user.authorId ?? null,
       preserveAuthorId: user.role === 'author'
+    });
+    await recordAuditEvent({
+      actor: user,
+      action: 'post.restore',
+      entityType: 'post',
+      entityId: id,
+      entityLabel: restored.title,
+      metadata: { versionId }
     });
     return new Response(JSON.stringify(restored), {
       status: 200,

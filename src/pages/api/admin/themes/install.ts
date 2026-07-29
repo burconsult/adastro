@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
+import { recordAuditEvent } from '../../../../lib/audit.js';
 
 const PROJECT_ROOT = process.cwd();
 const THEME_INSTALL_SCRIPT = join(PROJECT_ROOT, 'infra/themes/install.js');
@@ -27,7 +28,7 @@ const runInstaller = (archivePath: string) =>
 export const POST: APIRoute = async ({ request }) => {
   let tempRoot: string | null = null;
   try {
-    await requireAdmin(request);
+    const user = await requireAdmin(request);
     const formData = await request.formData();
     const file = formData.get('file');
 
@@ -44,6 +45,13 @@ export const POST: APIRoute = async ({ request }) => {
     await writeFile(archivePath, buffer);
 
     await runInstaller(archivePath);
+    await recordAuditEvent({
+      actor: user,
+      action: 'theme.install',
+      entityType: 'theme',
+      entityLabel: file.name || 'theme.zip',
+      metadata: { packageName: file.name || 'theme.zip' }
+    });
 
     return new Response(JSON.stringify({
       success: true,

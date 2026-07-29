@@ -39,12 +39,17 @@ Migrations:
 - `infra/supabase/migrations/010_scheduled_publishing.sql`
   - Keeps queue synchronization unavailable as a direct RPC
   - Restricts manual worker execution to `service_role`; the database-owned cron job runs the same atomic worker
+- `infra/supabase/migrations/011_editorial_audit_trail.sql`
+  - Forces RLS on the audit ledger and grants global reads only to admins
+  - Restricts inserts and bounded retention pruning to `service_role`
+  - Rejects direct updates and deletes through an immutable-row trigger
 
 ### Helper Functions
 Sensitive helper functions explicitly revoke execution from `anon`, `authenticated`, and `PUBLIC` before re-granting only the minimal required roles.
 `public.exec_sql(text)` is service-role-only and should be treated as a migration/bootstrap helper, not a public RPC surface.
 The public storage helpers expose only configured bucket names; they do not accept caller-provided setting keys.
 The scheduled-publishing worker is service-role-only and uses row locks plus state predicates to prevent duplicate publication during overlapping runs.
+The audit ledger stores identity and action metadata only. Callers must not record content bodies, credentials, tokens, cookies, or setting values; the server recorder strips sensitive metadata keys as defense in depth.
 `service_role` remains server-only and must never be exposed to the browser.
 
 ## Storage Security

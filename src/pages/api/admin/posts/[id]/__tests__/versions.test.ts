@@ -5,11 +5,16 @@ const mocks = vi.hoisted(() => ({
   requireAuthor: vi.fn(),
   findByIdWithRelations: vi.fn(),
   findVersions: vi.fn(),
-  restoreVersion: vi.fn()
+  restoreVersion: vi.fn(),
+  recordAuditEvent: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
   requireAuthor: mocks.requireAuthor
+}));
+
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: mocks.recordAuditEvent
 }));
 
 vi.mock('@/lib/database/repositories/post-repository', () => ({

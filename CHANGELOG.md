@@ -8,6 +8,7 @@ All notable changes to AdAstro are documented in this file.
 - Added server-backed version history for posts and pages, including admin editor restore controls and schema-versioned snapshots for page-builder sections, taxonomy links, SEO metadata, and publish state.
 - Added service-role-only version allocator functions with per-content transaction locks so concurrent saves cannot receive the same version number.
 - Added reliable scheduled publishing through a durable queue and one-minute Supabase Cron reconciliation.
+- Added an immutable editorial audit trail with an admin Activity view, filtered JSON/CSV exports, and bounded retention pruning.
 
 ### Changed
 - Scheduled publication now claims due posts with row locks, records the published state in version history, retries isolated failures up to three times, and safely tolerates missed or overlapping scheduler runs.
@@ -16,10 +17,12 @@ All notable changes to AdAstro are documented in this file.
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
 - Existing installs should then apply `infra/supabase/migrations/009_privileged_function_surface_hardening.sql` to remove the arbitrary privileged settings reader and tighten helper/trigger function execution.
 - Apply `infra/supabase/migrations/010_scheduled_publishing.sql` to enable the queue worker and the `adastro-publish-scheduled-posts` Supabase Cron job. No hosting-provider cron or additional environment variable is required.
+- Apply `infra/supabase/migrations/011_editorial_audit_trail.sql` to add the append-only audit ledger, explicit Data API grants, service-only writes, and retention worker.
 
 ### Security
 - Removed public access to the generic `get_site_setting_text` privileged helper, which could read caller-selected settings including server-only values.
 - Replaced it in storage policies with fixed-key bucket helpers, changed JWT-only role checks to invoker rights, and revoked direct RPC execution from trigger functions.
+- Audit events exclude content bodies and sensitive values, are globally readable only by admins, and cannot be updated or directly deleted.
 
 ## 1.5.0 "Sunshine" - 2026-06-16
 

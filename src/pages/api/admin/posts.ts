@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { PostRepository } from '@/lib/database/repositories/post-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
+import { recordAuditEvent } from '@/lib/audit';
 
 const toOptionalQueryValue = (value: string | null): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -130,6 +131,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }, { actorAuthorId: user.authorId ?? authorId });
 
     const postWithRelations = await postRepo.findByIdWithRelations(post.id);
+    await recordAuditEvent({
+      actor: user,
+      action: data.status === 'published'
+        ? 'post.publish'
+        : data.status === 'scheduled'
+          ? 'post.schedule'
+          : 'post.create',
+      entityType: 'post',
+      entityId: post.id,
+      entityLabel: post.title,
+      metadata: {
+        locale: post.locale,
+        status: post.status,
+        scheduledFor: post.status === 'scheduled' ? post.publishedAt?.toISOString() : null
+      }
+    });
 
     return new Response(JSON.stringify(postWithRelations ?? post), {
       status: 201,

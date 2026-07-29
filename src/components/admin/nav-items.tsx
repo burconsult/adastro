@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Bot,
   ChartColumn,
+  ClipboardList,
   Database,
   FileText,
   Files,
@@ -60,6 +61,11 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: '/admin/analytics',
     label: 'Analytics',
     icon: <ChartColumn className="h-4 w-4" />
+  },
+  {
+    href: '/admin/activity',
+    label: 'Activity',
+    icon: <ClipboardList className="h-4 w-4" />
   },
   {
     href: '/admin/media',

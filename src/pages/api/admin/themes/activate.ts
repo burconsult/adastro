@@ -3,13 +3,14 @@ import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 import { SettingsService } from '../../../../lib/services/settings-service.js';
 import { getThemeModuleById } from '../../../../lib/themes/registry.js';
 import { resetSiteThemeCache } from '../../../../lib/site-config.js';
+import { recordAuditEvent } from '../../../../lib/audit.js';
 
 const settingsService = new SettingsService();
 const allowedModes = new Set(['light', 'dark', 'system']);
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    await requireAdmin(request);
+    const user = await requireAdmin(request);
     const payload = await request.json().catch(() => ({}));
     const themeId = typeof payload.id === 'string' ? payload.id.trim() : '';
     const mode = typeof payload.mode === 'string' ? payload.mode.trim() : '';
@@ -36,6 +37,16 @@ export const POST: APIRoute = async ({ request }) => {
 
     await settingsService.updateSettings(updates);
     resetSiteThemeCache();
+    await recordAuditEvent({
+      actor: user,
+      action: 'theme.activate',
+      entityType: 'theme',
+      entityId: themeId,
+      entityLabel: theme.label,
+      metadata: {
+        mode: allowedModes.has(mode) ? mode : null
+      }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

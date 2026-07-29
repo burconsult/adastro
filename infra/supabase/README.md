@@ -68,6 +68,7 @@ Run `npm run local:doctor` if you want a quick readiness check for port collisio
 - **migration_jobs** / **migration_artifacts** - WordPress import tracking + rollback support
 - **scheduled_posts** - Scheduled publishing queue
 - **system_logs** - System and operational logs
+- **audit_events** - Immutable editorial and administrative activity ledger
 - **user_profiles** - Per-user feature/profile extension data
 
 ### Key Features
@@ -76,6 +77,7 @@ Run `npm run local:doctor` if you want a quick readiness check for port collisio
 - **Row Level Security (RLS)** for data protection
 - **Automatic timestamps** with triggers
 - **Automatic scheduled publishing** through a durable queue and one-minute Supabase Cron worker
+- **Admin-only audit history** with service-only writes and explicit retention pruning
 - **Hierarchical categories** with parent-child relationships
 - **JSONB fields** for flexible metadata storage
 - **Optimized indexes** for common queries
@@ -136,3 +138,11 @@ select jobname, schedule, command, active
 from cron.job
 where jobname = 'adastro-publish-scheduled-posts';
 ```
+
+## Editorial Audit Trail
+
+Existing installations must apply `migrations/011_editorial_audit_trail.sql`.
+The admin Activity page records core content, settings, and user-management
+mutations without storing content bodies or secret values. Audit rows cannot be
+updated or deleted directly. Admins should export JSON or CSV before using the
+bounded retention action (30–3650 days).

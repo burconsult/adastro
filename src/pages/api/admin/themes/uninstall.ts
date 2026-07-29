@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 import { SettingsService } from '../../../../lib/services/settings-service.js';
 import { resetSiteThemeCache } from '../../../../lib/site-config.js';
+import { recordAuditEvent } from '../../../../lib/audit.js';
 
 const settingsService = new SettingsService();
 const PROJECT_ROOT = process.cwd();
@@ -24,7 +25,7 @@ const runUninstaller = (themeId: string) =>
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    await requireAdmin(request);
+    const user = await requireAdmin(request);
     const payload = await request.json().catch(() => ({}));
     const themeId = typeof payload.id === 'string' ? payload.id.trim() : '';
 
@@ -50,6 +51,16 @@ export const POST: APIRoute = async ({ request }) => {
       await settingsService.updateSettings({ 'appearance.theme.active': 'adastro' });
       resetSiteThemeCache();
     }
+    await recordAuditEvent({
+      actor: user,
+      action: 'theme.uninstall',
+      entityType: 'theme',
+      entityId: themeId,
+      entityLabel: themeId,
+      metadata: {
+        resetToDefault: activeTheme === themeId
+      }
+    });
 
     return new Response(JSON.stringify({ success: true, requiresRestart: true }), {
       status: 200,
