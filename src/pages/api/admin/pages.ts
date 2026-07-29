@@ -138,7 +138,7 @@ export const POST: APIRoute = async ({ request }) => {
       authorId,
       seoMetadata: data.seoMetadata,
       publishedAt
-    }, sections);
+    }, sections, { actorAuthorId: user.authorId ?? authorId });
 
     return new Response(JSON.stringify(page), {
       status: 201,

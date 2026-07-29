@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS post_tags (
   PRIMARY KEY (post_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS post_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE NOT NULL,
+  version_number INTEGER NOT NULL CHECK (version_number > 0),
+  snapshot JSONB NOT NULL CHECK (jsonb_typeof(snapshot) = 'object'),
+  created_by UUID REFERENCES authors(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT post_versions_post_version_unique UNIQUE (post_id, version_number)
+);
+
 -- Admin feature tables
 CREATE TABLE IF NOT EXISTS site_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -166,6 +176,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
 CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
 CREATE INDEX IF NOT EXISTS idx_tags_slug ON tags(slug);
+CREATE INDEX IF NOT EXISTS idx_post_versions_post_id ON post_versions(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_versions_post_created_at ON post_versions(post_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_site_settings_key ON site_settings(key);
 CREATE INDEX IF NOT EXISTS idx_site_settings_category ON site_settings(category);
@@ -368,6 +380,7 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE migration_jobs ENABLE ROW LEVEL SECURITY;
@@ -502,6 +515,19 @@ CREATE POLICY "Authors can delete post tags" ON post_tags
 
 CREATE POLICY "Admin can manage post tags" ON post_tags
   FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Authors can read own post versions" ON post_versions
+  FOR SELECT USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_versions.post_id
+        AND posts.author_id = public.current_author_id()
+    )
+  );
+
+CREATE POLICY "Admin can delete post versions" ON post_versions
+  FOR DELETE USING (public.is_admin());
 
 CREATE POLICY "Authors can manage own media" ON media_assets
   FOR ALL USING (
@@ -660,8 +686,99 @@ CREATE TABLE IF NOT EXISTS page_sections (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS page_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id UUID REFERENCES pages(id) ON DELETE CASCADE NOT NULL,
+  version_number INTEGER NOT NULL CHECK (version_number > 0),
+  snapshot JSONB NOT NULL CHECK (jsonb_typeof(snapshot) = 'object'),
+  created_by UUID REFERENCES authors(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT page_versions_page_version_unique UNIQUE (page_id, version_number)
+);
+
 CREATE INDEX IF NOT EXISTS idx_page_sections_page_id ON page_sections(page_id);
 CREATE INDEX IF NOT EXISTS idx_page_sections_order ON page_sections(page_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_page_versions_page_id ON page_versions(page_id);
+CREATE INDEX IF NOT EXISTS idx_page_versions_page_created_at ON page_versions(page_id, created_at DESC);
+
+-- Allocate per-content version numbers under a transaction-scoped advisory
+-- lock so concurrent saves cannot select the same next version number.
+CREATE OR REPLACE FUNCTION public.create_post_version(
+  target_post_id UUID,
+  version_snapshot JSONB,
+  actor_author_id UUID DEFAULT NULL
+)
+RETURNS public.post_versions
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  inserted_version public.post_versions;
+BEGIN
+  IF jsonb_typeof(version_snapshot) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'Post version snapshot must be a JSON object.';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('post_versions:' || target_post_id::text, 0)
+  );
+
+  INSERT INTO public.post_versions (post_id, version_number, snapshot, created_by)
+  SELECT target_post_id, COALESCE(MAX(version_number), 0) + 1, version_snapshot, actor_author_id
+  FROM public.post_versions
+  WHERE post_id = target_post_id
+  RETURNING * INTO inserted_version;
+
+  RETURN inserted_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_page_version(
+  target_page_id UUID,
+  version_snapshot JSONB,
+  actor_author_id UUID DEFAULT NULL
+)
+RETURNS public.page_versions
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  inserted_version public.page_versions;
+BEGIN
+  IF jsonb_typeof(version_snapshot) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'Page version snapshot must be a JSON object.';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('page_versions:' || target_page_id::text, 0)
+  );
+
+  INSERT INTO public.page_versions (page_id, version_number, snapshot, created_by)
+  SELECT target_page_id, COALESCE(MAX(version_number), 0) + 1, version_snapshot, actor_author_id
+  FROM public.page_versions
+  WHERE page_id = target_page_id
+  RETURNING * INTO inserted_version;
+
+  RETURN inserted_version;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.create_post_version(UUID, JSONB, UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_post_version(UUID, JSONB, UUID)
+  TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.create_page_version(UUID, JSONB, UUID)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_page_version(UUID, JSONB, UUID)
+  TO service_role;
+
+REVOKE ALL ON TABLE public.post_versions, public.page_versions
+  FROM anon, authenticated;
+GRANT SELECT, DELETE ON TABLE public.post_versions, public.page_versions
+  TO authenticated;
+GRANT ALL ON TABLE public.post_versions, public.page_versions
+  TO service_role;
 
 CREATE TRIGGER update_pages_updated_at
   BEFORE UPDATE ON pages
@@ -732,6 +849,8 @@ ALTER POLICY "Admin can manage post categories" ON public.post_categories TO aut
 ALTER POLICY "Authors can insert post tags" ON public.post_tags TO authenticated;
 ALTER POLICY "Authors can delete post tags" ON public.post_tags TO authenticated;
 ALTER POLICY "Admin can manage post tags" ON public.post_tags TO authenticated;
+ALTER POLICY "Authors can read own post versions" ON public.post_versions TO authenticated;
+ALTER POLICY "Admin can delete post versions" ON public.post_versions TO authenticated;
 
 ALTER POLICY "Authors can manage own media" ON public.media_assets TO authenticated;
 ALTER POLICY "Admin can manage media" ON public.media_assets TO authenticated;
@@ -753,6 +872,7 @@ ALTER TABLE public.posts FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.media_assets FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.post_categories FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.post_tags FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.post_versions FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.migration_jobs FORCE ROW LEVEL SECURITY;
@@ -887,10 +1007,12 @@ CREATE POLICY "Service role manage migration uploads" ON storage.objects
 -- RLS policies for pages, page sections, and user profiles
 ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.pages FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.page_sections FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.page_versions FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public can read published pages" ON public.pages
@@ -970,6 +1092,23 @@ CREATE POLICY "Authors can manage page sections" ON public.page_sections
         AND pages.author_id = public.current_author_id()
     )
   );
+
+CREATE POLICY "Authors can read own page versions" ON public.page_versions
+  FOR SELECT
+  TO authenticated
+  USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.pages
+      WHERE pages.id = page_versions.page_id
+        AND pages.author_id = public.current_author_id()
+    )
+  );
+
+CREATE POLICY "Admin can delete page versions" ON public.page_versions
+  FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
 
 CREATE POLICY "Users can read own profile" ON public.user_profiles
   FOR SELECT

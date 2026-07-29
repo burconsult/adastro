@@ -6,8 +6,10 @@ Owned by core schema and core repositories/services:
 - `site_settings`
 - `authors`
 - `posts`
+- `post_versions`
 - `pages`
 - `page_sections`
+- `page_versions`
 - `categories`
 - `tags`
 - `post_categories`

@@ -193,6 +193,32 @@ export type Database = {
           custom_fields?: any | null
         }
       }
+      post_versions: {
+        Row: {
+          id: string
+          post_id: string
+          version_number: number
+          snapshot: any
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          version_number: number
+          snapshot: any
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          version_number?: number
+          snapshot?: any
+          created_by?: string | null
+          created_at?: string
+        }
+      }
       pages: {
         Row: {
           id: string
@@ -241,6 +267,32 @@ export type Database = {
           published_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      page_versions: {
+        Row: {
+          id: string
+          page_id: string
+          version_number: number
+          snapshot: any
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          page_id: string
+          version_number: number
+          snapshot: any
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          page_id?: string
+          version_number?: number
+          snapshot?: any
+          created_by?: string | null
+          created_at?: string
         }
       }
       page_sections: {

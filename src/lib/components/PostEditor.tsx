@@ -84,6 +84,20 @@ interface PostFormData {
   seoMetadata: SEOMetadata;
 }
 
+type ContentVersionSummary = {
+  id: string;
+  versionNumber: number;
+  createdAt: string;
+  createdBy?: {
+    name?: string;
+    email?: string;
+  } | null;
+  snapshot?: {
+    title?: string;
+    status?: string;
+  };
+};
+
 const serializePostFormData = (data: PostFormData) => {
   return JSON.stringify({
     title: data.title,
@@ -204,6 +218,9 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
   const [slugMessage, setSlugMessage] = useState('');
   const [autosaveTimestamp, setAutosaveTimestamp] = useState<Date | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(normalizedPost?.updatedAt ?? null);
+  const [versions, setVersions] = useState<ContentVersionSummary[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
   const [slugDirty, setSlugDirty] = useState(() => Boolean(normalizedPost?.slug));
   const draftKey = useMemo(
     () => (mode === 'edit' && normalizedPost?.id ? `post-editor-${normalizedPost.id}` : 'post-editor-new'),
@@ -258,6 +275,56 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
       [field]: value
     }));
   }, []);
+
+  const fetchVersions = useCallback(async () => {
+    if (mode !== 'edit' || !normalizedPost?.id) return;
+    setVersionsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/posts/${normalizedPost.id}/versions`);
+      if (!response.ok) {
+        throw new Error('Failed to load versions');
+      }
+      const payload = await response.json();
+      setVersions(Array.isArray(payload) ? payload : []);
+    } catch (error) {
+      console.warn('Failed to load post versions', error);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [mode, normalizedPost?.id]);
+
+  const restoreVersion = useCallback(async (versionId: string) => {
+    if (mode !== 'edit' || !normalizedPost?.id) return;
+    const confirmed = window.confirm('Restore this saved version? Current editor changes will be replaced.');
+    if (!confirmed) return;
+
+    setRestoringVersionId(versionId);
+    try {
+      const response = await fetch(`/api/admin/posts/${normalizedPost.id}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versionId })
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.message || 'Failed to restore version');
+      }
+      toast({
+        variant: 'success',
+        title: 'Version restored',
+        description: 'The restored post has been saved as the latest version.'
+      });
+      window.location.reload();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Restore failed',
+        description: error instanceof Error ? error.message : 'Please try again.'
+      });
+    } finally {
+      setRestoringVersionId(null);
+    }
+  }, [mode, normalizedPost?.id, toast]);
 
   const setFeaturedImage = useCallback((asset: MediaAsset) => {
     setFormData((prev) => ({
@@ -514,6 +581,10 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     setTagOptions(tags);
   }, [tags]);
 
+  useEffect(() => {
+    void fetchVersions();
+  }, [fetchVersions]);
+
   const generateSlug = (title: string): string => {
     return title
       .toLowerCase()
@@ -625,6 +696,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
         publishedAt: savedPublishedAt
       });
       setLastSavedAt(new Date());
+      void fetchVersions();
 
        if (typeof window !== 'undefined') {
         window.localStorage.removeItem(draftKey);
@@ -650,7 +722,7 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
     } finally {
       setSaving(false);
     }
-  }, [formData, mode, post?.id, draftKey, validateForm, toast]);
+  }, [fetchVersions, formData, mode, post?.id, draftKey, validateForm, toast]);
 
   const handleFieldChange = useCallback((field: keyof PostFormData, value: any) => {
     let didChange = false;
@@ -1063,6 +1135,54 @@ const PostEditorInner: React.FC<PostEditorProps> = ({
           </div>
 
           {sidebarPanels}
+
+          {mode === 'edit' && (
+            <div className="card p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h4 className="font-semibold">Version History</h4>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => void fetchVersions()} disabled={versionsLoading}>
+                  Refresh
+                </button>
+              </div>
+              {versionsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading versions...</p>
+              ) : versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No saved versions yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {versions.slice(0, 8).map((version, index) => {
+                    const createdAt = new Date(version.createdAt);
+                    const isLatest = index === 0;
+                    return (
+                      <div key={version.id} className="rounded-md border border-border/70 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium">
+                              v{version.versionNumber}{isLatest ? ' · current' : ''}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {Number.isNaN(createdAt.getTime()) ? 'Unknown time' : createdAt.toLocaleString()}
+                            </p>
+                            {version.createdBy?.name && (
+                              <p className="text-xs text-muted-foreground">By {version.createdBy.name}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            disabled={isLatest || restoringVersionId === version.id}
+                            onClick={() => void restoreVersion(version.id)}
+                          >
+                            {restoringVersionId === version.id ? 'Restoring...' : 'Restore'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Author Selection */}
           <div className="card p-4">

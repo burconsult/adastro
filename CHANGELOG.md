@@ -4,6 +4,13 @@ All notable changes to AdAstro are documented in this file.
 
 ## Unreleased
 
+### Added
+- Added server-backed version history for posts and pages, including admin editor restore controls and schema-versioned snapshots for page-builder sections, taxonomy links, SEO metadata, and publish state.
+- Added service-role-only version allocator functions with per-content transaction locks so concurrent saves cannot receive the same version number.
+
+### Migration Notes
+- Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
+
 ## 1.5.0 "Sunshine" - 2026-06-16
 
 ### Added

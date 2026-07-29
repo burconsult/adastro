@@ -27,11 +27,13 @@ Path:
 - `infra/supabase/migrations/001_content_locales.sql`
 - `infra/supabase/migrations/002_locale_nb_bootstrap.sql`
 - `infra/supabase/migrations/003_nb_content_translation_hardening.sql`
+- `infra/supabase/migrations/008_content_versioning.sql`
 
 Migration notes:
 - `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
 - `002_locale_nb_bootstrap.sql` is idempotent and intended for existing `en` content stacks that want Norwegian (`nb`) as active primary locale; it clones/bootstraps localized records where missing.
 - `003_nb_content_translation_hardening.sql` backfills known Norwegian `about` page section content on older installs that were already bootstrapped before the translation fixes landed.
+- `008_content_versioning.sql` adds private `post_versions` and `page_versions` tables for admin/author version history and restore workflows; inserts are restricted to the server-side allocator functions.
 
 ### 3) Demo Data (optional)
 

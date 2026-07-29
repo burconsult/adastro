@@ -131,7 +131,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
       updatePayload.content = contentToPersist;
     }
 
-    const post = await postRepo.update(id, updatePayload);
+    const post = await postRepo.update(id, updatePayload, { actorAuthorId: user.authorId ?? updatePayload.authorId });
 
     const postWithRelations = await postRepo.findByIdWithRelations(post.id);
 
