@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   findById: vi.fn(),
   update: vi.fn(),
   deleteMediaAsset: vi.fn(),
-  ownershipMaybeSingle: vi.fn()
+  ownershipMaybeSingle: vi.fn(),
+  recordAuditEvent: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -37,6 +38,10 @@ vi.mock('@/lib/supabase.js', () => ({
   }
 }));
 
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: mocks.recordAuditEvent
+}));
+
 import { DELETE, GET } from '../[id].ts';
 
 describe('admin media [id] route', () => {
@@ -61,6 +66,11 @@ describe('admin media [id] route', () => {
   });
 
   it('handles DELETE without request reference errors and returns 204 on success', async () => {
+    mocks.findById.mockResolvedValue({
+      id: 'asset-1',
+      filename: 'hero.jpg',
+      mimeType: 'image/jpeg'
+    });
     mocks.deleteMediaAsset.mockResolvedValue(undefined);
     const request = new Request('http://localhost/api/admin/media/asset-1');
 
@@ -72,5 +82,11 @@ describe('admin media [id] route', () => {
     expect(response.status).toBe(204);
     expect(mocks.requireAuthor).toHaveBeenCalledWith(request);
     expect(mocks.deleteMediaAsset).toHaveBeenCalledWith('asset-1');
+    expect(mocks.recordAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'media.delete',
+      entityType: 'media',
+      entityId: 'asset-1',
+      entityLabel: 'hero.jpg'
+    }));
   });
 });

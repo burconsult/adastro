@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { PageRepository } from '@/lib/database/repositories/page-repository';
 import { NotFoundError } from '@/lib/database/connection';
+import { recordAuditEvent } from '@/lib/audit';
 
 const canAccessPage = async (pageRepo: PageRepository, pageId: string, user: Awaited<ReturnType<typeof requireAuthor>>) => {
   const page = await pageRepo.findByIdWithRelations(pageId);
@@ -97,6 +98,14 @@ export const POST: APIRoute = async ({ params, request }) => {
     const restored = await pageRepo.restoreVersion(id, versionId, {
       actorAuthorId: user.authorId ?? null,
       preserveAuthorId: user.role === 'author'
+    });
+    await recordAuditEvent({
+      actor: user,
+      action: 'page.restore',
+      entityType: 'page',
+      entityId: id,
+      entityLabel: restored.title,
+      metadata: { versionId }
     });
     return new Response(JSON.stringify(restored), {
       status: 200,

@@ -9,6 +9,7 @@ import {
   toBoolean
 } from '../../../lib/features/migrations.js';
 import { normalizeFeatureFlag } from '../../../lib/features/flags.js';
+import { recordAuditEvent } from '../../../lib/audit.js';
 
 const settingsService = new SettingsService();
 
@@ -93,6 +94,14 @@ export const POST: APIRoute = async ({ request }) => {
 
     await settingsService.setSetting(key, value, admin.id);
     resetAllSiteConfigCaches();
+    await recordAuditEvent({
+      actor: admin,
+      action: 'setting.update',
+      entityType: 'setting',
+      entityId: key,
+      entityLabel: key,
+      metadata: { keys: [key] }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -129,6 +138,14 @@ export const PUT: APIRoute = async ({ request }) => {
 
     await settingsService.updateSettings(settings, admin.id);
     resetAllSiteConfigCaches();
+    const updatedKeys = Object.keys(settings);
+    await recordAuditEvent({
+      actor: admin,
+      action: 'setting.bulk_update',
+      entityType: 'setting',
+      entityLabel: `${updatedKeys.length} settings`,
+      metadata: { keys: updatedKeys }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -147,7 +164,7 @@ export const PUT: APIRoute = async ({ request }) => {
 
 export const DELETE: APIRoute = async ({ request }) => {
   try {
-    await requireAdmin(request);
+    const admin = await requireAdmin(request);
     const body = await request.json();
     const { category } = body;
 
@@ -159,6 +176,14 @@ export const DELETE: APIRoute = async ({ request }) => {
       await settingsService.resetToDefaults();
     }
     resetAllSiteConfigCaches();
+    await recordAuditEvent({
+      actor: admin,
+      action: 'setting.reset',
+      entityType: 'setting',
+      entityId: category || null,
+      entityLabel: category ? `${category} settings` : 'All settings',
+      metadata: { category: category || null }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

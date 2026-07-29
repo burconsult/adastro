@@ -30,6 +30,9 @@ Run the same checks on both targets.
 - [ ] Article index route resolves using configured `content.articleBasePath`.
 - [ ] Article permalink style works (`segment` or `wordpress`) and canonical URL is correct.
 - [ ] Create + publish a page in the page editor.
+- [ ] `/admin/activity` records post/page create, update, publish, restore, and delete actions with the correct actor.
+- [ ] Activity filters, cursor pagination, and JSON/CSV exports work; authors cannot open the admin-only ledger.
+- [ ] Export the ledger, then verify retention pruning rejects periods below 30 days.
 - [ ] Locale switcher works on home, page, article, and auth surfaces.
 - [ ] Switching locale on untranslated content falls back safely with a user-facing notice.
 

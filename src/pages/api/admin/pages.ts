@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { PageRepository } from '@/lib/database/repositories/page-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
+import { recordAuditEvent } from '@/lib/audit';
 
 const toOptionalQueryValue = (value: string | null): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -139,6 +140,14 @@ export const POST: APIRoute = async ({ request }) => {
       seoMetadata: data.seoMetadata,
       publishedAt
     }, sections, { actorAuthorId: user.authorId ?? authorId });
+    await recordAuditEvent({
+      actor: user,
+      action: page.status === 'published' ? 'page.publish' : 'page.create',
+      entityType: 'page',
+      entityId: page.id,
+      entityLabel: page.title,
+      metadata: { status: page.status, locale: page.locale, template: page.template }
+    });
 
     return new Response(JSON.stringify(page), {
       status: 201,

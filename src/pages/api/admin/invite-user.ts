@@ -6,10 +6,11 @@ import { getSiteLocaleConfig } from '@/lib/site-config';
 import { ensureAuthorProfileForAuthUser } from '@/lib/auth/author-provisioning';
 import { supabaseAdmin } from '@/lib/supabase';
 import { resolveAuthSiteUrl } from '@/lib/url/site-url';
+import { recordAuditEvent } from '@/lib/audit';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    await requireAdmin(request);
+    const admin = await requireAdmin(request);
 
     const { email, role = 'author' } = await request.json();
     const rawRole = typeof role === 'string' ? role.trim().toLowerCase() : 'author';
@@ -60,6 +61,14 @@ export const POST: APIRoute = async ({ request }) => {
         }
       }
     }
+    await recordAuditEvent({
+      actor: admin,
+      action: 'user.invite',
+      entityType: 'user',
+      entityId: data?.user?.id ?? null,
+      entityLabel: email,
+      metadata: { role: normalizedRole }
+    });
 
     return new Response(
       JSON.stringify({ 

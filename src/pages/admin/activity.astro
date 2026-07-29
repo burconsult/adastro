@@ -1,0 +1,195 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminPageHeader from "@/components/admin/AdminPageHeader.astro";
+import { listAuditEvents } from "@/lib/audit";
+
+const search = Astro.url.searchParams.get('search') || '';
+const entityType = Astro.url.searchParams.get('entityType') || '';
+const action = Astro.url.searchParams.get('action') || '';
+const cursor = Astro.url.searchParams.get('cursor') || '';
+const { events, nextCursor } = await listAuditEvents({
+  search: search || undefined,
+  entityType: entityType || undefined,
+  action: action || undefined,
+  cursor: cursor || undefined,
+  limit: 50
+});
+
+const filterParams = new URLSearchParams();
+if (search) filterParams.set('search', search);
+if (entityType) filterParams.set('entityType', entityType);
+if (action) filterParams.set('action', action);
+
+const exportHref = (format: 'json' | 'csv') => {
+  const params = new URLSearchParams(filterParams);
+  params.set('format', format);
+  params.set('limit', '5000');
+  return `/api/admin/audit?${params.toString()}`;
+};
+
+const nextHref = nextCursor
+  ? (() => {
+      const params = new URLSearchParams(filterParams);
+      params.set('cursor', nextCursor);
+      return `/admin/activity?${params.toString()}`;
+    })()
+  : null;
+
+const entityHref = (entity: string, id: string | null) => {
+  if (!id) return null;
+  if (entity === 'post') return `/admin/posts/edit/${id}`;
+  if (entity === 'page') return `/admin/pages/edit/${id}`;
+  if (entity === 'media') return '/admin/media';
+  if (entity === 'user') return '/admin/users';
+  if (entity === 'setting') return '/admin/settings';
+  if (entity === 'feature') return '/admin/features';
+  if (entity === 'theme') return '/admin/themes';
+  return null;
+};
+---
+
+<AdminLayout title="Activity" description="Immutable editorial and administrative activity history.">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Activity"
+      description="Review who changed content and configuration, when it happened, and which entity was affected."
+    />
+
+    <div class="card p-4">
+      <form method="get" class="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_12rem_auto]">
+        <label class="space-y-1 text-sm">
+          <span class="font-medium">Search</span>
+          <input class="input w-full" type="search" name="search" value={search} placeholder="Actor or entity" />
+        </label>
+        <label class="space-y-1 text-sm">
+          <span class="font-medium">Entity type</span>
+          <input class="input w-full" name="entityType" value={entityType} placeholder="post, page, user…" />
+        </label>
+        <label class="space-y-1 text-sm">
+          <span class="font-medium">Action</span>
+          <input class="input w-full" name="action" value={action} placeholder="post.update" />
+        </label>
+        <div class="flex items-end gap-2">
+          <button class="btn btn-primary" type="submit">Filter</button>
+          <a class="btn btn-outline" href="/admin/activity">Clear</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-sm text-muted-foreground">
+        Showing up to 50 events per page. Event bodies never include content, passwords, tokens, or secret values.
+      </p>
+      <div class="flex gap-2">
+        <a class="btn btn-outline text-sm" href={exportHref('csv')}>Export CSV</a>
+        <a class="btn btn-outline text-sm" href={exportHref('json')}>Export JSON</a>
+      </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg border border-border bg-card">
+      {events.length > 0 ? (
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[880px] text-left text-sm">
+            <thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th class="px-4 py-3">When</th>
+                <th class="px-4 py-3">Actor</th>
+                <th class="px-4 py-3">Action</th>
+                <th class="px-4 py-3">Entity</th>
+                <th class="px-4 py-3">Source</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {events.map((event) => {
+                const href = entityHref(event.entityType, event.entityId);
+                return (
+                  <tr class="align-top hover:bg-muted/30">
+                    <td class="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                      <time datetime={event.createdAt}>
+                        {new Date(event.createdAt).toLocaleString()}
+                      </time>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="font-medium">{event.actorLabel}</div>
+                      <div class="text-xs text-muted-foreground">{event.actorRole}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <code class="rounded bg-muted px-2 py-1 text-xs">{event.action}</code>
+                    </td>
+                    <td class="px-4 py-3">
+                      {href ? (
+                        <a class="font-medium text-primary hover:underline" href={href}>
+                          {event.entityLabel || event.entityId || event.entityType}
+                        </a>
+                      ) : (
+                        <span class="font-medium">{event.entityLabel || event.entityId || event.entityType}</span>
+                      )}
+                      <div class="mt-1 text-xs text-muted-foreground">{event.entityType}</div>
+                    </td>
+                    <td class="px-4 py-3 text-muted-foreground">{event.source}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div class="p-10 text-center">
+          <p class="font-medium">No activity found</p>
+          <p class="mt-1 text-sm text-muted-foreground">New editorial and administrative changes will appear here.</p>
+        </div>
+      )}
+    </div>
+
+    <div class="flex items-center justify-between gap-3">
+      <a class:list={["btn btn-outline", !cursor && "pointer-events-none opacity-50"]} href="/admin/activity">
+        First page
+      </a>
+      {nextHref ? (
+        <a class="btn btn-primary" href={nextHref}>Older events</a>
+      ) : (
+        <span class="text-sm text-muted-foreground">End of activity</span>
+      )}
+    </div>
+
+    <div class="card p-4">
+      <h2 class="font-semibold">Retention</h2>
+      <p class="mt-1 text-sm text-muted-foreground">
+        Export events before pruning. Retention is bounded between 30 days and 10 years.
+      </p>
+      <form id="audit-retention-form" class="mt-3 flex flex-wrap items-end gap-3">
+        <label class="space-y-1 text-sm">
+          <span class="font-medium">Keep events for</span>
+          <div class="flex items-center gap-2">
+            <input class="input w-28" type="number" name="retentionDays" min="30" max="3650" value="365" />
+            <span class="text-muted-foreground">days</span>
+          </div>
+        </label>
+        <button class="btn btn-outline" type="submit">Prune older events</button>
+        <span id="audit-retention-status" class="text-sm text-muted-foreground" aria-live="polite"></span>
+      </form>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('#audit-retention-form');
+  const status = document.querySelector<HTMLElement>('#audit-retention-status');
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!status) return;
+    const input = form.elements.namedItem('retentionDays') as HTMLInputElement | null;
+    const retentionDays = Number(input?.value || 365);
+    if (!window.confirm(`Permanently prune audit events older than ${retentionDays} days?`)) return;
+    status.textContent = 'Pruning…';
+    const response = await fetch('/api/admin/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retentionDays })
+    });
+    const payload = await response.json().catch(() => ({}));
+    status.textContent = response.ok
+      ? `Pruned ${payload.deleted ?? 0} events.`
+      : payload.error || 'Pruning failed.';
+  });
+</script>

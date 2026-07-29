@@ -3,6 +3,7 @@ import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { mediaManager } from '@/lib/services/media-manager.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '@/lib/config/media.js';
 import { cdnManager } from '@/lib/services/cdn-manager.js';
+import { recordAuditEvent } from '@/lib/audit';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -61,6 +62,17 @@ export const POST: APIRoute = async ({ request }) => {
 
     const primaryAsset = result.public ?? result.original;
     const responsiveUrls = cdnManager.generateResponsiveUrls(primaryAsset);
+    await recordAuditEvent({
+      actor: user,
+      action: 'media.upload',
+      entityType: 'media',
+      entityId: primaryAsset.id,
+      entityLabel: primaryAsset.filename,
+      metadata: {
+        mimeType: primaryAsset.mimeType,
+        fileSize: primaryAsset.fileSize
+      }
+    });
 
     return new Response(
       JSON.stringify({

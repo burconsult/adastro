@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
 import { SettingsService } from '../../../../lib/services/settings-service.js';
 import { supabaseAdmin } from '../../../../lib/supabase.js';
+import { recordAuditEvent } from '../../../../lib/audit.js';
 
 const settingsService = new SettingsService();
 const PROJECT_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -68,7 +69,7 @@ const runUninstaller = (featureId: string, options?: { removeFiles?: boolean }) 
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    await requireAdmin(request);
+    const user = await requireAdmin(request);
     const payload = await request.json().catch(() => ({}));
     const featureId = typeof payload.id === 'string' ? payload.id.trim() : '';
     const purgeData = payload.purgeData === true;
@@ -140,6 +141,18 @@ export const POST: APIRoute = async ({ request }) => {
 
     await runUninstaller(featureId, { removeFiles });
     await settingsService.deleteSettingsByPrefix(`features.${featureId}.`);
+    await recordAuditEvent({
+      actor: user,
+      action: 'feature.uninstall',
+      entityType: 'feature',
+      entityId: featureId,
+      entityLabel: featureId,
+      metadata: {
+        purgeData,
+        removeFiles,
+        warningCount: warnings.length
+      }
+    });
 
     return new Response(JSON.stringify({ success: true, requiresRestart: true, warnings }), {
       status: 200,

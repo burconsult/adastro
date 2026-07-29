@@ -4,6 +4,7 @@ import { ensureAuthorProfileForAuthUser } from '@/lib/auth/author-provisioning';
 import { AuthorRepository } from '@/lib/database/repositories/author-repository';
 import { UserProfileRepository } from '@/lib/database/repositories/user-profile-repository';
 import { supabaseAdmin } from '@/lib/supabase';
+import { recordAuditEvent } from '@/lib/audit';
 
 const VALID_ROLES = new Set(['admin', 'author', 'reader']);
 const VALID_AVATAR_SOURCES = new Set(['custom', 'gravatar']);
@@ -235,6 +236,27 @@ export const PUT: APIRoute = async ({ params, request }) => {
     if (!user) {
       return json({ error: 'User not found' }, 404);
     }
+    const changedFields = [
+      hasRole && 'role',
+      hasEmail && 'email',
+      hasFullName && 'fullName',
+      hasBio && 'bio',
+      hasAvatarSource && 'avatarSource',
+      hasAvatarUrl && 'avatarUrl',
+      hasEmailConfirmed && 'emailConfirmed'
+    ].filter((value): value is string => Boolean(value));
+    await recordAuditEvent({
+      actor: currentUser,
+      action: hasRole && nextRole !== normalizeRole(targetUser.role) ? 'user.role_change' : 'user.update',
+      entityType: 'user',
+      entityId: userId,
+      entityLabel: user.email,
+      metadata: {
+        changedFields,
+        previousRole: normalizeRole(targetUser.role),
+        role: nextRole
+      }
+    });
 
     return json({ success: true, user });
   } catch (error) {
@@ -269,6 +291,14 @@ export const DELETE: APIRoute = async ({ params, request }) => {
     }
 
     await authService.deleteUser(userId);
+    await recordAuditEvent({
+      actor: currentUser,
+      action: 'user.delete',
+      entityType: 'user',
+      entityId: userId,
+      entityLabel: userToDelete.email,
+      metadata: { role: normalizeRole(userToDelete.role) }
+    });
 
     return json({ success: true });
   } catch (error) {

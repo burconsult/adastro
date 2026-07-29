@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   setUserRole: vi.fn(),
   inviteUserByEmail: vi.fn(),
-  getSiteLocaleConfig: vi.fn()
+  getSiteLocaleConfig: vi.fn(),
+  recordAuditEvent: vi.fn()
 }));
 
 vi.mock('@/lib/auth/auth-helpers', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/lib/auth/auth-helpers', () => ({
 
 vi.mock('@/lib/auth/author-provisioning', () => ({
   ensureAuthorProfileForAuthUser: vi.fn()
+}));
+
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: mocks.recordAuditEvent
 }));
 
 vi.mock('@/lib/supabase', () => ({

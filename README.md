@@ -43,6 +43,7 @@ For Netlify or other providers, the app can build against either hosted adapter:
 - **Backend** – Supabase (Postgres + Storage + Auth) accessed through repositories and services in `src/lib`.
 - **Migration** – `WordPressMigrationService` streams progress + artifacts for undo.
 - **Publishing** – scheduled posts use a durable Supabase queue with atomic one-minute reconciliation.
+- **Accountability** – immutable editorial activity history records content, settings, and user-management changes with admin-only exports.
 - **Infra** – `infra/supabase/scripts/migrate.js` installs the consolidated core schema.
 - **Architecture map** – start from `docs/architecture/system-map.md` and `docs/architecture/README.md`.
 

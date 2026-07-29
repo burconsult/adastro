@@ -2,6 +2,13 @@ import type { APIRoute } from 'astro';
 import { PageRepository, type UpdatePage } from '@/lib/database/repositories/page-repository';
 import { requireAuthor } from '@/lib/auth/auth-helpers';
 import { editorJsToHtml, normalizeEditorJsData } from '@/lib/editorjs';
+import { recordAuditEvent } from '@/lib/audit';
+
+const resolvePageAction = (previousStatus: string, nextStatus: string): string => {
+  if (nextStatus === 'published' && previousStatus !== 'published') return 'page.publish';
+  if (previousStatus === 'published' && nextStatus !== 'published') return 'page.unpublish';
+  return 'page.update';
+};
 
 const normalizeSections = (sections: unknown) => {
   if (!Array.isArray(sections)) return [];
@@ -156,6 +163,19 @@ export const PUT: APIRoute = async ({ params, request }) => {
     const updated = await pageRepo.updateWithSections(id, updatePayload, sections, {
       actorAuthorId: user.authorId ?? updatePayload.authorId
     });
+    await recordAuditEvent({
+      actor: user,
+      action: resolvePageAction(existingPage.status, updated.status),
+      entityType: 'page',
+      entityId: updated.id,
+      entityLabel: updated.title,
+      metadata: {
+        previousStatus: existingPage.status,
+        status: updated.status,
+        locale: updated.locale,
+        template: updated.template
+      }
+    });
 
     return new Response(JSON.stringify(updated), {
       status: 200,
@@ -208,6 +228,14 @@ export const DELETE: APIRoute = async ({ params, request }) => {
     }
 
     await pageRepo.delete(id);
+    await recordAuditEvent({
+      actor: user,
+      action: 'page.delete',
+      entityType: 'page',
+      entityId: id,
+      entityLabel: existingPage.title,
+      metadata: { status: existingPage.status, locale: existingPage.locale }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

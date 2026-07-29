@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { requireAdmin } from '../../../../lib/auth/auth-helpers.js';
+import { recordAuditEvent } from '../../../../lib/audit.js';
 
 const PROJECT_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const FEATURE_INSTALL_SCRIPT = join(PROJECT_ROOT, 'infra/features/install.js');
@@ -23,7 +24,7 @@ const runInstaller = (archivePath: string) =>
 export const POST: APIRoute = async ({ request }) => {
   let tempRoot: string | null = null;
   try {
-    await requireAdmin(request);
+    const user = await requireAdmin(request);
     const formData = await request.formData();
     const file = formData.get('file');
 
@@ -40,6 +41,13 @@ export const POST: APIRoute = async ({ request }) => {
     await writeFile(archivePath, buffer);
 
     await runInstaller(archivePath);
+    await recordAuditEvent({
+      actor: user,
+      action: 'feature.install',
+      entityType: 'feature',
+      entityLabel: file.name || 'feature.zip',
+      metadata: { packageName: file.name || 'feature.zip' }
+    });
 
     return new Response(JSON.stringify({
       success: true,
