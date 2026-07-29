@@ -1,7 +1,7 @@
 {
   "project": "adastro",
   "version": "1.5.0",
-  "lastUpdated": "2026-06-16",
+  "lastUpdated": "2026-07-29",
   "surfaces": {
     "public": {
       "entryRoots": [
@@ -65,7 +65,13 @@
     "coreMigrations": [
       "infra/supabase/migrations/000_core.sql",
       "infra/supabase/migrations/001_content_locales.sql",
-      "infra/supabase/migrations/002_locale_nb_bootstrap.sql"
+      "infra/supabase/migrations/002_locale_nb_bootstrap.sql",
+      "infra/supabase/migrations/003_nb_content_translation_hardening.sql",
+      "infra/supabase/migrations/004_analytics_retention_hardening.sql",
+      "infra/supabase/migrations/005_media_bucket_mime_types.sql",
+      "infra/supabase/migrations/006_auth_hardening_azure_mfa.sql",
+      "infra/supabase/migrations/007_function_acl_hardening.sql",
+      "infra/supabase/migrations/008_content_versioning.sql"
     ],
     "setupRuntime": "src/lib/setup/runtime.ts",
     "dataAccess": "src/lib/database/repositories",
@@ -129,8 +135,10 @@
       "site_settings",
       "authors",
       "posts",
+      "post_versions",
       "pages",
       "page_sections",
+      "page_versions",
       "categories",
       "tags",
       "post_categories",
