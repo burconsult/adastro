@@ -29,6 +29,7 @@ Path:
 - `infra/supabase/migrations/003_nb_content_translation_hardening.sql`
 - `infra/supabase/migrations/008_content_versioning.sql`
 - `infra/supabase/migrations/009_privileged_function_surface_hardening.sql`
+- `infra/supabase/migrations/010_scheduled_publishing.sql`
 
 Migration notes:
 - `001_content_locales.sql` upgrades pre-locale installs by adding `posts.locale`/`pages.locale` and locale-scoped uniqueness (`UNIQUE(locale, slug)`).
@@ -36,6 +37,7 @@ Migration notes:
 - `003_nb_content_translation_hardening.sql` backfills known Norwegian `about` page section content on older installs that were already bootstrapped before the translation fixes landed.
 - `008_content_versioning.sql` adds private `post_versions` and `page_versions` tables for admin/author version history and restore workflows; inserts are restricted to the server-side allocator functions.
 - `009_privileged_function_surface_hardening.sql` removes the generic privileged settings reader, narrows public storage helpers to fixed bucket-name keys, and revokes direct access to trigger functions.
+- `010_scheduled_publishing.sql` synchronizes scheduled posts into a durable queue and installs an atomic, retrying one-minute worker through Supabase Cron.
 
 ### 3) Demo Data (optional)
 
@@ -118,7 +120,7 @@ Fresh install:
 
 Existing install upgrade:
 
-1. Apply any pending core upgrade migrations in numeric order (`001` -> `009`) as needed.
+1. Apply any pending core upgrade migrations in numeric order (`001` -> `010`) as needed.
 2. Open `/setup` and confirm checks are green.
 3. Apply optional `seed.sql` only if you intentionally want demo content/settings additions.
 4. Activate features later so feature tables remain opt-in.
@@ -126,5 +128,6 @@ Existing install upgrade:
 ## Safety / Idempotency Notes
 
 - Core SQL files are written to be additive/idempotent (`IF NOT EXISTS`, guarded policy/trigger creation where possible).
+- Scheduled publishing uses Supabase Cron rather than hosting-provider cron so publication timing is consistent across Vercel and Netlify plans.
 - Feature SQL is isolated so deactivated features do not require their tables.
 - For non-empty databases, validate in `/setup` after applying SQL to confirm schema readiness before launch.

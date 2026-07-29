@@ -34,6 +34,7 @@ export {
 export { 
   PostRepository,
   type CreatePost,
+  type ScheduledPublishingResult,
   type UpdatePost,
 } from './repositories/post-repository.js';
 

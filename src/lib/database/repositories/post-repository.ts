@@ -34,6 +34,13 @@ export type PostSnapshot = {
   customFields?: Record<string, any>;
 };
 
+export type ScheduledPublishingResult = {
+  scheduleId: string;
+  postId: string;
+  outcome: 'published' | 'pending' | 'failed' | 'cancelled';
+  error?: string;
+};
+
 type SaveOptions = {
   actorAuthorId?: string | null;
   skipVersion?: boolean;
@@ -359,6 +366,30 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       await this.createVersion(withRelations, options.actorAuthorId ?? null);
     }
     return withRelations;
+  }
+
+  async processScheduledPosts(batchSize = 100): Promise<ScheduledPublishingResult[]> {
+    const normalizedBatchSize = Math.min(Math.max(Math.trunc(batchSize), 1), 100);
+
+    return this.db.executeArrayQuery(
+      async (client) => {
+        const result = await (client as any).rpc('process_scheduled_posts', {
+          batch_size: normalizedBatchSize
+        });
+
+        if (result.data) {
+          result.data = result.data.map((row: any) => ({
+            scheduleId: row.processed_schedule_id,
+            postId: row.processed_post_id,
+            outcome: row.outcome,
+            error: row.processing_error || undefined
+          }));
+        }
+
+        return result;
+      },
+      'process scheduled posts'
+    );
   }
 
   async findBySlug(slug: string, locale?: string): Promise<BlogPost | null> {

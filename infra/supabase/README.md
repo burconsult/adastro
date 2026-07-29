@@ -75,6 +75,7 @@ Run `npm run local:doctor` if you want a quick readiness check for port collisio
 - **UUID primary keys** for better scalability
 - **Row Level Security (RLS)** for data protection
 - **Automatic timestamps** with triggers
+- **Automatic scheduled publishing** through a durable queue and one-minute Supabase Cron worker
 - **Hierarchical categories** with parent-child relationships
 - **JSONB fields** for flexible metadata storage
 - **Optimized indexes** for common queries
@@ -118,3 +119,20 @@ After setting up the database:
 2. (Optional) run `npm run db:seed` to load the sample posts and default-locale system pages
 3. Open `/setup`, choose your default locale + active locales, and let the wizard provision localized system pages
 4. Verify your article index path and localized public routes (`/{locale}/...`) before importing or writing content
+
+## Scheduled Publishing
+
+The core schema enables `pg_cron` and registers the
+`adastro-publish-scheduled-posts` job. It reconciles due posts every minute
+inside Postgres, so the same behavior works on Vercel, Netlify, and local
+Supabase without a host-specific cron endpoint or secret.
+
+Existing installations must apply
+`migrations/010_scheduled_publishing.sql`. Verify the job in Supabase under
+**Integrations → Cron**, or with:
+
+```sql
+select jobname, schedule, command, active
+from cron.job
+where jobname = 'adastro-publish-scheduled-posts';
+```

@@ -36,11 +36,15 @@ Migrations:
   - Removes the generic privileged settings reader that could accept arbitrary `site_settings` keys
   - Restricts storage-policy helpers to the two fixed bucket-name keys
   - Uses invoker rights for JWT-only role checks and removes direct RPC access to trigger functions
+- `infra/supabase/migrations/010_scheduled_publishing.sql`
+  - Keeps queue synchronization unavailable as a direct RPC
+  - Restricts manual worker execution to `service_role`; the database-owned cron job runs the same atomic worker
 
 ### Helper Functions
 Sensitive helper functions explicitly revoke execution from `anon`, `authenticated`, and `PUBLIC` before re-granting only the minimal required roles.
 `public.exec_sql(text)` is service-role-only and should be treated as a migration/bootstrap helper, not a public RPC surface.
 The public storage helpers expose only configured bucket names; they do not accept caller-provided setting keys.
+The scheduled-publishing worker is service-role-only and uses row locks plus state predicates to prevent duplicate publication during overlapping runs.
 `service_role` remains server-only and must never be exposed to the browser.
 
 ## Storage Security

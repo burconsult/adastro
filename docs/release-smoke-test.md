@@ -25,6 +25,8 @@ Run the same checks on both targets.
 ## C) Core CMS
 - [ ] Homepage renders with expected theme and navigation.
 - [ ] Create + publish a post.
+- [ ] Schedule a post a few minutes ahead; confirm it publishes once and appears in version history.
+- [ ] Supabase Cron lists an active `adastro-publish-scheduled-posts` job with schedule `* * * * *`.
 - [ ] Article index route resolves using configured `content.articleBasePath`.
 - [ ] Article permalink style works (`segment` or `wordpress`) and canonical URL is correct.
 - [ ] Create + publish a page in the page editor.
