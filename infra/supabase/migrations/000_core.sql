@@ -216,52 +216,48 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.exec_sql(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.exec_sql(text) TO service_role;
 
--- Storage bucket helpers keep bucket names configurable per installation.
-CREATE OR REPLACE FUNCTION public.get_site_setting_text(setting_key text, fallback_value text)
-RETURNS text
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  setting_value jsonb;
-BEGIN
-  SELECT value INTO setting_value
-  FROM public.site_settings
-  WHERE key = setting_key
-  LIMIT 1;
-
-  IF setting_value IS NULL THEN
-    RETURN fallback_value;
-  END IF;
-
-  IF jsonb_typeof(setting_value) = 'string' THEN
-    RETURN setting_value #>> '{}';
-  END IF;
-
-  RETURN trim(both '"' from setting_value::text);
-EXCEPTION
-  WHEN undefined_table THEN
-    RETURN fallback_value;
-END;
-$$;
-
+-- Storage bucket helpers keep bucket names configurable per installation while
+-- exposing only fixed, non-secret settings to storage policies.
 CREATE OR REPLACE FUNCTION public.media_storage_bucket()
 RETURNS text
 LANGUAGE sql
+STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  SELECT public.get_site_setting_text('storage.buckets.media', 'media-assets');
+  SELECT COALESCE(
+    (
+      SELECT CASE
+        WHEN jsonb_typeof(value) = 'string' THEN value #>> '{}'
+        ELSE trim(both '"' from value::text)
+      END
+      FROM public.site_settings
+      WHERE key = 'storage.buckets.media'
+      LIMIT 1
+    ),
+    'media-assets'
+  );
 $$;
 
 CREATE OR REPLACE FUNCTION public.migration_uploads_bucket()
 RETURNS text
 LANGUAGE sql
+STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-  SELECT public.get_site_setting_text('storage.buckets.migrationUploads', 'migration-uploads');
+  SELECT COALESCE(
+    (
+      SELECT CASE
+        WHEN jsonb_typeof(value) = 'string' THEN value #>> '{}'
+        ELSE trim(both '"' from value::text)
+      END
+      FROM public.site_settings
+      WHERE key = 'storage.buckets.migrationUploads'
+      LIMIT 1
+    ),
+    'migration-uploads'
+  );
 $$;
 
 -- Updated-at helper
@@ -302,7 +298,7 @@ RETURNS UUID
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT id
   FROM public.authors
@@ -314,8 +310,8 @@ CREATE OR REPLACE FUNCTION public.current_role()
 RETURNS text
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
-SET search_path = public
+SECURITY INVOKER
+SET search_path = ''
 AS $$
   SELECT CASE
     WHEN auth.role() = 'authenticated' THEN
@@ -328,8 +324,8 @@ CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
-SET search_path = public
+SECURITY INVOKER
+SET search_path = ''
 AS $$
   SELECT public.current_role() = 'admin';
 $$;
@@ -338,29 +334,11 @@ CREATE OR REPLACE FUNCTION public.is_author()
 RETURNS boolean
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
-SET search_path = public
+SECURITY INVOKER
+SET search_path = ''
 AS $$
   SELECT public.current_role() IN ('admin', 'author');
 $$;
-
--- Auth users do not automatically become authors. Admin/bootstrap flows
--- provision author records explicitly when the assigned app role needs one.
-CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN new;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
 -- Column-level privacy
 REVOKE SELECT ON TABLE public.authors FROM anon, authenticated;
@@ -924,9 +902,7 @@ REVOKE EXECUTE ON FUNCTION public.current_author_id() FROM PUBLIC, anon, authent
 REVOKE EXECUTE ON FUNCTION public.current_role() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.is_author() FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.get_site_setting_text(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE EXECUTE ON FUNCTION public.media_storage_bucket() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.migration_uploads_bucket() FROM PUBLIC, anon, authenticated;
 
@@ -934,9 +910,6 @@ GRANT EXECUTE ON FUNCTION public.current_author_id() TO authenticated, service_r
 GRANT EXECUTE ON FUNCTION public.current_role() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_author() TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.handle_new_auth_user() TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.get_site_setting_text(text, text) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.media_storage_bucket() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.migration_uploads_bucket() TO anon, authenticated, service_role;
 -- Migration: Storage Security Policies (v1.0.2)

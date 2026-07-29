@@ -10,6 +10,11 @@ All notable changes to AdAstro are documented in this file.
 
 ### Migration Notes
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
+- Existing installs should then apply `infra/supabase/migrations/009_privileged_function_surface_hardening.sql` to remove the arbitrary privileged settings reader and tighten helper/trigger function execution.
+
+### Security
+- Removed public access to the generic `get_site_setting_text` privileged helper, which could read caller-selected settings including server-only values.
+- Replaced it in storage policies with fixed-key bucket helpers, changed JWT-only role checks to invoker rights, and revoked direct RPC execution from trigger functions.
 
 ## 1.5.0 "Sunshine" - 2026-06-16
 
