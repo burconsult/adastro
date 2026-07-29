@@ -54,6 +54,20 @@ interface PageFormData {
   sections: SectionDefinition[];
 }
 
+type ContentVersionSummary = {
+  id: string;
+  versionNumber: number;
+  createdAt: string;
+  createdBy?: {
+    name?: string;
+    email?: string;
+  } | null;
+  snapshot?: {
+    title?: string;
+    status?: string;
+  };
+};
+
 type AlternateLocaleRef = {
   locale: string;
   slug: string;
@@ -227,6 +241,9 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
   const [slugDirty, setSlugDirty] = useState(Boolean(normalizedPage?.slug));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [versions, setVersions] = useState<ContentVersionSummary[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
   const [sectionType, setSectionType] = useState<SectionType>('hero');
   const localeOptions = useMemo(() => {
     const normalized = Array.isArray(supportedLocales)
@@ -246,6 +263,56 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
       [key]: value
     }));
   }, []);
+
+  const fetchVersions = useCallback(async () => {
+    if (mode !== 'edit' || !normalizedPage?.id) return;
+    setVersionsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/pages/${normalizedPage.id}/versions`);
+      if (!response.ok) {
+        throw new Error('Failed to load versions');
+      }
+      const payload = await response.json();
+      setVersions(Array.isArray(payload) ? payload : []);
+    } catch (fetchError) {
+      console.warn('Failed to load page versions', fetchError);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [mode, normalizedPage?.id]);
+
+  const restoreVersion = useCallback(async (versionId: string) => {
+    if (mode !== 'edit' || !normalizedPage?.id) return;
+    const confirmed = window.confirm('Restore this saved version? Current editor changes will be replaced.');
+    if (!confirmed) return;
+
+    setRestoringVersionId(versionId);
+    try {
+      const response = await fetch(`/api/admin/pages/${normalizedPage.id}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versionId })
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.message || 'Failed to restore version');
+      }
+      toast({
+        variant: 'success',
+        title: 'Version restored',
+        description: 'The restored page has been saved as the latest version.'
+      });
+      window.location.reload();
+    } catch (restoreError) {
+      toast({
+        variant: 'destructive',
+        title: 'Restore failed',
+        description: restoreError instanceof Error ? restoreError.message : 'Please try again.'
+      });
+    } finally {
+      setRestoringVersionId(null);
+    }
+  }, [mode, normalizedPage?.id, toast]);
 
   const setAlternateLocales = useCallback((next: AlternateLocaleRef[]) => {
     const normalized = normalizeAlternateLocales(next);
@@ -308,6 +375,10 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
     updateField('locale', localeOptions[0]);
   }, [formData.locale, localeOptions, updateField]);
 
+  useEffect(() => {
+    void fetchVersions();
+  }, [fetchVersions]);
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -361,6 +432,7 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
         title: mode === 'edit' ? 'Page updated' : 'Page created',
         description: `${saved.title} is saved.`
       });
+      void fetchVersions();
 
       if (mode === 'create' && saved?.id) {
         window.location.href = `/admin/pages/edit/${saved.id}`;
@@ -1089,6 +1161,54 @@ const PageEditorInner: React.FC<PageEditorProps> = ({
             {saving ? 'Saving...' : mode === 'edit' ? 'Save changes' : 'Create page'}
           </button>
         </div>
+
+        {mode === 'edit' && (
+          <div className="card p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">Version History</h2>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => void fetchVersions()} disabled={versionsLoading}>
+                Refresh
+              </button>
+            </div>
+            {versionsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading versions...</p>
+            ) : versions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No saved versions yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {versions.slice(0, 8).map((version, index) => {
+                  const createdAt = new Date(version.createdAt);
+                  const isLatest = index === 0;
+                  return (
+                    <div key={version.id} className="rounded-md border border-border/70 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">
+                            v{version.versionNumber}{isLatest ? ' · current' : ''}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {Number.isNaN(createdAt.getTime()) ? 'Unknown time' : createdAt.toLocaleString()}
+                          </p>
+                          {version.createdBy?.name && (
+                            <p className="text-xs text-muted-foreground">By {version.createdBy.name}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          disabled={isLatest || restoringVersionId === version.id}
+                          onClick={() => void restoreVersion(version.id)}
+                        >
+                          {restoringVersionId === version.id ? 'Restoring...' : 'Restore'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

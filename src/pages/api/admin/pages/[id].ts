@@ -153,7 +153,9 @@ export const PUT: APIRoute = async ({ params, request }) => {
     }
 
     const sections = normalizeSections(data.sections);
-    const updated = await pageRepo.updateWithSections(id, updatePayload, sections);
+    const updated = await pageRepo.updateWithSections(id, updatePayload, sections, {
+      actorAuthorId: user.authorId ?? updatePayload.authorId
+    });
 
     return new Response(JSON.stringify(updated), {
       status: 200,

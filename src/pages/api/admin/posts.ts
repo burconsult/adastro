@@ -127,7 +127,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       audioAssetId: data.audioAssetId,
       seoMetadata: data.seoMetadata,
       publishedAt: data.publishedAt ? new Date(data.publishedAt) : undefined
-    });
+    }, { actorAuthorId: user.authorId ?? authorId });
 
     const postWithRelations = await postRepo.findByIdWithRelations(post.id);
 

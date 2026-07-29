@@ -5,7 +5,7 @@ import { AuthorRepository } from './author-repository.js';
 import { CategoryRepository } from './category-repository.js';
 import { TagRepository } from './tag-repository.js';
 import { MediaRepository } from './media-repository.js';
-import type { BlogPost, PostFilters, PostStatus, PostContentBlocks } from '../../types/index.js';
+import type { BlogPost, ContentVersion, PostFilters, PostStatus, PostContentBlocks } from '../../types/index.js';
 import type { EditorJSData } from '../../editorjs/types.js';
 import type { Database } from '../../supabase.js';
 import { DEFAULT_LOCALE, normalizeLocaleCode } from '../../i18n/locales.js';
@@ -13,6 +13,36 @@ import { DEFAULT_LOCALE, normalizeLocaleCode } from '../../i18n/locales.js';
 type PostRow = Database['public']['Tables']['posts']['Row'];
 type CreatePostData = Database['public']['Tables']['posts']['Insert'];
 type UpdatePostData = Database['public']['Tables']['posts']['Update'];
+type PostVersionRow = Database['public']['Tables']['post_versions']['Row'];
+
+export type PostSnapshot = {
+  schemaVersion: 1;
+  title: string;
+  slug: string;
+  locale: string;
+  content: string;
+  blocks: PostContentBlocks | EditorJSData;
+  excerpt?: string;
+  authorId: string;
+  status: PostStatus;
+  publishedAt?: string;
+  categoryIds: string[];
+  tagIds: string[];
+  featuredImageId?: string;
+  audioAssetId?: string;
+  seoMetadata?: any;
+  customFields?: Record<string, any>;
+};
+
+type SaveOptions = {
+  actorAuthorId?: string | null;
+  skipVersion?: boolean;
+};
+
+type RestoreOptions = {
+  actorAuthorId?: string | null;
+  preserveAuthorId?: boolean;
+};
 
 export interface CreatePost {
   title: string;
@@ -241,7 +271,7 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     }
   }
 
-  async create(data: CreatePost): Promise<BlogPost> {
+  async create(data: CreatePost, options: SaveOptions = {}): Promise<BlogPost> {
     const payload: CreatePost = {
       ...data,
       locale: normalizeLocaleCode(data.locale, DEFAULT_LOCALE)
@@ -271,10 +301,14 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
       await this.updatePostTags(post.id, payload.tagIds);
     }
 
-    return this.findByIdWithRelations(post.id) as Promise<BlogPost>;
+    const created = await this.findByIdWithRelations(post.id) as BlogPost;
+    if (!options.skipVersion) {
+      await this.createVersion(created, options.actorAuthorId ?? null);
+    }
+    return created;
   }
 
-  async update(id: string, data: UpdatePost): Promise<BlogPost> {
+  async update(id: string, data: UpdatePost, options: SaveOptions = {}): Promise<BlogPost> {
     const existingPost = await this.findById(id);
     if (!existingPost) {
       throw new NotFoundError('Post', id);
@@ -320,6 +354,9 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     const withRelations = await this.findByIdWithRelations(id);
     if (!withRelations) {
       throw new NotFoundError('Post', id);
+    }
+    if (!options.skipVersion) {
+      await this.createVersion(withRelations, options.actorAuthorId ?? null);
     }
     return withRelations;
   }
@@ -417,6 +454,130 @@ export class PostRepository extends BaseRepository<BlogPost, CreatePost, UpdateP
     const post = await this.findById(id);
     if (!post) return null;
     return this.populateRelations(post);
+  }
+
+  mapVersionFromDatabase(row: PostVersionRow): ContentVersion<PostSnapshot> {
+    return {
+      id: row.id,
+      entityId: row.post_id,
+      versionNumber: row.version_number,
+      snapshot: row.snapshot as PostSnapshot,
+      createdBy: row.created_by
+        ? {
+            id: row.created_by,
+            name: '',
+            email: '',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        : null,
+      createdAt: new Date(row.created_at)
+    };
+  }
+
+  async findVersions(postId: string, limit = 50): Promise<Array<ContentVersion<PostSnapshot>>> {
+    const normalizedLimit = Math.min(Math.max(Math.trunc(limit), 1), 100);
+    const versions = await this.db.executeArrayQuery(
+      async (client) => {
+        const result = await client
+          .from('post_versions')
+          .select('*')
+          .eq('post_id', postId)
+          .order('version_number', { ascending: false })
+          .limit(normalizedLimit);
+
+        if (result.data) {
+          result.data = result.data.map((row) => this.mapVersionFromDatabase(row));
+        }
+
+        return result;
+      },
+      'find post versions'
+    );
+
+    const hydrated = [];
+    for (const version of versions) {
+      const createdBy = version.createdBy?.id ? await this.authorRepo.findById(version.createdBy.id) : null;
+      hydrated.push({ ...version, createdBy });
+    }
+    return hydrated;
+  }
+
+  async restoreVersion(postId: string, versionId: string, options: RestoreOptions = {}): Promise<BlogPost> {
+    const version = await this.db.executeOptionalQuery(
+      async (client) => {
+        const result = await client
+          .from('post_versions')
+          .select('*')
+          .eq('id', versionId)
+          .eq('post_id', postId)
+          .maybeSingle();
+
+        if (result.data) {
+          result.data = this.mapVersionFromDatabase(result.data);
+        }
+
+        return result;
+      },
+      'find post version'
+    );
+
+    if (!version) {
+      throw new NotFoundError('Post version', versionId);
+    }
+
+    const snapshot = version.snapshot;
+    return this.update(postId, {
+      title: snapshot.title,
+      slug: snapshot.slug,
+      locale: snapshot.locale,
+      content: snapshot.content,
+      blocks: snapshot.blocks,
+      excerpt: snapshot.excerpt,
+      authorId: options.preserveAuthorId ? undefined : snapshot.authorId,
+      status: snapshot.status,
+      publishedAt: snapshot.publishedAt ? new Date(snapshot.publishedAt) : undefined,
+      categoryIds: snapshot.categoryIds,
+      tagIds: snapshot.tagIds,
+      featuredImageId: snapshot.featuredImageId,
+      audioAssetId: snapshot.audioAssetId,
+      seoMetadata: snapshot.seoMetadata,
+      customFields: snapshot.customFields
+    }, { actorAuthorId: options.actorAuthorId ?? null });
+  }
+
+  private toSnapshot(post: BlogPost): PostSnapshot {
+    return {
+      schemaVersion: 1,
+      title: post.title,
+      slug: post.slug,
+      locale: post.locale || DEFAULT_LOCALE,
+      content: post.content,
+      blocks: post.blocks ?? { blocks: [] },
+      excerpt: post.excerpt,
+      authorId: post.author.id,
+      status: post.status,
+      publishedAt: post.publishedAt?.toISOString(),
+      categoryIds: post.categories.map((category) => category.id),
+      tagIds: post.tags.map((tag) => tag.id),
+      featuredImageId: post.featuredImageId,
+      audioAssetId: post.audioAssetId,
+      seoMetadata: post.seoMetadata,
+      customFields: post.customFields
+    };
+  }
+
+  private async createVersion(post: BlogPost, actorAuthorId?: string | null): Promise<void> {
+    await this.db.executeQuery(
+      async (client) => {
+        return (client as any).rpc('create_post_version', {
+          target_post_id: post.id,
+          version_snapshot: this.toSnapshot(post),
+          actor_author_id: actorAuthorId ?? null
+        });
+      },
+      'create post version'
+    );
   }
 
   async findWithFilters(filters: PostFilters): Promise<BlogPost[]> {

@@ -133,6 +133,15 @@ export interface Page {
   sections?: PageSection[];
 }
 
+export interface ContentVersion<TSnapshot = Record<string, any>> {
+  id: string;
+  entityId: string;
+  versionNumber: number;
+  snapshot: TSnapshot;
+  createdBy?: Author | null;
+  createdAt: Date;
+}
+
 export interface BlogPost {
   id: string;
   title: string;

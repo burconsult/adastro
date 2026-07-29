@@ -54,8 +54,10 @@ Run `npm run local:doctor` if you want a quick readiness check for port collisio
 - **categories** - Hierarchical content categories
 - **tags** - Content tags
 - **posts** - Locale-aware blog posts
+- **post_versions** - Private, server-created snapshots for post version history and restore
 - **pages** - Locale-aware editable pages
 - **page_sections** - Reusable page-builder sections for pages
+- **page_versions** - Private, server-created snapshots for page version history and restore
 - **media_assets** - Uploaded files and images
 
 ### Supporting Core Tables
