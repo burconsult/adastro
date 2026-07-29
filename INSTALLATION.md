@@ -104,6 +104,11 @@ This should:
 - Assign admin role by email (and optionally invite if user does not exist).
 - Optionally set/reset the admin password in the same setup action.
 
+The core schema also enables Supabase Cron and registers
+`adastro-publish-scheduled-posts` to publish due posts every minute. This runs
+inside Supabase and does not require a Vercel/Netlify cron or an extra runtime
+secret.
+
 ### 7) Complete Manual Auth/Email Tasks
 
 In Supabase Auth settings:

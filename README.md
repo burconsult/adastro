@@ -42,6 +42,7 @@ For Netlify or other providers, the app can build against either hosted adapter:
 - **Frontend** – Astro with server output + React islands; admin routes live under `src/pages/admin/*`.
 - **Backend** – Supabase (Postgres + Storage + Auth) accessed through repositories and services in `src/lib`.
 - **Migration** – `WordPressMigrationService` streams progress + artifacts for undo.
+- **Publishing** – scheduled posts use a durable Supabase queue with atomic one-minute reconciliation.
 - **Infra** – `infra/supabase/scripts/migrate.js` installs the consolidated core schema.
 - **Architecture map** – start from `docs/architecture/system-map.md` and `docs/architecture/README.md`.
 

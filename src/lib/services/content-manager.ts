@@ -147,25 +147,13 @@ export class ContentManager {
 
   // Process scheduled posts (to be called by a cron job or similar)
   async processScheduledPosts(): Promise<BlogPost[]> {
-    const now = new Date();
-    const scheduledPosts = await this.postRepo.findWithFilters({
-      status: 'scheduled',
-      limit: 100, // Process in batches
-    });
-
+    const processedSchedules = await this.postRepo.processScheduledPosts(100);
     const publishedPosts: BlogPost[] = [];
 
-    for (const post of scheduledPosts) {
-      if (post.publishedAt && post.publishedAt <= now) {
-        try {
-          const publishedPost = await this.updatePost(post.id, {
-            status: 'published',
-          });
-          publishedPosts.push(publishedPost);
-        } catch (error) {
-          console.error(`Failed to publish scheduled post ${post.id}:`, error);
-        }
-      }
+    for (const result of processedSchedules) {
+      if (result.outcome !== 'published') continue;
+      const post = await this.postRepo.findByIdWithRelations(result.postId);
+      if (post) publishedPosts.push(post);
     }
 
     return publishedPosts;

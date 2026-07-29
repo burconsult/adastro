@@ -72,7 +72,8 @@
       "infra/supabase/migrations/006_auth_hardening_azure_mfa.sql",
       "infra/supabase/migrations/007_function_acl_hardening.sql",
       "infra/supabase/migrations/008_content_versioning.sql",
-      "infra/supabase/migrations/009_privileged_function_surface_hardening.sql"
+      "infra/supabase/migrations/009_privileged_function_surface_hardening.sql",
+      "infra/supabase/migrations/010_scheduled_publishing.sql"
     ],
     "setupRuntime": "src/lib/setup/runtime.ts",
     "dataAccess": "src/lib/database/repositories",
@@ -144,6 +145,7 @@
       "tags",
       "post_categories",
       "post_tags",
+      "scheduled_posts",
       "media_assets"
     ],
     "features": {

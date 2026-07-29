@@ -7,10 +7,15 @@ All notable changes to AdAstro are documented in this file.
 ### Added
 - Added server-backed version history for posts and pages, including admin editor restore controls and schema-versioned snapshots for page-builder sections, taxonomy links, SEO metadata, and publish state.
 - Added service-role-only version allocator functions with per-content transaction locks so concurrent saves cannot receive the same version number.
+- Added reliable scheduled publishing through a durable queue and one-minute Supabase Cron reconciliation.
+
+### Changed
+- Scheduled publication now claims due posts with row locks, records the published state in version history, retries isolated failures up to three times, and safely tolerates missed or overlapping scheduler runs.
 
 ### Migration Notes
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
 - Existing installs should then apply `infra/supabase/migrations/009_privileged_function_surface_hardening.sql` to remove the arbitrary privileged settings reader and tighten helper/trigger function execution.
+- Apply `infra/supabase/migrations/010_scheduled_publishing.sql` to enable the queue worker and the `adastro-publish-scheduled-posts` Supabase Cron job. No hosting-provider cron or additional environment variable is required.
 
 ### Security
 - Removed public access to the generic `get_site_setting_text` privileged helper, which could read caller-selected settings including server-only values.

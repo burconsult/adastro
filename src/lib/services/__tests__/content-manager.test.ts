@@ -67,6 +67,7 @@ describe('ContentManager', () => {
       findBySlug: vi.fn(),
       findBySlugOrThrow: vi.fn(),
       findWithFilters: vi.fn(),
+      processScheduledPosts: vi.fn(),
       count: vi.fn(),
     } as any;
 
@@ -294,27 +295,20 @@ describe('ContentManager', () => {
     });
 
     it('should process scheduled posts that are ready to publish', async () => {
-      const pastDate = new Date(Date.now() - 60 * 1000); // 1 minute ago
-      const scheduledPost = {
-        ...mockPost,
-        status: 'scheduled' as PostStatus,
-        publishedAt: pastDate
-      };
-
-      mockPostRepo.findWithFilters.mockResolvedValue([scheduledPost]);
-
       const publishedPost = { ...mockPost, status: 'published' as PostStatus };
-      mockPostRepo.update.mockResolvedValue(publishedPost);
+      mockPostRepo.processScheduledPosts.mockResolvedValue([
+        {
+          scheduleId: 'schedule-1',
+          postId: 'post-1',
+          outcome: 'published'
+        }
+      ]);
+      mockPostRepo.findByIdWithRelations.mockResolvedValue(publishedPost);
 
       const result = await contentManager.processScheduledPosts();
 
-      expect(mockPostRepo.findWithFilters).toHaveBeenCalledWith({
-        status: 'scheduled',
-        limit: 100,
-      });
-      expect(mockPostRepo.update).toHaveBeenCalledWith('post-1', {
-        status: 'published',
-      });
+      expect(mockPostRepo.processScheduledPosts).toHaveBeenCalledWith(100);
+      expect(mockPostRepo.findByIdWithRelations).toHaveBeenCalledWith('post-1');
       expect(result).toHaveLength(1);
       expect(result[0].status).toBe('published');
     });
