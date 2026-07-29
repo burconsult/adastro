@@ -47,8 +47,19 @@ GRANT EXECUTE ON FUNCTION public.handle_new_auth_user() TO authenticated, servic
 REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO authenticated, service_role;
 
-REVOKE EXECUTE ON FUNCTION public.get_site_setting_text(text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_site_setting_text(text, text) TO anon, authenticated, service_role;
+-- Fresh installations use fixed-key bucket helpers and never create this
+-- legacy generic reader. Existing installations still need its historical ACL
+-- applied before the follow-up migration removes it.
+DO $$
+BEGIN
+  IF to_regprocedure('public.get_site_setting_text(text,text)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.get_site_setting_text(text, text)
+      FROM PUBLIC, anon, authenticated;
+    GRANT EXECUTE ON FUNCTION public.get_site_setting_text(text, text)
+      TO anon, authenticated, service_role;
+  END IF;
+END;
+$$;
 
 REVOKE EXECUTE ON FUNCTION public.media_storage_bucket() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.media_storage_bucket() TO anon, authenticated, service_role;

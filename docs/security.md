@@ -3,7 +3,7 @@
 This document summarizes the security features built into the Adastro CMS and the
 recommended configuration steps for production deployments.
 
-Last updated: 2026-06-16
+Last updated: 2026-07-29
 
 ## Overview
 
@@ -32,10 +32,15 @@ Migrations:
 - `infra/supabase/migrations/007_function_acl_hardening.sql`
   - Re-applies sensitive helper-function grants explicitly so `public.exec_sql(text)` stays service-role-only
   - Hardens future default function ACLs for Supabase owner roles (`postgres`, `supabase_admin`)
+- `infra/supabase/migrations/009_privileged_function_surface_hardening.sql`
+  - Removes the generic privileged settings reader that could accept arbitrary `site_settings` keys
+  - Restricts storage-policy helpers to the two fixed bucket-name keys
+  - Uses invoker rights for JWT-only role checks and removes direct RPC access to trigger functions
 
 ### Helper Functions
 Sensitive helper functions explicitly revoke execution from `anon`, `authenticated`, and `PUBLIC` before re-granting only the minimal required roles.
 `public.exec_sql(text)` is service-role-only and should be treated as a migration/bootstrap helper, not a public RPC surface.
+The public storage helpers expose only configured bucket names; they do not accept caller-provided setting keys.
 `service_role` remains server-only and must never be exposed to the browser.
 
 ## Storage Security
