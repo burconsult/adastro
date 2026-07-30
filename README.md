@@ -48,7 +48,7 @@ For Netlify or other providers, the app can build against either hosted adapter:
 - **Architecture map** – start from `docs/architecture/system-map.md` and `docs/architecture/README.md`.
 
 ## Prerequisites
-- Node.js 22.x
+- Node.js 22.12 or newer within the 22.x release line
 - A Supabase project with Postgres + Storage enabled
 - A deploy target (Vercel or Netlify) for hosted installs
 

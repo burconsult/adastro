@@ -12,6 +12,8 @@ All notable changes to AdAstro are documented in this file.
 
 ### Changed
 - Scheduled publication now claims due posts with row locks, records the published state in version history, retries isolated failures up to three times, and safely tolerates missed or overlapping scheduler runs.
+- Upgraded the production runtime to Astro 7 with the matching Vercel, Netlify, and React adapters; the minimum supported runtime is now Node.js 22.12.
+- Isolated Vercel and Netlify builds by cleaning provider-generated output before bundling, preventing one adapter from recursively packaging the other adapter's stale function artifacts.
 
 ### Migration Notes
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
@@ -23,6 +25,7 @@ All notable changes to AdAstro are documented in this file.
 - Removed public access to the generic `get_site_setting_text` privileged helper, which could read caller-selected settings including server-only values.
 - Replaced it in storage policies with fixed-key bucket helpers, changed JWT-only role checks to invoker rights, and revoked direct RPC execution from trigger functions.
 - Audit events exclude content bodies and sensitive values, are globally readable only by admins, and cannot be updated or directly deleted.
+- Updated Astro, Sharp, Nodemailer, the MCP SDK, and vulnerable transitive archive/parser dependencies; the production dependency audit reports zero known vulnerabilities.
 
 ## 1.5.0 "Sunshine" - 2026-06-16
 
