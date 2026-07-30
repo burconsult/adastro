@@ -47,6 +47,20 @@ Use this board to drive stable release readiness with deterministic gate progres
 
 ## Release Candidate Notes
 
+### 2026-07-30 - v1.6.0 preparation
+
+- Classified the version-history, scheduled-publishing, privileged-function, and audit-trail work as a minor-release delta.
+- Upgraded Astro 6 to Astro 7 with current Vercel, Netlify, and React adapters, plus patched Sharp, Nodemailer, MCP SDK, archive, and parser dependencies.
+- Raised the documented Node floor to 22.12 while retaining the Node 22 release line.
+- Release-blocker validation:
+  - `npm audit --omit=dev` -> zero known vulnerabilities.
+  - `npm run test:run` -> 121 files passed, 1 skipped; 827 tests passed, 19 skipped.
+  - `npm run build` -> Astro 7 + Vercel 11 production build passed.
+  - `npm run build:netlify` -> Astro 7 + Netlify 8 production build passed.
+- The full gate exposed stale Netlify output being recursively copied into a later Vercel bundle. Build scripts now remove only known generated adapter paths before each bundle so parity checks remain deterministic in either order.
+- Post-fix validation passed with Netlify followed by Vercel in the same worktree, then `npm run verify:full` passed from migration replay through the final Vercel bundle.
+- Release metadata and tagging remain deferred until the complete v1.6.0 gate run and hosted preview checks pass.
+
 ### 2026-06-16 - v1.5.0 "Sunshine"
 
 - Bumped release metadata to `1.5.0` in `package.json` and `package-lock.json`.
