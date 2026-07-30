@@ -192,40 +192,10 @@ See `docs/mcp-server.md` for the endpoint details, auth, tool list, and security
 The EditorJS block editor renders inside `PostEditor` when `editor.blocks.enabled` is `true`. Toggle this setting via the admin settings table or seed data; legacy Markdown editing remains available as a fallback.
 
 ## Documentation Index
-- `docs/architecture/README.md` – architecture map index for fast orientation.
-- `docs/architecture/system-map.md` – canonical runtime map (routes, layers, control points).
-- `docs/architecture/setup-flow.md` – setup gate lifecycle and manual/automated boundaries.
-- `docs/architecture/feature-map.md` – bundled/external feature lifecycle + runtime wiring.
-- `docs/architecture/ai-feature.md` – AI capability/provider architecture and extension points.
-- `docs/architecture/contracts.md` – interface contracts (setup, feature, settings, theme, media).
-- `docs/architecture/i18n.md` – public multilingual model, locale pack metadata/versioning, and activation workflow.
-- `docs/architecture/data-ownership.md` – table ownership and schema change protocol.
-- `docs/engineering/ai-collab-playbook.md` – workflow/rules for AI-assisted implementation.
-- `docs/engineering/ai-assisted-coding-lessons.md` – project-specific lessons on what worked and did not work with AI-assisted coding in AdAstro.
-- `docs/engineering/local-testing.md` – local Supabase-first validation workflow and verify commands.
-- `docs/environment-variables.md` – canonical env var matrix (core, optional, feature-specific).
-- `docs/database-sql-layout.md` – canonical SQL file layout and install order (core/demo/features).
-- `docs/mcp-server.md` – built-in remote MCP endpoint (`/mcp`), auth, tool list, and integration notes.
-- `docs/release-gates.md` – release decision gates and required evidence.
-- `docs/performance-release-checklist.md` – PSI/Lighthouse release gate process for 90+ targets.
-- `docs/release-smoke-test.md` – fresh-instance validation matrix for Supabase + Vercel/Netlify.
-- `docs/feature-development.md` – how to build modular features using the same contract as AI/comments/newsletter.
-- `INSTALLATION.md` – canonical installation flow (platform steps, redeploy points, wizard boundaries, setup lifecycle diagram).
-- `CHANGELOG.md` – release notes, migration-impact updates, and known limitations.
-- `docs/architecture/migration-pipeline.md` – mermaid diagram of the migration pipeline.
-- `docs/architecture/auth-rls.md` – mermaid diagram of auth + RLS flow.
-- `docs/architecture/theme-packages.md` – theme package format + install notes.
-- `docs/architecture/motion.md` – motion library options and integration notes.
-- `docs/migration.md` – migration behavior, endpoints, and undo mechanics.
-Plans/roadmaps are tracked externally to keep the repo lean.
 
-## Release Notes
-- Microsoft OAuth is now supported through the Supabase `azure` provider with the same app-level activation pattern used for GitHub and Google.
-- Optional TOTP MFA can be enabled in Admin Settings and is enforced only for sensitive account actions when a verified factor exists.
-- Setup APIs are now admin-only after installation, and role-less authenticated users now stay `reader` at both the app and RLS layers.
-- `SITE_URL` now drives both build-time `site` resolution and runtime sitemap/RSS URL generation.
-- Invite callbacks derive from `SITE_URL` (or request origin fallback) to avoid localhost redirect leaks.
-- Supabase Auth redirect URLs and SMTP sender setup are still required platform tasks during install (`INSTALLATION.md`).
+- `docs/README.md` – documentation ownership, lifecycle, and local archive policy.
+- `docs/architecture/README.md` – canonical architecture index.
+- `INSTALLATION.md` – canonical installation flow.
+- `CHANGELOG.md` – durable release history, upgrade notes, and known limitations.
 
-## Roadmap
-Roadmap and planning docs live outside the repo to keep the core tree production‑focused.
+Plans and working release artifacts remain outside the tracked product documentation.

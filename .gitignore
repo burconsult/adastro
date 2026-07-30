@@ -52,8 +52,9 @@ infra/.env
 # local scratch files
 geminitest.js
 
-# external docs and drafts
+# local-only docs, drafts, and uncertain artifacts
 external_docs/
+local-archive/
 
 # Supabase CLI local config
 infra/supabase/config.toml

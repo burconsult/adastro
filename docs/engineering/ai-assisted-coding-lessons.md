@@ -1,5 +1,7 @@
 # AI-Assisted Coding Lessons From AdAstro
 
+> Historical engineering retrospective. Use `docs/architecture/`, `AGENTS.md`, and `docs/engineering/local-testing.md` for current project rules.
+
 This document is a project-specific retrospective on what actually worked and did not work while using AI to build and harden AdAstro.
 
 It is not a generic prompt guide. The useful parts came from shaping the repository so AI had fewer ways to make damaging guesses.

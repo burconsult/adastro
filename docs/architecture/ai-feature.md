@@ -17,7 +17,7 @@ The AI layer is capability-first:
 - `text`
 - `image`
 - `audio`
-- `video` (reserved in contract; not implemented in 1.0)
+- `video` (reserved in the contract; not currently implemented)
 
 Providers declare capability support and implementation status in one registry, so adding a provider is mostly:
 - a provider descriptor

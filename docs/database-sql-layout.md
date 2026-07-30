@@ -1,4 +1,4 @@
-# Database SQL Layout (v1.3.0)
+# Database SQL Layout
 
 This document defines the canonical SQL files shipped with AdAstro and what each one is for.
 
@@ -108,7 +108,7 @@ Notes:
 ## Non-Canonical / Legacy / Generated SQL To Ignore
 
 Do not use these for v1 installs:
-- `external_docs/migrations/*` (legacy/reference artifacts)
+- `external_docs/migrations/*` when present locally (ignored legacy/reference artifacts)
 - any SQL under `.netlify/` or build output directories (generated copies)
 
 ## Recommended Install Order
