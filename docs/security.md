@@ -135,7 +135,7 @@ Azure / Microsoft provider notes:
 - Microsoft Entra can return unverified email addresses. Prefer adding the `xms_edov` claim and `email` claim in the Entra application so email-based linking decisions are not made on an unverified address alone.
 
 MFA notes:
-- AdAstro v1.5.0 keeps MFA optional behind `auth.mfa.enabled`.
+- AdAstro keeps MFA optional behind `auth.mfa.enabled`.
 - Users can enroll, verify, view, and remove TOTP factors from `/profile`.
 - Only sensitive account actions step up to `aal2` today; routine profile/content flows stay unchanged for users who have not enrolled.
 

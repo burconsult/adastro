@@ -6,14 +6,20 @@ import { resolve } from 'node:path';
 const DOC_PATHS = [
   'README.md',
   'INSTALLATION.md',
+  'docs/README.md',
   'docs/architecture/README.md',
+  'docs/architecture/motion.md',
   'docs/architecture/system-map.md',
   'docs/engineering/local-testing.md',
   'docs/release-gates.md',
   'docs/release-execution-board.md',
   'docs/performance-release-checklist.md',
   'docs/release-smoke-test.md',
-  'docs/feature-development.md'
+  'docs/feature-development.md',
+  'docs/security.md',
+  'src/lib/README.md',
+  'src/lib/database/README.md',
+  'src/lib/services/README-media.md'
 ];
 
 const BANNED_PATTERNS = [
@@ -30,12 +36,20 @@ const BANNED_PATTERNS = [
     message: 'deprecated PUBLIC_SITE_URL variable'
   },
   {
-    pattern: /\/Users\/[^/\n]+\/Developer\/astroblog\//g,
+    pattern: /(?:\/Users\/[^/\n]+\/|[A-Z]:\\Users\\[^\\\n]+\\)/g,
     message: 'machine-specific absolute workspace path'
   },
   {
     pattern: /\bAstroblog\b/g,
     message: 'old project branding "Astroblog"'
+  },
+  {
+    pattern: /^# (?:Environment Variables|Database SQL Layout) \(v\d+\.\d+\.\d+\)$/gm,
+    message: 'release-versioned canonical document heading'
+  },
+  {
+    pattern: /canonical (?:install|installation|environment|env(?:ironment)? variable) document for AdAstro v\d+\.\d+\.\d+/gi,
+    message: 'release-versioned canonical documentation scope'
   }
 ];
 

@@ -1,6 +1,6 @@
 # AdAstro Installation Guide (Vercel/Netlify + Supabase)
 
-This is the canonical install document for AdAstro v1.5.0.
+This is the canonical install document for the current AdAstro release line.
 
 Use this file as your source of truth during setup. The `/setup` wizard is a guided assistant, but some tasks must still be done in Supabase/Vercel/Netlify dashboards.
 
@@ -145,7 +145,7 @@ In Supabase Auth settings:
    - AdAstro still requires your site callback in Supabase Redirect URLs: `https://<site>/auth/callback`.
    - Azure sign-in must request the `email` scope; AdAstro adds that automatically on the login entrypoint.
    - Use the provider's optional tenant URL in Supabase if you want single-tenant Entra mode. Leave it on `common` for Microsoft-account / multi-tenant behavior.
-   - Do not use SAML or `signInWithSSO` for AdAstro v1.5.0.
+   - AdAstro's Microsoft login uses OAuth through Supabase's `azure` provider; do not substitute SAML or `signInWithSSO`.
    - Microsoft Entra can emit unverified emails. Prefer adding the optional `xms_edov` claim and `email` claim in the Entra app configuration, then treat `xms_edov=true` as the safe path for email-based trust decisions.
 7. Optional MFA:
    - In Supabase Dashboard → Auth → Multi-Factor Auth, enable TOTP/authenticator-app support.

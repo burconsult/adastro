@@ -1,129 +1,39 @@
-# Data Models and Validation
+# Core Library
 
-This directory contains the core data models, validation schemas, and utility functions for the Adastro platform.
+`src/lib` contains AdAstro's shared domain, server, feature, and integration code. Source exports and tests are the API authority; this file is an orientation map rather than a duplicate API reference.
 
-## Structure
+## Main Areas
 
-```
-src/lib/
-├── types/
-│   └── index.ts          # TypeScript interfaces for all data models
-├── validation/
-│   ├── schemas.ts        # Zod validation schemas
-│   └── __tests__/        # Validation tests
-├── utils/
-│   ├── data-transform.ts # Data transformation utilities
-│   └── __tests__/        # Utility tests
-└── index.ts              # Main exports
-```
+| Area | Purpose |
+| --- | --- |
+| `types/` | Shared content, media, page, taxonomy, and profile types |
+| `validation/` | Zod schemas for domain input |
+| `database/` | Supabase repositories and database error handling |
+| `auth/` | Session, role, OAuth, MFA, and access helpers |
+| `features/` | Optional AI, comments, and newsletter modules |
+| `services/` | Content, media, settings, migration, and system-page workflows |
+| `seo/` | Metadata, structured data, sitemap, and RSS generation |
+| `i18n/` | Locale catalogs, routing, and localized content lookup |
+| `themes/` | Installed theme manifests, assets, and runtime selection |
+| `security/` | Request guards, outbound URL policy, rate limiting, and CAPTCHA |
 
-## Core Data Models
+The public barrel is `src/lib/index.ts`. Import a narrower module when code belongs to a specific server or feature boundary.
 
-### BlogPost
-The main content entity representing a blog post with full metadata, categories, tags, and SEO information.
+## Safety Boundaries
 
-### Author
-Represents content authors with profile information and social links.
+- `supabaseAdmin` and `SUPABASE_SECRET_KEY` are server-only.
+- Admin and setup mutations must use the established auth/access helpers.
+- Feature code must fail closed when its feature is inactive.
+- Database schema changes require an upgrade migration under `infra/supabase/migrations/`.
+- Validate external input at the route or service boundary.
 
-### Category
-Hierarchical content categorization with support for parent-child relationships.
+## Verification
 
-### Tag
-Simple content tagging system for flexible content organization.
-
-### MediaAsset
-File management with automatic optimization metadata and CDN integration.
-
-### SEOMetadata
-Complete SEO metadata including Open Graph and Twitter Card data.
-
-## Validation
-
-All data models include comprehensive Zod validation schemas with:
-
-- Input validation for create/update operations
-- Type-safe data transformation
-- Automatic sanitization of user content
-- SEO metadata normalization
-
-## Usage Examples
-
-### Creating a Blog Post
-
-```typescript
-import { createBlogPostSchema, prepareBlogPostForDb } from '@/lib';
-
-// Validate input data
-const postData = createBlogPostSchema.parse({
-  title: 'My New Post',
-  content: 'Post content here...',
-  author: authorObject,
-  categories: [categoryObject],
-  tags: [tagObject],
-});
-
-// Prepare for database insertion
-const dbData = prepareBlogPostForDb(postData);
-```
-
-### Validating Author Data
-
-```typescript
-import { authorSchema, createAuthorSchema } from '@/lib';
-
-// Validate complete author object
-const author = authorSchema.parse(authorData);
-
-// Validate author creation data (without generated fields)
-const newAuthor = createAuthorSchema.parse({
-  name: 'John Doe',
-  email: 'john@example.com',
-  bio: 'Author bio',
-});
-```
-
-### Data Transformation
-
-```typescript
-import { 
-  generateSlug, 
-  sanitizeHtml, 
-  generateExcerpt,
-  transformDbAuthor 
-} from '@/lib';
-
-// Generate URL-friendly slug
-const slug = generateSlug('My Blog Post Title'); // 'my-blog-post-title'
-
-// Sanitize HTML content
-const clean = sanitizeHtml('<p>Safe content</p><script>alert("xss")</script>');
-
-// Generate excerpt from content
-const excerpt = generateExcerpt(longContent, 160);
-
-// Transform database row to typed object
-const author = transformDbAuthor(dbRow);
-```
-
-## Testing
-
-All data models and utilities include comprehensive unit tests:
+Run focused Vitest coverage for the changed module, followed by:
 
 ```bash
-# Run all tests
-npm run test
-
-# Run tests in watch mode
-npm run test
-
-# Run tests with UI
-npm run test:ui
+npm run test:run
+npm run build
 ```
 
-## Security Features
-
-- HTML sanitization to prevent XSS attacks
-- Input validation with strict schemas
-- SQL injection prevention through parameterized queries
-- Content Security Policy compliance
-- Automatic data transformation and normalization
+Use `npm run verify:full` for changes that cross database, setup, auth, feature, or release boundaries.

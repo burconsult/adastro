@@ -14,6 +14,7 @@ Start here:
 9. `map.json` - machine-readable architecture map for AI tooling.
 
 Related:
+- `../README.md`
 - `../engineering/ai-collab-playbook.md`
 - `../engineering/local-testing.md`
 - `../release-gates.md`

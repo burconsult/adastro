@@ -14,6 +14,7 @@ All notable changes to AdAstro are documented in this file.
 - Scheduled publication now claims due posts with row locks, records the published state in version history, retries isolated failures up to three times, and safely tolerates missed or overlapping scheduler runs.
 - Upgraded the production runtime to Astro 7 with the matching Vercel, Netlify, and React adapters; the minimum supported runtime is now Node.js 22.12.
 - Isolated Vercel and Netlify builds by cleaning provider-generated output before bundling, preventing one adapter from recursively packaging the other adapter's stale function artifacts.
+- Consolidated the documentation index, replaced stale library and release notes with current source-oriented guidance, and removed redundant tracked inventories already preserved by Git history.
 
 ### Migration Notes
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
