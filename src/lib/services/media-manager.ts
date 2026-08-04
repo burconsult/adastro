@@ -413,8 +413,18 @@ export class MediaManager {
    */
   async deleteMediaAsset(id: string): Promise<void> {
     const bucketName = await this.getMediaBucketName();
-    // Get asset info first
-    const asset = await this.getMediaAsset(id);
+    // Deletion runs on trusted server surfaces. Load storage paths with the
+    // privileged client so public RLS does not block cleanup before it starts.
+    const { data: asset, error: lookupError } = await supabaseAdmin
+      .from('media_assets')
+      .select('storage_path, original_storage_path')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (lookupError) {
+      throw new Error(`Failed to load media asset: ${lookupError.message}`);
+    }
+
     if (!asset) {
       throw new Error('Media asset not found');
     }
@@ -422,16 +432,16 @@ export class MediaManager {
     // Delete from storage
     const { error: storageError } = await supabaseAdmin.storage
       .from(bucketName)
-      .remove([asset.storagePath]);
+      .remove([asset.storage_path]);
     
     if (storageError) {
       console.warn('Failed to delete from storage:', storageError);
     }
 
-    if (asset.originalStoragePath) {
+    if (asset.original_storage_path) {
       const { error: originalDeleteError } = await supabaseAdmin.storage
         .from(bucketName)
-        .remove([asset.originalStoragePath]);
+        .remove([asset.original_storage_path]);
 
       if (originalDeleteError) {
         console.warn('Failed to delete original media from storage:', originalDeleteError);

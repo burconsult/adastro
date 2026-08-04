@@ -18,6 +18,9 @@ All notable changes to AdAstro are documented in this file.
 - Isolated Vercel and Netlify builds by cleaning provider-generated output before bundling, preventing one adapter from recursively packaging the other adapter's stale function artifacts.
 - Consolidated the documentation index, replaced stale library and release notes with current source-oriented guidance, and removed redundant tracked inventories already preserved by Git history.
 
+### Fixed
+- Fixed admin media deletion by loading Storage paths through the server-only privileged client, preventing public RLS from blocking cleanup before optimized and original objects are removed.
+
 ### Migration Notes
 - Existing installs should apply `infra/supabase/migrations/008_content_versioning.sql` to create the private `post_versions` and `page_versions` history tables. Authenticated authors can read owned history, admins can perform retention cleanup, and version creation remains server-only.
 - Existing installs should then apply `infra/supabase/migrations/009_privileged_function_surface_hardening.sql` to remove the arbitrary privileged settings reader and tighten helper/trigger function execution.
