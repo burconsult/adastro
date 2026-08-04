@@ -4,6 +4,8 @@ All notable changes to AdAstro are documented in this file.
 
 ## Unreleased
 
+## 1.6.0 "Multiverse" - 2026-08-04
+
 ### Added
 - Added server-backed version history for posts and pages, including admin editor restore controls and schema-versioned snapshots for page-builder sections, taxonomy links, SEO metadata, and publish state.
 - Added service-role-only version allocator functions with per-content transaction locks so concurrent saves cannot receive the same version number.
@@ -27,6 +29,7 @@ All notable changes to AdAstro are documented in this file.
 - Replaced it in storage policies with fixed-key bucket helpers, changed JWT-only role checks to invoker rights, and revoked direct RPC execution from trigger functions.
 - Audit events exclude content bodies and sensitive values, are globally readable only by admins, and cannot be updated or directly deleted.
 - Updated Astro, Sharp, Nodemailer, the MCP SDK, and vulnerable transitive archive/parser dependencies; the production dependency audit reports zero known vulnerabilities.
+- Refreshed the release lockfile for patched `brace-expansion`, `fast-uri`, `hono`, `ip-address`, and `undici` transitive dependencies identified during the final release audit.
 
 ## 1.5.0 "Sunshine" - 2026-06-16
 
