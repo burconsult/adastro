@@ -5,7 +5,7 @@ This file tracks only the current release candidate. Completed release history b
 ## Current Candidate
 
 - Target: `v1.6.0`
-- Status: release candidate prepared; final hosted manual gates pending
+- Status: all release gates passed; ready to tag and publish
 - Release type: minor
 - Rationale: content version history, privileged-function hardening, reliable scheduled publishing, editorial audit trail, and the Astro 7 runtime refresh
 
@@ -21,11 +21,11 @@ This file tracks only the current release candidate. Completed release history b
 
 | Gate | Area | Status | Current evidence or remaining work |
 | --- | --- | --- | --- |
-| G1 | Setup/install flow | BLOCKED | The 2026-07-30 full replay passed; the fresh 2026-08-04 rerun is blocked by the local Docker daemon, and an isolated hosted setup is still required. |
+| G1 | Setup/install flow | PASS | A fresh local reset replayed the consolidated baseline and all applicable upgrade migrations through 011, loaded seed content, and passed database/default-content verification with Supabase CLI 2.110.0. |
 | G2 | Core schema and migrations | PASS | Production has migrations 008-011, private version tables, service-only RPC grants, and the one-minute scheduler job. |
 | G3 | Feature lifecycle | PASS | Full local feature lifecycle verification passed. |
 | G4 | Auth and security defaults | PASS | Auth, RLS, function ACL, and request-guard tests passed; runtime audit is clean. |
-| G5 | Media and storage | BLOCKED | Authenticated production upload and render passed, but delete exposed an anonymous-client RLS failure. The privileged lookup fix and regression coverage pass locally; deploy and repeat delete before tagging. |
+| G5 | Media and storage | PASS | Authenticated production upload, public render, and deletion passed after the privileged metadata-lookup fix deployed. |
 | G6 | Themes and accessibility | PASS | Theme contract and automated accessibility coverage passed. |
 | G7 | Default content and page model | PASS | Seed and default-content verification passed. |
 | G8 | Admin and editorial workflows | PASS | Production draft resaves created two versions and two audit events; the scheduler job is active and its minute worker is completing successfully. |
@@ -55,13 +55,13 @@ All gates must be `PASS` before tagging.
 - `npm run test:run` passed 121 files with 1 skipped; 828 tests passed with 19 skipped after adding media-delete regression coverage.
 - `npm run verify:netlify` and the Vercel production build both passed under Node.js 22.22.1.
 - `npm audit --omit=dev` reported zero known vulnerabilities after refreshing patched transitive dependencies.
-- The fresh local database replay could not complete because Docker Desktop's daemon failed after a metadata-store I/O error; the 2026-07-30 replay remains the latest successful local evidence.
-- Authenticated production media upload and render passed. Delete failed before any Storage request because the server-side cleanup path used the anonymous client for its metadata lookup; the release branch now uses the server-only privileged client and has a focused regression test pending hosted retest.
+- `npm run verify:full` passed from a fresh local database reset through the consolidated baseline and all applicable upgrade migrations through 011, seed/default-content verification, 828 tests, and the Vercel production bundle with Supabase CLI 2.110.0.
+- The Apple Silicon release run started the required local Postgres/Auth/REST/Storage/API services while excluding optional Studio, Mailpit, Edge Runtime, Logflare, and Vector images affected by upstream image entrypoint/architecture errors; those exclusions do not reduce CMS schema or setup coverage.
+- Authenticated production media upload, public render, and deletion all passed after the server-only privileged metadata lookup deployed.
+- `npm run verify:netlify`, architecture-map and release-hygiene checks, the dependency audit, and the nine-route hosted smoke suite all passed immediately before publication.
 
-## Open Release Conditions
+## Operator Follow-ups
 
-- Complete G1 against an isolated Supabase project or restore the local Docker daemon and rerun the full setup/migration path.
-- Complete G5 with an authenticated hosted media upload, rendered-image check, and cleanup.
 - Supabase currently warns that leaked-password protection is disabled; enable it in Auth settings when the project plan supports it.
 - Existing Supabase advisor warnings for fixed-key bucket helpers and `current_author_id()` are accepted only because those functions expose no secret-bearing generic lookup and are intentionally constrained by their callers and grants.
 
