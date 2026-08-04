@@ -580,39 +580,59 @@ describe('MediaManager', () => {
 
   describe('deleteMediaAsset', () => {
     it('should delete media asset and clean up storage', async () => {
-      // Mock getMediaAsset
-      const mockAsset: MediaAsset = {
-        id: '123',
-        filename: 'test-image.jpg',
-        url: 'https://example.com/test-image.jpg',
-        storagePath: 'uploads/test-image.jpg',
-        altText: 'Test image',
-        caption: undefined,
-        mimeType: 'image/jpeg',
-        fileSize: 1024,
-        dimensions: { width: 800, height: 600 },
-        createdAt: new Date()
-      };
-
-      vi.spyOn(mediaManager, 'getMediaAsset').mockResolvedValue(mockAsset);
-
-      const mockStorageFrom = vi.fn().mockReturnValue({
-        remove: vi.fn().mockResolvedValue({ error: null })
+      vi.spyOn(mediaManager as any, 'getMediaBucketName').mockResolvedValue('media');
+      const remove = vi.fn().mockResolvedValue({ error: null });
+      const maybeSingle = vi.fn().mockResolvedValue({
+        data: {
+          storage_path: 'uploads/test-image.jpg',
+          original_storage_path: 'originals/test-image.jpg'
+        },
+        error: null
       });
+      const lookupEq = vi.fn().mockReturnValue({ maybeSingle });
+      const select = vi.fn().mockReturnValue({ eq: lookupEq });
+      const deleteEq = vi.fn().mockResolvedValue({ error: null });
+      const deleteAsset = vi.fn().mockReturnValue({ eq: deleteEq });
 
-      const mockFrom = vi.fn().mockReturnValue({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null })
-        })
+      mockSupabaseAdmin.storage.from.mockReturnValue({ remove });
+      mockSupabaseAdmin.from.mockReturnValue({
+        select,
+        delete: deleteAsset
       });
-
-      mockSupabaseAdmin.storage.from.mockReturnValue(mockStorageFrom());
-      mockSupabaseAdmin.from.mockReturnValue(mockFrom());
 
       await mediaManager.deleteMediaAsset('123');
 
-      expect(mockStorageFrom().remove).toHaveBeenCalledWith(['uploads/test-image.jpg']);
-      expect(mockFrom().delete().eq).toHaveBeenCalledWith('id', '123');
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      expect(select).toHaveBeenCalledWith('storage_path, original_storage_path');
+      expect(lookupEq).toHaveBeenCalledWith('id', '123');
+      expect(remove).toHaveBeenNthCalledWith(1, ['uploads/test-image.jpg']);
+      expect(remove).toHaveBeenNthCalledWith(2, ['originals/test-image.jpg']);
+      expect(deleteEq).toHaveBeenCalledWith('id', '123');
+    });
+
+    it('should stop before storage cleanup when the privileged lookup fails', async () => {
+      vi.spyOn(mediaManager as any, 'getMediaBucketName').mockResolvedValue('media');
+      const remove = vi.fn();
+      const maybeSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'lookup denied' }
+      });
+      const lookupEq = vi.fn().mockReturnValue({ maybeSingle });
+      const select = vi.fn().mockReturnValue({ eq: lookupEq });
+      const deleteAsset = vi.fn();
+
+      mockSupabaseAdmin.storage.from.mockReturnValue({ remove });
+      mockSupabaseAdmin.from.mockReturnValue({
+        select,
+        delete: deleteAsset
+      });
+
+      await expect(mediaManager.deleteMediaAsset('123')).rejects.toThrow(
+        'Failed to load media asset: lookup denied'
+      );
+
+      expect(remove).not.toHaveBeenCalled();
+      expect(deleteAsset).not.toHaveBeenCalled();
     });
   });
 

@@ -25,13 +25,13 @@ This file tracks only the current release candidate. Completed release history b
 | G2 | Core schema and migrations | PASS | Production has migrations 008-011, private version tables, service-only RPC grants, and the one-minute scheduler job. |
 | G3 | Feature lifecycle | PASS | Full local feature lifecycle verification passed. |
 | G4 | Auth and security defaults | PASS | Auth, RLS, function ACL, and request-guard tests passed; runtime audit is clean. |
-| G5 | Media and storage | BLOCKED | Repeat the authenticated hosted upload/render/delete smoke test before tagging; no production media mutation was authorized in this run. |
+| G5 | Media and storage | BLOCKED | Authenticated production upload and render passed, but delete exposed an anonymous-client RLS failure. The privileged lookup fix and regression coverage pass locally; deploy and repeat delete before tagging. |
 | G6 | Themes and accessibility | PASS | Theme contract and automated accessibility coverage passed. |
 | G7 | Default content and page model | PASS | Seed and default-content verification passed. |
 | G8 | Admin and editorial workflows | PASS | Production draft resaves created two versions and two audit events; the scheduler job is active and its minute worker is completing successfully. |
 | G9 | SEO, routing, and canonical URLs | PASS | Automated route, sitemap, RSS, and metadata coverage passed. |
 | G10 | Hosted performance | PASS | Mobile Lighthouse on the current production build scored 96-99 performance and 100 accessibility/best-practices/SEO across home, index, and article routes. |
-| G11 | Automated validation and deployment parity | PASS | 827 tests, Netlify build, Vercel build, structural checks, dependency audit, and nine-route hosted smoke passed on 2026-08-04. |
+| G11 | Automated validation and deployment parity | PASS | 828 tests, Netlify build, Vercel build, structural checks, dependency audit, and nine-route hosted smoke passed on 2026-08-04. |
 | G12 | Release hygiene and documentation | PASS | Release hygiene passed; package, architecture map, changelog, and candidate metadata are prepared for `v1.6.0`. |
 
 All gates must be `PASS` before tagging.
@@ -52,10 +52,11 @@ All gates must be `PASS` before tagging.
 - Production hosted smoke passed nine checks covering setup lock, locale routing, public pages, admin auth redirect, feeds, sitemap, robots, security headers, and immutable assets.
 - Production content versioning recovered cleanly after migration 008: the test draft now has two versions and matching immutable audit events.
 - Supabase Cron is installed and completing the scheduled-post worker every minute without errors; privileged editorial RPCs remain service-role-only.
-- `npm run test:run` passed 121 files with 1 skipped; 827 tests passed with 19 skipped.
+- `npm run test:run` passed 121 files with 1 skipped; 828 tests passed with 19 skipped after adding media-delete regression coverage.
 - `npm run verify:netlify` and the Vercel production build both passed under Node.js 22.22.1.
 - `npm audit --omit=dev` reported zero known vulnerabilities after refreshing patched transitive dependencies.
 - The fresh local database replay could not complete because Docker Desktop's daemon failed after a metadata-store I/O error; the 2026-07-30 replay remains the latest successful local evidence.
+- Authenticated production media upload and render passed. Delete failed before any Storage request because the server-side cleanup path used the anonymous client for its metadata lookup; the release branch now uses the server-only privileged client and has a focused regression test pending hosted retest.
 
 ## Open Release Conditions
 
