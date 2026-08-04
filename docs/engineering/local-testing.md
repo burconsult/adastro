@@ -37,3 +37,23 @@ This workflow is optimized for rapid, repeatable verification with local Supabas
 6. In full mode, run default content and release hygiene verification before tests/build.
 
 This lets you keep one checked-in local `.env` baseline while local scripts use live local Supabase credentials automatically.
+
+## Docker and Apple Silicon troubleshooting
+
+Supabase CLI updates can pull newer local-service images than the versions already cached by Docker Desktop. If public ECR pulls hang with `error getting credentials` even though the registry is public, retry the command with an empty temporary Docker configuration instead of editing `~/.docker/config.json`:
+
+```bash
+task_docker_config=$(mktemp -d)
+trap 'rmdir "$task_docker_config" 2>/dev/null || true' EXIT
+DOCKER_CONFIG="$task_docker_config" supabase start --workdir infra
+```
+
+If an optional service then fails on Apple Silicon with `exec format error` or `sh: executable file not found`, the core CMS verification can run without the local UI, email viewer, telemetry, Edge Runtime, or Vector services:
+
+```bash
+supabase start --workdir infra \
+  --exclude vector,logflare,edge-runtime,studio,mailpit
+npm run verify:full
+```
+
+This reduced local stack still includes Postgres, Auth, REST, Storage, and the API gateway. Do not use the exclusions when testing Studio, local email delivery, Edge Functions, Logflare, or Vector behavior.
